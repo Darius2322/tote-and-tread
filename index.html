@@ -3650,8 +3650,8 @@
                     <!-- Login Form -->
                     <form class="auth-form active" id="loginForm">
                         <div class="form-group">
-                            <label>Email Address</label>
-                            <input type="email" class="form-control" id="loginEmail" required>
+                            <label>Email or Phone Number</label>
+                            <input type="text" class="form-control" id="loginIdentifier" required placeholder="Email or phone number">
                         </div>
                         
                         <div class="form-group">
@@ -4250,6 +4250,7 @@
         let notifications = [];
         let orders = [];
         let users = {}; // Store multiple users data
+        let passwordResetTokens = {}; // Store password reset tokens
         let currentUser = null;
         let currentFilters = {
             category: 'all',
@@ -4302,6 +4303,7 @@
             const savedUsers = localStorage.getItem('toteandtreadUsers');
             const savedCurrentUser = localStorage.getItem('toteandtreadCurrentUser');
             const savedFilters = localStorage.getItem('toteandtreadFilters');
+            const savedPasswordResetTokens = localStorage.getItem('toteandtreadPasswordResetTokens');
             
             if (savedUsers) users = JSON.parse(savedUsers);
             if (savedCurrentUser) {
@@ -4318,6 +4320,9 @@
                 document.getElementById('sortFilter').value = currentFilters.sort;
                 if (currentFilters.minPrice) document.getElementById('minPrice').value = currentFilters.minPrice;
                 if (currentFilters.maxPrice) document.getElementById('maxPrice').value = currentFilters.maxPrice;
+            }
+            if (savedPasswordResetTokens) {
+                passwordResetTokens = JSON.parse(savedPasswordResetTokens);
             }
             
             // Update form values if user is logged in
@@ -4345,12 +4350,16 @@
                 
                 // Save to users object
                 users[currentUser.email] = currentUser;
+                if (currentUser.phone) {
+                    users[currentUser.phone] = currentUser;
+                }
                 
                 localStorage.setItem('toteandtreadUsers', JSON.stringify(users));
                 localStorage.setItem('toteandtreadCurrentUser', JSON.stringify(currentUser));
             }
             
             localStorage.setItem('toteandtreadFilters', JSON.stringify(currentFilters));
+            localStorage.setItem('toteandtreadPasswordResetTokens', JSON.stringify(passwordResetTokens));
         }
 
         // Format KES currency
@@ -4667,15 +4676,38 @@
             }
         }
 
-        // Login function - CHECK USER EXISTS
-        function login(email, password) {
-            // Check if user exists
-            if (!users[email]) {
-                addNotification('User does not exist. Please create an account.', 'error');
-                return false;
+        // Find user by email or phone
+        function findUser(identifier) {
+            // Try to find by email
+            let user = users[identifier];
+            
+            // If not found by email, try by phone
+            if (!user && identifier.includes('@')) {
+                // Already tried email, check if identifier might be phone
+                const phoneMatch = Object.values(users).find(u => u.phone === identifier);
+                if (phoneMatch) user = phoneMatch;
+            } else if (!user) {
+                // Try by phone number
+                user = users[identifier];
+                // Also check all users for matching phone
+                if (!user) {
+                    const phoneMatch = Object.values(users).find(u => u.phone === identifier);
+                    if (phoneMatch) user = phoneMatch;
+                }
             }
             
-            const user = users[email];
+            return user;
+        }
+
+        // Login function - USING EMAIL OR PHONE
+        function login(identifier, password) {
+            // Find user by email or phone
+            const user = findUser(identifier);
+            
+            if (!user) {
+                addNotification('User not found. Please create an account.', 'error');
+                return false;
+            }
             
             // Check password
             if (user.password !== password) {
@@ -4704,9 +4736,17 @@
 
         // Signup function - CREATE NEW USER
         function signup(name, email, phone, password) {
-            // Check if user already exists
+            // Check if user already exists by email
             if (users[email]) {
-                addNotification('User already exists. Please login instead.', 'error');
+                addNotification('User with this email already exists. Please login instead.', 'error');
+                switchAuthTab('login');
+                return false;
+            }
+            
+            // Check if user already exists by phone
+            const phoneExists = Object.values(users).some(u => u.phone === phone);
+            if (phoneExists) {
+                addNotification('User with this phone number already exists. Please login instead.', 'error');
                 switchAuthTab('login');
                 return false;
             }
@@ -4728,8 +4768,9 @@
                 orders: []
             };
             
-            // Save user to users object
+            // Save user to users object with both email and phone as keys
             users[email] = currentUser;
+            users[phone] = currentUser; // Also allow login by phone
             
             // Initialize empty arrays for new user
             cart = {};
@@ -4779,13 +4820,199 @@
             addNotification('Continuing as guest', 'info');
         }
 
-        // Forgot password
+        // Forgot password - GENERATE RESET LINK
         function forgotPassword() {
-            const email = prompt('Please enter your email address to reset password:');
-            if (email) {
-                addNotification('Password reset instructions sent to ' + email, 'info');
+            const identifier = prompt('Please enter your email or phone number to reset password:');
+            if (!identifier) return;
+            
+            // Find user by email or phone
+            const user = findUser(identifier);
+            
+            if (!user) {
+                addNotification('No account found with that email or phone number.', 'error');
+                return;
+            }
+            
+            // Generate unique reset token
+            const resetToken = generateResetToken();
+            const resetLink = `${window.location.origin}${window.location.pathname}?resetToken=${resetToken}`;
+            
+            // Store token with user identifier and expiry (1 hour)
+            passwordResetTokens[resetToken] = {
+                identifier: identifier,
+                expires: Date.now() + 3600000 // 1 hour
+            };
+            saveToLocalStorage();
+            
+            // Show reset link to user
+            const message = `Password reset link: ${resetLink}\n\nThis link will expire in 1 hour.`;
+            
+            if (confirm(`Copy this reset link to your clipboard?\n\n${message}`)) {
+                navigator.clipboard.writeText(resetLink)
+                    .then(() => {
+                        addNotification('Reset link copied to clipboard!', 'success');
+                        setTimeout(() => {
+                            openPasswordResetModal(resetToken);
+                        }, 1000);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy link:', err);
+                        addNotification('Failed to copy link. Please manually copy it.', 'error');
+                        openPasswordResetModal(resetToken);
+                    });
+            } else {
+                openPasswordResetModal(resetToken);
             }
         }
+
+        // Generate reset token
+        function generateResetToken() {
+            return 'token_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        }
+
+        // Open password reset modal
+        function openPasswordResetModal(resetToken) {
+            const modal = document.createElement('div');
+            modal.className = 'account-modal active';
+            modal.style.display = 'flex';
+            modal.innerHTML = `
+                <div class="account-content" style="max-width: min(500px, 90vw); position: relative;">
+                    <button class="account-close-btn" onclick="this.closest('.account-modal').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <div class="account-header">
+                        <h2>Reset Your Password</h2>
+                    </div>
+                    <div style="padding: 30px;">
+                        <div style="margin-bottom: 20px;">
+                            <p>Please enter your new password below.</p>
+                        </div>
+                        
+                        <form id="resetPasswordForm">
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <div class="relative">
+                                    <input type="password" class="form-control" id="resetNewPassword" required>
+                                    <button type="button" class="password-toggle" onclick="togglePassword('resetNewPassword')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <small style="color: #666; margin-top: 5px; display: block;">Password must be at least 8 characters</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Confirm New Password</label>
+                                <div class="relative">
+                                    <input type="password" class="form-control" id="resetConfirmPassword" required>
+                                    <button type="button" class="password-toggle" onclick="togglePassword('resetConfirmPassword')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <input type="hidden" id="resetToken" value="${resetToken}">
+                            
+                            <div style="display: flex; gap: 10px; margin-top: 30px; flex-wrap: wrap;">
+                                <button type="submit" class="btn-primary">Reset Password</button>
+                                <button type="button" class="btn-outline" onclick="this.closest('.account-modal').remove()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Handle form submission
+            modal.querySelector('#resetPasswordForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const newPassword = document.getElementById('resetNewPassword').value;
+                const confirmPassword = document.getElementById('resetConfirmPassword').value;
+                const token = document.getElementById('resetToken').value;
+                
+                resetPassword(token, newPassword, confirmPassword);
+                modal.remove();
+            });
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+        }
+
+        // Reset password with token
+        function resetPassword(token, newPassword, confirmPassword) {
+            // Validate token
+            const tokenData = passwordResetTokens[token];
+            
+            if (!tokenData) {
+                addNotification('Invalid or expired reset token.', 'error');
+                return false;
+            }
+            
+            if (Date.now() > tokenData.expires) {
+                delete passwordResetTokens[token];
+                saveToLocalStorage();
+                addNotification('Reset token has expired. Please request a new one.', 'error');
+                return false;
+            }
+            
+            // Find user by identifier
+            const user = findUser(tokenData.identifier);
+            
+            if (!user) {
+                addNotification('User not found.', 'error');
+                return false;
+            }
+            
+            // Validate passwords
+            if (newPassword !== confirmPassword) {
+                addNotification('Passwords do not match.', 'error');
+                return false;
+            }
+            
+            if (newPassword.length < 8) {
+                addNotification('Password must be at least 8 characters long.', 'error');
+                return false;
+            }
+            
+            // Update password
+            user.password = newPassword;
+            
+            // Update in users object for both email and phone keys
+            users[user.email] = user;
+            if (user.phone) {
+                users[user.phone] = user;
+            }
+            
+            // Clear token
+            delete passwordResetTokens[token];
+            
+            saveToLocalStorage();
+            addNotification('Password reset successful! You can now login with your new password.', 'success');
+            
+            // Switch to login tab
+            switchAuthTab('login');
+            return true;
+        }
+
+        // Check for reset token in URL
+        function checkForResetToken() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const resetToken = urlParams.get('resetToken');
+            
+            if (resetToken) {
+                // Remove token from URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                // Open reset modal
+                setTimeout(() => {
+                    openPasswordResetModal(resetToken);
+                }, 500);
+            }
+        }
+
+        // Call this on page load
+        checkForResetToken();
 
         // Edit profile
         function editProfile() {
@@ -6973,12 +7200,12 @@
                 }
             });
 
-            // Login form
+            // Login form - UPDATED
             document.getElementById('loginForm').addEventListener('submit', (e) => {
                 e.preventDefault();
-                const email = document.getElementById('loginEmail').value;
+                const identifier = document.getElementById('loginIdentifier').value;
                 const password = document.getElementById('loginPassword').value;
-                login(email, password);
+                login(identifier, password);
             });
 
             // Signup form
