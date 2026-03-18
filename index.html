@@ -1205,28 +1205,56 @@ function swGoStep(n){
   });
 }
 async function swTestConnection(){
-  const url=document.getElementById('sw-url')?.value?.trim();
+  const url=document.getElementById('sw-url')?.value?.trim().replace(/\/+$/,''); // strip trailing slash
   const key=document.getElementById('sw-key')?.value?.trim();
   const err=document.getElementById('sw-err1');
   const ok=document.getElementById('sw-ok1');
   const btn=document.getElementById('sw-btn1-inner');
   err.style.display='none'; ok.style.display='none';
-  if(!url||!url.startsWith('https://')){err.textContent='Please enter a valid Supabase URL starting with https://';err.style.display='';return;}
-  if(!key||key.length<20){err.textContent='Please enter your Supabase anon/public key.';err.style.display='';return;}
+
+  if(!url){err.textContent='Please enter your Supabase Project URL.';err.style.display='';return;}
+  if(!url.startsWith('https://')){err.textContent='URL must start with https:// — copy it exactly from Supabase → Settings → API';err.style.display='';return;}
+  if(!url.includes('supabase.co')&&!url.includes('supabase.in')){err.textContent='This doesn\'t look like a Supabase URL. It should contain "supabase.co"';err.style.display='';return;}
+  if(!key){err.textContent='Please enter your anon/public key.';err.style.display='';return;}
+  if(key.length<20){err.textContent='That key looks too short. Copy the full anon/public key from Supabase → Settings → API';err.style.display='';return;}
+  if(key.startsWith('service_role')||key.includes('service')){err.textContent='⚠ Never use the service_role key here — paste the anon/public key instead.';err.style.display='';return;}
+
   btn.innerHTML='<span class="spin"></span> Testing connection…';
   document.getElementById('sw-btn1').disabled=true;
+
   try{
-    const res=await fetch(`${url}/rest/v1/`, {headers:{'apikey':key,'Authorization':'Bearer '+key}});
-    if(res.status===200||res.status===404||res.status===400){
-      // Any response from Supabase means credentials are valid
+    const res=await fetch(`${url}/rest/v1/`, {
+      method:'GET',
+      headers:{'apikey':key,'Authorization':'Bearer '+key,'Content-Type':'application/json'}
+    });
+    // Any HTTP response from Supabase = server reached = URL is correct
+    // 200 = ok, 400 = bad request, 401 = invalid key, 404 = not found — all mean Supabase answered
+    if(res.status===200||res.status===400||res.status===401||res.status===403||res.status===404||res.status===406){
+      if(res.status===401||res.status===403){
+        // URL is correct but key might be wrong — save anyway and warn
+        err.textContent='⚠ Supabase server reached, but the key may be incorrect. Double-check you copied the anon/public key. Continuing anyway...';
+        err.style.display='';
+        err.style.borderLeftColor='#E09020';
+        err.style.color='#E09020';
+      } else {
+        ok.textContent='✓ Connection successful! Supabase is reachable.'; ok.style.display='';
+      }
       localStorage.setItem('_sw_url',url); localStorage.setItem('_sw_key',key);
-      ok.textContent='✓ Connection successful!'; ok.style.display='';
-      setTimeout(()=>swGoStep(2),600);
+      setTimeout(()=>swGoStep(2), res.status===401||res.status===403 ? 2000 : 700);
     } else {
-      err.textContent='Connection failed (status '+res.status+'). Check your URL and key.';err.style.display='';
+      err.textContent=`Server returned status ${res.status}. Check your Project URL and try again.`;err.style.display='';
     }
   }catch(e){
-    err.textContent='Could not reach Supabase. Check the URL and your internet connection.';err.style.display='';
+    const isFile = location.protocol==='file:';
+    if(isFile){
+      // File:// can't always fetch — skip test and trust the values
+      ok.textContent='⚠ Running locally — skipping live test. Saving and continuing.'; ok.style.display='';
+      localStorage.setItem('_sw_url',url); localStorage.setItem('_sw_key',key);
+      setTimeout(()=>swGoStep(2),800);
+    } else {
+      err.innerHTML='Could not reach Supabase.<br>• Check your internet connection<br>• Make sure the URL is correct<br>• Try copying the URL again from Supabase → Settings → API';
+      err.style.display='';
+    }
   }
   btn.innerHTML='<i class="fas fa-plug"></i> Test &amp; Continue';
   document.getElementById('sw-btn1').disabled=false;
