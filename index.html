@@ -1096,7 +1096,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
           &nbsp;·&nbsp;
           <button onclick="openSub('contact')" style="font-size:.55rem;color:var(--t3);background:none;border:none;cursor:pointer;text-decoration:underline">Contact Us</button>
         </div>
-        <span id="admin-trigger" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:transparent;cursor:default;margin-top:12px" aria-hidden="true"></span>
+        <span id="admin-trigger" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--gold);cursor:default;margin-top:12px" aria-hidden="true"></span>
       </footer>
     </div>
 
@@ -1749,7 +1749,7 @@ async function init() {
       user = session?.user || null;
       if (user) {
         // Fetch role in background — don't block products
-        fetchRole().then(() => { updBadges(); renderAcc(); });
+        fetchRole().then(() => { updBadges(); renderAcc(); if(userRole==='admin') renderAcc(); });
       }
       updBadges();
       renderAcc();
@@ -1801,7 +1801,7 @@ async function init() {
   document.getElementById('admin-trigger')?.addEventListener('click', () => {
     taps++; clearTimeout(tapTimer);
     tapTimer = setTimeout(() => taps = 0, 2000);
-    if (taps >= 7) { taps = 0; if (userRole === 'admin') openAdmin(); else toast('Admin access required', 'er'); }
+    if (taps >= 3) { taps = 0; if (userRole === 'admin') openAdmin(); else toast('Admin access required', 'er'); }
   });
 }
 
@@ -2215,6 +2215,7 @@ async function fetchRole() {
         .eq('id', user.id)
         .catch(() => {});
       toast('Welcome back, Admin 🛡', 'ok');
+      renderAcc();
       return;
     }
 
