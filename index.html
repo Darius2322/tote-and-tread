@@ -240,27 +240,7 @@ button,input,textarea,select{font-family:var(--fb)}
 .popup-acts{padding:0 16px 16px;display:flex;gap:8px;justify-content:flex-end}
 .popup-acts .btn{min-width:80px}
 
-/* SETUP WIZARD */
-#setup{position:fixed;inset:0;z-index:10000;background:#050505;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;overflow-y:auto}
-#setup.gone{display:none}
-.setup-box{width:100%;max-width:420px;background:#111;border:1px solid rgba(201,168,76,.22);border-radius:24px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.85)}
-.setup-hero{background:linear-gradient(135deg,#0A0A0A,#1A1400);padding:28px 24px 20px;text-align:center;border-bottom:1px solid rgba(201,168,76,.14)}
-.setup-steps{display:flex;justify-content:center;gap:6px;margin-bottom:20px}
-.ss{width:28px;height:4px;border-radius:2px;background:rgba(201,168,76,.2);transition:background .3s}
-.ss.on{background:var(--gold)}
-.setup-body{padding:22px 22px 26px}
-.setup-step{display:none}.setup-step.on{display:block;animation:scrIn .22s var(--ease)}
-.setup-logo{width:64px;height:64px;background:#181408;border:1.5px solid rgba(201,168,76,.35);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
-.setup-ttl{font-family:var(--fd);font-size:1.5rem;color:var(--gold);margin-bottom:5px}
-.setup-sub{font-size:.74rem;color:var(--t3);line-height:1.65}
-.setup-note{font-size:.7rem;color:var(--t3);background:rgba(201,168,76,.05);border:1px solid rgba(201,168,76,.12);border-radius:8px;padding:10px 13px;margin:12px 0;line-height:1.6}
-.setup-note strong{color:var(--gold)}
-.setup-btn{width:100%;padding:12px;background:var(--gold);color:#000;border:none;border-radius:var(--r);font-size:.76rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px}
-.setup-btn:hover{background:var(--gold-l)}.setup-btn:disabled{opacity:.4;cursor:not-allowed}
-.setup-back{background:none;border:none;color:var(--t3);cursor:pointer;font-size:.74rem;margin-top:10px;width:100%;text-align:center;padding:6px}
-.setup-back:hover{color:var(--gold)}
-.setup-err{font-size:.72rem;color:var(--red);margin-top:8px;display:none;padding:9px 12px;background:rgba(224,80,80,.07);border:1px solid rgba(224,80,80,.18);border-radius:6px}
-.setup-ok{font-size:.72rem;color:var(--green);margin-top:8px;display:none;padding:9px 12px;background:rgba(50,180,100,.07);border:1px solid rgba(50,180,100,.18);border-radius:6px}
+
 
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 22px;font-family:var(--fb);font-size:.72rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;border:none;border-radius:var(--r);cursor:pointer;transition:all .2s var(--ease);white-space:nowrap;-webkit-tap-highlight-color:transparent}
@@ -457,13 +437,12 @@ button,input,textarea,select{font-family:var(--fb)}
 .login-method-tabs{display:flex;gap:0;background:var(--bg4);border:1px solid var(--bd);border-radius:var(--r);padding:3px;margin-bottom:14px}
 .lmtab{flex:1;padding:7px;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;background:transparent;border:none;color:var(--t3);cursor:pointer;border-radius:6px;transition:all .2s;font-family:var(--fb)}
 .lmtab.on{background:var(--bg3);color:var(--gold);border:1px solid var(--bd)}
-.btn-google{background:#fff;color:#3c4043;border:1px solid #dadce0;font-family:var(--fb);display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:11px;border-radius:var(--r);font-size:.78rem;cursor:pointer;transition:all .2s;margin-bottom:12px}
-.btn-google:hover{background:#f8f9fa;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.btn-google svg{width:18px;height:18px;flex-shrink:0}
+
 .or-divider{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--bd)}
 .or-divider span{font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)}
 .prof-card{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:22px;text-align:center;margin-bottom:14px}
+.prof-stat-num{font-family:var(--fd);font-size:1.3rem;color:var(--gold);display:block;line-height:1}
 .prof-avatar{width:58px;height:58px;background:var(--gold-a8);border:1.5px solid var(--gold-a45);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--gold);margin:0 auto 10px}
 .prof-name{font-family:var(--fd);font-size:1.2rem;color:var(--t1);margin-bottom:2px}
 .prof-email{font-size:.68rem;color:var(--t3);letter-spacing:.04em}
@@ -696,6 +675,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
         <span class="tact-badge hidden" id="notif-badge">0</span>
       </button>
       <button class="tact" onclick="toggleTheme()" title="Toggle theme"><i id="theme-ic" class="fas fa-sun"></i></button>
+      <button class="tact" id="topbar-install" onclick="pwaInstall()" title="Install app" style="display:none;color:var(--gold)"><i class="fas fa-download"></i></button>
       <button class="tact" onclick="openCart()" title="Shopping bag">
         <i class="fas fa-shopping-bag"></i>
         <span class="tact-badge hidden" id="cart-badge">0</span>
@@ -1031,83 +1011,6 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 <div id="edit-user-modal" class="modal"><div class="sheet-pull"></div><div class="sheet-hdr"><span class="sheet-title">Edit User</span><button class="sheet-cls" onclick="closeEditUser()"><i class="fas fa-times"></i></button></div><div class="modal-body" id="edit-user-body"></div></div>
 <div id="recovery-modal" class="modal"><div class="sheet-pull"></div><div class="sheet-hdr"><span class="sheet-title">Recovery Code</span><button class="sheet-cls" onclick="closeRecovery()"><i class="fas fa-times"></i></button></div><div class="modal-body" id="recovery-body"></div></div>
 
-<!-- SETUP WIZARD (shown when config is not set) -->
-<div id="setup" class="gone">
-  <div class="setup-box">
-    <div class="setup-hero">
-      <div class="setup-logo">
-        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-          <path d="M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
-          <path d="M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-          <line x1="11" y1="18" x2="25" y2="18" stroke="#C9A84C" stroke-width="1.2" opacity=".7"/>
-          <line x1="11" y1="22" x2="21" y2="22" stroke="#C9A84C" stroke-width="1.2" opacity=".7"/>
-          <circle cx="18" cy="14.5" r="1.8" fill="#C9A84C"/>
-        </svg>
-      </div>
-      <div class="setup-ttl">Tote &amp; Tread</div>
-      <div class="setup-sub">First-time setup — takes about 2 minutes</div>
-      <div class="setup-steps" style="margin-top:16px;margin-bottom:0">
-        <div class="ss on" id="sw-s1"></div>
-        <div class="ss" id="sw-s2"></div>
-        <div class="ss" id="sw-s3"></div>
-      </div>
-    </div>
-    <div class="setup-body">
-
-      <!-- STEP 1: Supabase -->
-      <div class="setup-step on" id="sw-step1">
-        <div style="font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:10px">Step 1 of 3 · Database</div>
-        <h3 style="font-family:var(--fd);font-size:1.25rem;margin-bottom:6px;color:var(--t1)">Connect your database</h3>
-        <p style="font-size:.78rem;color:var(--t3);margin-bottom:14px;line-height:1.65">Go to <strong style="color:var(--gold)">supabase.com</strong> → your project → Settings → API</p>
-        <div class="fg"><label class="flbl">Supabase Project URL *</label>
-          <input type="url" class="fi" id="sw-url" placeholder="https://xxxx.supabase.co" autocomplete="off" spellcheck="false">
-        </div>
-        <div class="fg"><label class="flbl">Supabase Anon / Public Key *</label>
-          <input type="text" class="fi" id="sw-key" placeholder="eyJhbGci…" autocomplete="off" spellcheck="false" style="font-size:.72rem">
-        </div>
-        <div class="setup-note">Use the <strong>anon/public</strong> key only — never the service_role key.<br>Your data is protected by Row Level Security (RLS).</div>
-        <div class="setup-err" id="sw-err1"></div>
-        <div class="setup-ok" id="sw-ok1"></div>
-        <button class="setup-btn" id="sw-btn1" onclick="swTestConnection()">
-          <span id="sw-btn1-inner"><i class="fas fa-plug"></i> Test &amp; Continue</span>
-        </button>
-      </div>
-
-      <!-- STEP 2: WhatsApp + Site -->
-      <div class="setup-step" id="sw-step2">
-        <div style="font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:10px">Step 2 of 3 · Contact</div>
-        <h3 style="font-family:var(--fd);font-size:1.25rem;margin-bottom:6px;color:var(--t1)">WhatsApp &amp; Site URL</h3>
-        <p style="font-size:.78rem;color:var(--t3);margin-bottom:14px;line-height:1.65">Orders are sent via WhatsApp. Your site URL is used for sharing.</p>
-        <div class="fg"><label class="flbl">WhatsApp Number (with country code, no +)</label>
-          <div class="phone-wrap"><span class="phone-prefix" style="min-width:64px">254</span>
-            <input type="tel" class="fi" id="sw-wa" placeholder="107545752" maxlength="15" style="border-radius:0 var(--r) var(--r) 0">
-          </div>
-        </div>
-        <div class="fg"><label class="flbl">Your App / Website URL</label>
-          <input type="url" class="fi" id="sw-site" placeholder="https://toteandtread.netlify.app">
-          <div class="fhint">Where you will host this file. Used for share links.</div>
-        </div>
-        <button class="setup-btn" onclick="swStep2Save()"><i class="fas fa-arrow-right"></i> Continue</button>
-        <button class="setup-back" onclick="swGoStep(1)">← Back</button>
-      </div>
-
-      <!-- STEP 3: Done -->
-      <div class="setup-step" id="sw-step3">
-        <div style="text-align:center;padding:16px 0 10px">
-          <div style="width:64px;height:64px;background:rgba(50,180,100,.1);border:1.5px solid rgba(50,180,100,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:var(--green);margin:0 auto 14px">
-            <i class="fas fa-check"></i>
-          </div>
-          <h3 style="font-family:var(--fd);font-size:1.35rem;margin-bottom:8px;color:var(--t1)">You're all set!</h3>
-          <p style="font-size:.78rem;color:var(--t3);line-height:1.7;margin-bottom:6px">Configuration saved. Now run the database schema if you haven't yet, then launch the app.</p>
-          <p style="font-size:.72rem;color:var(--t3);line-height:1.65">You can update these settings anytime from <strong style="color:var(--gold)">Admin → Settings → App Config</strong>.</p>
-        </div>
-        <button class="setup-btn" style="background:var(--green)" onclick="swFinish()"><i class="fas fa-rocket"></i> Launch App</button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
 <!-- POPUP ALERT -->
 <div id="popup-overlay" onclick="if(event.target===this)closePopup()">
   <div class="popup-box">
@@ -1123,27 +1026,14 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 /* ════════════════════════════════════════════════════════
    == CONFIG ==  ← change these values
 ═══════════════════════════════════════════════════════ */
-// ── Runtime config (set by setup wizard, saved in localStorage) ──
-// To hard-code instead, replace the values in the _DEFAULTS object below.
-const _DEFAULTS = {
-  u: '',           // Supabase Project URL  e.g. https://xxxx.supabase.co
-  k: '',           // Supabase anon key
-  w: '254107545752', // WhatsApp number (no +)
-  s: window.location.origin // Your site URL
-};
-const _C = (()=>{ try{ const raw=localStorage.getItem('tt_cfg'); return raw?JSON.parse(atob(raw)):{};} catch{return{};} })();
-const SB_URL  = _C.u || _DEFAULTS.u;
-const SB_KEY  = _C.k || _DEFAULTS.k;
-const WA_NUM  = _C.w || _DEFAULTS.w;
-const SITE    = _C.s || _DEFAULTS.s;
-const LOW_STK = 5;
-function _isConfigured(){ return SB_URL && SB_URL.startsWith('https://') && SB_KEY && SB_KEY.length > 20; }
-function _saveConfig(u,k,w,s){
-  try{
-    const payload = { u: u.trim(), k: k.trim(), w: w.replace(/\D/g,''), s: s.trim()||window.location.origin };
-    localStorage.setItem('tt_cfg', btoa(JSON.stringify(payload)));
-  } catch(e){ console.error('Config save failed',e); }
-}
+// ═══════════════════════════════════════════════════════════════
+//  == CONFIG ==  Edit ONLY these 4 lines, then save the file
+// ═══════════════════════════════════════════════════════════════
+const SB_URL  = 'https://edxdjrdzzzkxwxketezu.supabase.co';        // e.g. https://xxxx.supabase.co
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkeGRqcmR6enpreHd4a2V0ZXp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzMzMzUsImV4cCI6MjA4OTQ0OTMzNX0.5QKlSamxcffgfLo_ZgcWlrHOWCS8BGgI5urw9AJNEjM';   // anon/public key from Supabase → Settings → API
+const WA_NUM  = '254107545752';              // WhatsApp number, no + sign
+const SITE    = window.location.origin;      // auto-detects your deployed URL
+const LOW_STK = 5;                           // low stock warning threshold
 
 /* ════════ SECURITY HELPERS ════════ */
 function esc(s) {
@@ -1196,85 +1086,25 @@ const GAL_DATA = [
 ];
 
 /* ════════ INIT ════════ */
-/* ════════ SETUP WIZARD ════════ */
-function swShowSetup(){ document.getElementById('setup').classList.remove('gone'); const s=document.getElementById('splash');if(s)s.classList.add('gone'); }
-function swGoStep(n){
-  [1,2,3].forEach(i=>{
-    document.getElementById('sw-step'+i)?.classList.toggle('on',i===n);
-    document.getElementById('sw-s'+i)?.classList.toggle('on',i<=n);
-  });
-}
-async function swTestConnection(){
-  const url=document.getElementById('sw-url')?.value?.trim().replace(/\/+$/,''); // strip trailing slash
-  const key=document.getElementById('sw-key')?.value?.trim();
-  const err=document.getElementById('sw-err1');
-  const ok=document.getElementById('sw-ok1');
-  const btn=document.getElementById('sw-btn1-inner');
-  err.style.display='none'; ok.style.display='none';
-
-  if(!url){err.textContent='Please enter your Supabase Project URL.';err.style.display='';return;}
-  if(!url.startsWith('https://')){err.textContent='URL must start with https:// — copy it exactly from Supabase → Settings → API';err.style.display='';return;}
-  if(!url.includes('supabase.co')&&!url.includes('supabase.in')){err.textContent='This doesn\'t look like a Supabase URL. It should contain "supabase.co"';err.style.display='';return;}
-  if(!key){err.textContent='Please enter your anon/public key.';err.style.display='';return;}
-  if(key.length<20){err.textContent='That key looks too short. Copy the full anon/public key from Supabase → Settings → API';err.style.display='';return;}
-  if(key.startsWith('service_role')||key.includes('service')){err.textContent='⚠ Never use the service_role key here — paste the anon/public key instead.';err.style.display='';return;}
-
-  btn.innerHTML='<span class="spin"></span> Testing connection…';
-  document.getElementById('sw-btn1').disabled=true;
-
-  try{
-    const res=await fetch(`${url}/rest/v1/`, {
-      method:'GET',
-      headers:{'apikey':key,'Authorization':'Bearer '+key,'Content-Type':'application/json'}
-    });
-    // Any HTTP response from Supabase = server reached = URL is correct
-    // 200 = ok, 400 = bad request, 401 = invalid key, 404 = not found — all mean Supabase answered
-    if(res.status===200||res.status===400||res.status===401||res.status===403||res.status===404||res.status===406){
-      if(res.status===401||res.status===403){
-        // URL is correct but key might be wrong — save anyway and warn
-        err.textContent='⚠ Supabase server reached, but the key may be incorrect. Double-check you copied the anon/public key. Continuing anyway...';
-        err.style.display='';
-        err.style.borderLeftColor='#E09020';
-        err.style.color='#E09020';
-      } else {
-        ok.textContent='✓ Connection successful! Supabase is reachable.'; ok.style.display='';
-      }
-      localStorage.setItem('_sw_url',url); localStorage.setItem('_sw_key',key);
-      setTimeout(()=>swGoStep(2), res.status===401||res.status===403 ? 2000 : 700);
-    } else {
-      err.textContent=`Server returned status ${res.status}. Check your Project URL and try again.`;err.style.display='';
-    }
-  }catch(e){
-    const isFile = location.protocol==='file:';
-    if(isFile){
-      // File:// can't always fetch — skip test and trust the values
-      ok.textContent='⚠ Running locally — skipping live test. Saving and continuing.'; ok.style.display='';
-      localStorage.setItem('_sw_url',url); localStorage.setItem('_sw_key',key);
-      setTimeout(()=>swGoStep(2),800);
-    } else {
-      err.innerHTML='Could not reach Supabase.<br>• Check your internet connection<br>• Make sure the URL is correct<br>• Try copying the URL again from Supabase → Settings → API';
-      err.style.display='';
-    }
-  }
-  btn.innerHTML='<i class="fas fa-plug"></i> Test &amp; Continue';
-  document.getElementById('sw-btn1').disabled=false;
-}
-function swStep2Save(){
-  const wa=document.getElementById('sw-wa')?.value?.trim()||'';
-  const site=document.getElementById('sw-site')?.value?.trim()||window.location.origin;
-  const url=localStorage.getItem('_sw_url')||'';
-  const key=localStorage.getItem('_sw_key')||'';
-  _saveConfig(url,key,'254'+wa.replace(/\D/g,''),site);
-  localStorage.removeItem('_sw_url'); localStorage.removeItem('_sw_key');
-  swGoStep(3);
-}
-function swFinish(){ document.getElementById('setup').classList.add('gone'); location.reload(); }
-
 async function init() {
-  // Show setup wizard if not configured
-  if(!_isConfigured()){
-    swShowSetup();
-    return;
+  // Handle Supabase email verification / password reset callback
+  const hash = window.location.hash;
+  const params = new URLSearchParams(window.location.search);
+  if (hash.includes('access_token') || hash.includes('error') || params.get('code')) {
+    // Supabase will auto-exchange the token via onAuthStateChange
+    // Clear the URL so it doesn't look broken to the user
+    history.replaceState(null, '', window.location.pathname);
+  }
+  if (hash.includes('error_description')) {
+    const errDesc = decodeURIComponent(hash.split('error_description=')[1]||'').replace(/\+/g,' ').split('&')[0];
+    // Show friendly message instead of scary error URL
+    setTimeout(() => {
+      if (errDesc.toLowerCase().includes('expired')) {
+        popupErr('Link Expired', 'This verification link has expired. Please sign in and request a new confirmation email.');
+      } else if (errDesc) {
+        toast('Verification note: ' + errDesc, 'nf');
+      }
+    }, 1500);
   }
   try { sb = supabase.createClient(SB_URL, SB_KEY); } catch { toast('Supabase not configured — using demo mode', 'nf'); products = MOCK_PRODUCTS; }
 
@@ -1296,9 +1126,22 @@ async function init() {
 
   // Auth state
   if (sb) {
-    sb.auth.onAuthStateChange(async (_e, session) => {
+    sb.auth.onAuthStateChange(async (event, session) => {
       user = session?.user || null;
-      if (user) { await fetchRole(); } else { userRole = null; }
+      if (user) {
+        await fetchRole();
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          recordLastVisit();
+        }
+        if (event === 'USER_UPDATED') {
+          // Email confirmed — show a warm welcome
+          if (user.email_confirmed_at) {
+            setTimeout(() => popupOk('Email Verified ✓', 'Your email has been verified successfully. Welcome to Tote & Tread! 🎉'), 600);
+          }
+        }
+      } else {
+        userRole = null;
+      }
       updBadges();
       if (document.getElementById('scr-acc').classList.contains('on')) renderAcc();
     });
@@ -1314,7 +1157,23 @@ async function init() {
   }
 
   // PWA
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; if (!localStorage.getItem('tt_pwa_dismissed')) { document.getElementById('pwa-banner').classList.add('show'); } });
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!localStorage.getItem('tt_pwa_dismissed')) {
+      document.getElementById('pwa-banner').classList.add('show');
+    }
+    // Show install button in topbar
+    const installBtn = document.getElementById('topbar-install');
+    if (installBtn) installBtn.style.display = 'flex';
+  });
+  window.addEventListener('appinstalled', () => {
+    document.getElementById('pwa-banner')?.classList.remove('show');
+    const installBtn = document.getElementById('topbar-install');
+    if (installBtn) installBtn.style.display = 'none';
+    deferredPrompt = null;
+    toast('App installed successfully! 🎉', 'ok');
+  });
   window.addEventListener('appinstalled', () => { document.getElementById('pwa-banner').classList.remove('show'); toast('App installed! 🎉', 'ok'); });
   registerManifest(); registerServiceWorker();
 
@@ -1343,13 +1202,45 @@ async function init() {
 
 /* ════════ PWA ════════ */
 function registerManifest() {
-  const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" rx="44" fill="#0A0A0A"/><rect width="200" height="200" rx="44" fill="none" stroke="#C9A84C" stroke-width="3" opacity=".2"/><g transform="translate(100,100) scale(4.5) translate(-18,-18)"><path d="M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linecap="round"/><line x1="11" y1="18" x2="25" y2="18" stroke="#C9A84C" stroke-width="1.1" opacity=".7"/><line x1="11" y1="22" x2="21" y2="22" stroke="#C9A84C" stroke-width="1.1" opacity=".7"/><circle cx="18" cy="14.5" r="1.8" fill="#C9A84C"/></g></svg>`;
-  const iconUrl = 'data:image/svg+xml;base64,' + btoa(iconSvg);
-  const manifest = { name:'Tote & Tread Collection', short_name:'Tote & Tread', description:'Premium Nairobi accessories', start_url:'/', display:'standalone', background_color:'#0A0A0A', theme_color:'#0A0A0A', icons:[{src:iconUrl,sizes:'192x192',type:'image/svg+xml'},{src:iconUrl,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}] };
-  const blob = new Blob([JSON.stringify(manifest)], { type:'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('link'); link.rel='manifest'; link.href=url;
-  document.head.appendChild(link);
+  const iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" rx="44" fill="#0A0A0A"/><rect width="200" height="200" rx="44" fill="none" stroke="#C9A84C" stroke-width="4" opacity=".25"/><g transform="translate(100,100) scale(4.6) translate(-18,-18)"><path d="M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linecap="round"/><line x1="11" y1="18" x2="25" y2="18" stroke="#C9A84C" stroke-width="1.2" opacity=".8"/><line x1="11" y1="22" x2="21" y2="22" stroke="#C9A84C" stroke-width="1.2" opacity=".8"/><circle cx="18" cy="14.5" r="2" fill="#C9A84C"/></g></svg>';
+  const iconB64 = 'data:image/svg+xml;base64,' + btoa(iconSvg);
+  const manifestData = {
+    name: 'Tote & Tread Collection',
+    short_name: 'Tote & Tread',
+    description: 'Premium handcrafted accessories from Nairobi, Kenya',
+    start_url: './',
+    scope: './',
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#0A0A0A',
+    theme_color: '#0A0A0A',
+    categories: ['shopping','lifestyle'],
+    icons: [
+      { src: iconB64, sizes: '192x192', type: 'image/svg+xml' },
+      { src: iconB64, sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+      { src: iconB64, sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' }
+    ]
+  };
+  try {
+    const manifestStr = JSON.stringify(manifestData);
+    const manifestUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(manifestStr);
+    // Remove any existing manifest link
+    document.querySelectorAll('link[rel="manifest"]').forEach(l => l.remove());
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = manifestUrl;
+    document.head.appendChild(link);
+    // iOS splash + icon meta tags
+    const addMeta = (name, content) => { const m = document.createElement('meta'); m.name = name; m.content = content; document.head.appendChild(m); };
+    addMeta('apple-mobile-web-app-capable', 'yes');
+    addMeta('apple-mobile-web-app-status-bar-style', 'black-translucent');
+    addMeta('apple-mobile-web-app-title', 'Tote & Tread');
+    // Apple touch icon using SVG
+    const appleLink = document.createElement('link');
+    appleLink.rel = 'apple-touch-icon';
+    appleLink.href = iconB64;
+    document.head.appendChild(appleLink);
+  } catch(e) { console.warn('Manifest registration failed', e); }
 }
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
@@ -1847,8 +1738,6 @@ function renderAcc(){const el=document.getElementById('acc-body');if(!el)return;
 function renderAuthForms(el,tab){
   const isLogin=tab==='login';
   el.innerHTML=`<div class="auth-tabs"><button class="atab ${isLogin?'on':''}" onclick="renderAuthForms(document.getElementById('acc-body'),'login')">Sign In</button><button class="atab ${!isLogin?'on':''}" onclick="renderAuthForms(document.getElementById('acc-body'),'signup')">Create Account</button></div>
-  ${isLogin?`<button class="btn-google" onclick="doGoogleLogin()"><svg viewBox="0 0 48 48"><path fill="#4285F4" d="M44.5 20H24v8.5h11.8C34.7 33.9 29.8 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.1 16.2 19.2 13 24 13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 16.3 2 9.6 7.4 6.3 14.7z"/><path fill="#FBBC05" d="M24 46c5.5 0 10.5-1.9 14.3-5l-6.6-5.4C29.7 37.2 27 38 24 38c-5.7 0-10.6-3.1-13.2-7.6l-7 5.4C7.5 42.5 15.3 46 24 46z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.8c-.9 2.8-2.8 5.1-5.4 6.6l6.6 5.4C41.5 37.3 45 31.2 45 24c0-1.3-.2-2.7-.5-4z"/></svg>Continue with Google</button>
-  <div class="or-divider"><span>or</span></div>
   <div class="login-method-tabs"><button class="lmtab on" id="lm-email-tab" onclick="switchLoginMethod('email')"><i class="fas fa-envelope"></i> Email</button><button class="lmtab" id="lm-phone-tab" onclick="switchLoginMethod('phone')"><i class="fas fa-phone"></i> Phone</button></div>
   <div id="login-email-form">
     <div class="fg"><label class="flbl">Email</label><input type="email" class="fi" id="li-e" placeholder="your@email.com" autocomplete="email" maxlength="200"></div>
@@ -1866,9 +1755,7 @@ function renderAuthForms(el,tab){
     </div>
     <div id="li-otp-send-wrap"><button class="btn btn-gold btn-full" id="li-ph-btn" onclick="doPhoneLogin()"><i class="fas fa-sms"></i>Send OTP</button></div>
   </div>`
-  :`<button class="btn-google" onclick="doGoogleLogin()"><svg viewBox="0 0 48 48"><path fill="#4285F4" d="M44.5 20H24v8.5h11.8C34.7 33.9 29.8 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.1 16.2 19.2 13 24 13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 16.3 2 9.6 7.4 6.3 14.7z"/><path fill="#FBBC05" d="M24 46c5.5 0 10.5-1.9 14.3-5l-6.6-5.4C29.7 37.2 27 38 24 38c-5.7 0-10.6-3.1-13.2-7.6l-7 5.4C7.5 42.5 15.3 46 24 46z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.8c-.9 2.8-2.8 5.1-5.4 6.6l6.6 5.4C41.5 37.3 45 31.2 45 24c0-1.3-.2-2.7-.5-4z"/></svg>Continue with Google</button>
-  <div class="or-divider"><span>or</span></div>
-  <p style="font-size:.72rem;color:var(--t3);text-align:center;margin-bottom:13px">Join <strong style="color:var(--gold)">500+ happy customers</strong> — create your free account.</p>
+  :`<p style="font-size:.72rem;color:var(--t3);text-align:center;margin-bottom:13px">Join <strong style="color:var(--gold)">500+ happy customers</strong> — create your free account.</p>
   <div class="fg"><label class="flbl">Full Name *</label><input type="text" class="fi" id="su-n" placeholder="Your full name" autocomplete="name" maxlength="100"></div>
   <div class="fg"><label class="flbl">Email *</label><input type="email" class="fi" id="su-e" placeholder="your@email.com" autocomplete="email" maxlength="200"></div>
   <div class="fg"><label class="flbl">Phone Number</label><div class="phone-wrap"><span class="phone-prefix">+254</span><input type="tel" class="fi" id="su-ph" placeholder="7XX XXX XXX" maxlength="15" autocomplete="tel"></div></div>
@@ -1885,18 +1772,115 @@ function renderAuthForms(el,tab){
 }
 function switchLoginMethod(m){const ef=document.getElementById('login-email-form'),pf=document.getElementById('login-phone-form'),et=document.getElementById('lm-email-tab'),pt=document.getElementById('lm-phone-tab');if(m==='email'){if(ef)ef.style.display='';if(pf)pf.style.display='none';et?.classList.add('on');pt?.classList.remove('on');}else{if(ef)ef.style.display='none';if(pf)pf.style.display='';pt?.classList.add('on');et?.classList.remove('on');}}
 function otpNext(el,nextId){el.value=el.value.replace(/\D/g,'');if(el.value&&nextId)document.getElementById(nextId)?.focus();}
-async function doGoogleLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys and enable Google OAuth in the Supabase dashboard.');return;}const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});if(error)popupErr('Google Sign-In Failed',error.message);}
+const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});if(error)popupErr('Google Sign-In Failed',error.message);}
 async function doLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const e=document.getElementById('li-e')?.value?.trim(),p=document.getElementById('li-pw')?.value||'',errEl=document.getElementById('li-err'),btn=document.getElementById('li-btn');if(!e||!p){setErr(errEl,'Please enter email and password');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Please enter a valid email address');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Signing in…';const{error}=await sb.auth.signInWithPassword({email:e,password:p});btn.disabled=false;btn.innerHTML='<i class="fas fa-sign-in-alt"></i>Sign In';if(error){errEl.style.display='none';const msg=error.message.includes('Invalid login credentials')||error.message.includes('invalid_credentials')?'Wrong email or password. Please check your details and try again.':error.message.includes('Email not confirmed')?'Please check your inbox and confirm your email address before signing in.':error.message.includes('too many')?'Too many sign-in attempts. Please wait a few minutes and try again.':error.message;popupErr('Sign In Failed',msg);return;}errEl.style.display='none';toast('Welcome back! 👋','ok');}
 async function doPhoneLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('li-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('li-ph-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('li-otp-wrap').style.display='';document.getElementById('li-otp-send-wrap').style.display='none';toast('OTP sent to '+fullPhone,'ok');}
 async function doPhoneVerify(){if(!sb)return;const ph=document.getElementById('li-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('otp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('otp-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify OTP';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}toast('Signed in successfully! 👋','ok');}
-async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const{error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:window.location.href}});if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?'This email address is already registered. Try signing in instead, or reset your password.':error.message;setErr(errEl,'');popupErr('Account Creation Failed',msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','Your account has been created. Please check your email and click the confirmation link to activate your account.');}
+async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const{error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''}}});if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?'This email address is already registered. Try signing in instead, or reset your password.':error.message;setErr(errEl,'');popupErr('Account Creation Failed',msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','Your account has been created. Please check your email and click the confirmation link to activate your account.');}
 async function showReset(){const el=document.getElementById('acc-body');el.innerHTML=`<div style="margin-bottom:18px"><h3 style="font-family:var(--fd);font-size:1.3rem;margin-bottom:6px">Reset Password</h3><p style="font-size:.76rem;color:var(--t3);line-height:1.65">Enter your email and we'll send a reset link.</p></div><div class="fg"><label class="flbl">Email Address</label><input type="email" class="fi" id="rst-e" placeholder="your@email.com" maxlength="200" autocomplete="email"></div><button class="btn btn-gold btn-full" id="rst-btn" onclick="doReset()"><i class="fas fa-paper-plane"></i>Send Reset Link</button><p style="text-align:center;margin-top:12px"><a href="#" style="font-size:.72rem;color:var(--gold)" onclick="renderAuthForms(document.getElementById('acc-body'),'login');return false">← Back to Sign In</a></p>`;}
 async function doReset(){if(!sb){toast('Supabase not configured','er');return;}const e=document.getElementById('rst-e')?.value?.trim();if(!e||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){toast('Enter a valid email','er');return;}if(!rateLimit('reset',60000)){toast('Please wait before trying again','er');return;}const btn=document.getElementById('rst-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.resetPasswordForEmail(e,{redirectTo:window.location.href+'?reset=1'});btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Send Reset Link';if(error){toast(error.message,'er');return;}toast('Reset link sent! Check your email 📧','ok');}
-function renderLoggedIn(el){const name=user?.user_metadata?.full_name||user?.email?.split('@')[0]||'Member',email=user?.email||user?.phone||'',isAdmin=userRole==='admin';el.innerHTML=`<div class="prof-card"><div class="prof-avatar"><i class="fas fa-user"></i></div><div class="prof-name">${esc(name)}</div><div class="prof-email">${esc(email)}</div>${isAdmin?'<div class="admin-badge"><i class="fas fa-shield-alt"></i> Admin</div>':''}</div><div class="menu-list"><button class="menu-item" onclick="openWish()"><i class="fas fa-heart mi-icon"></i> Wishlist<i class="fas fa-chevron-right mi-arrow"></i></button><button class="menu-item" onclick="openCart()"><i class="fas fa-shopping-bag mi-icon"></i> My Bag<i class="fas fa-chevron-right mi-arrow"></i></button><button class="menu-item" onclick="openNotifications()"><i class="fas fa-bell mi-icon"></i> Notifications${getUnreadCount()>0?`<span class="badge badge-gold" style="margin-left:auto;margin-right:8px">${getUnreadCount()}</span>`:''}<i class="fas fa-chevron-right mi-arrow"></i></button><button class="menu-item" onclick="openSub('contact')"><i class="fas fa-headset mi-icon"></i> Customer Support<i class="fas fa-chevron-right mi-arrow"></i></button>${isAdmin?`<button class="menu-item" style="color:var(--gold)" onclick="openAdmin()"><i class="fas fa-shield-alt mi-icon"></i> Admin Dashboard<i class="fas fa-chevron-right mi-arrow"></i></button>`:''}<button class="menu-item" onclick="toggleTheme()"><i class="fas fa-adjust mi-icon"></i> Toggle Theme<i class="fas fa-chevron-right mi-arrow"></i></button><button class="menu-item danger" onclick="doLogout()"><i class="fas fa-sign-out-alt mi-icon" style="color:var(--red)"></i><span style="color:var(--red)">Sign Out</span></button></div>`;}
-async function doLogout(){await sb?.auth.signOut();user=null;userRole=null;isGuest=false;toast('Signed out','nf');renderAcc();}
+function renderLoggedIn(el){
+  const name = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Member';
+  const email = user?.email || user?.phone || '';
+  const isAdmin = userRole === 'admin';
+  const joinedRaw = user?.created_at;
+  const joined = joinedRaw ? new Date(joinedRaw).toLocaleDateString('en-KE',{day:'numeric',month:'long',year:'numeric'}) : '—';
+  const lastRaw = getLastVisit();
+  const lastVisit = lastRaw ? (() => {
+    const d = new Date(lastRaw), now = new Date();
+    const diff = Math.floor((now - d) / 60000);
+    if (diff < 2) return 'Just now';
+    if (diff < 60) return diff + ' minutes ago';
+    if (diff < 1440) return Math.floor(diff/60) + ' hours ago';
+    return Math.floor(diff/1440) + ' days ago';
+  })() : 'First visit';
+  const cartCount = cart.reduce((s,i)=>s+i.qty,0);
+  const wishCount = wish.length;
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  // Fetch order count async and update once loaded
+  let orderCountHtml = '<span class="prof-stat-num" id="prof-ord-cnt"><span class="spin" style="width:12px;height:12px;border-width:1.5px"></span></span>';
+  if (sb) {
+    sb.from('orders').select('id',{count:'exact',head:true}).eq('user_id',user.id)
+      .then(({count}) => {
+        const el2 = document.getElementById('prof-ord-cnt');
+        if (el2) el2.textContent = count || '0';
+      }).catch(()=>{
+        const el2 = document.getElementById('prof-ord-cnt');
+        if (el2) el2.textContent = '0';
+      });
+  } else { orderCountHtml = '<span class="prof-stat-num">0</span>'; }
+
+  el.innerHTML = `
+    <div style="padding:16px 14px 6px">
+      <div style="font-size:.72rem;color:var(--t3);margin-bottom:2px">${esc(greeting)},</div>
+      <div style="font-family:var(--fd);font-size:1.5rem;color:var(--t1);margin-bottom:2px">Welcome back, ${esc(name.split(' ')[0])} 👋</div>
+      <div style="font-size:.68rem;color:var(--t3)">Last visited: ${lastVisit}</div>
+    </div>
+    <div class="prof-card" style="margin:10px 14px 14px">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+        <div class="prof-avatar"><i class="fas fa-user"></i></div>
+        <div style="flex:1;min-width:0">
+          <div class="prof-name" style="text-align:left;font-size:1rem">${esc(name)}</div>
+          <div class="prof-email" style="text-align:left">${esc(email)}</div>
+          ${isAdmin ? '<div class="admin-badge" style="display:inline-flex;margin-top:5px"><i class="fas fa-shield-alt"></i> Admin</div>' : ''}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <div style="background:var(--bg4);border-radius:9px;padding:10px;text-align:center">
+          ${orderCountHtml}
+          <div style="font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-top:3px">Orders</div>
+        </div>
+        <div style="background:var(--bg4);border-radius:9px;padding:10px;text-align:center">
+          <span class="prof-stat-num">${cartCount}</span>
+          <div style="font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-top:3px">In Bag</div>
+        </div>
+        <div style="background:var(--bg4);border-radius:9px;padding:10px;text-align:center">
+          <span class="prof-stat-num">${wishCount}</span>
+          <div style="font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-top:3px">Wishlisted</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bd);display:flex;justify-content:space-between;font-size:.7rem;color:var(--t3)">
+        <span><i class="fas fa-calendar-alt" style="margin-right:5px;color:var(--gold)"></i>Joined ${joined}</span>
+        <span style="color:var(--t4)">${email}</span>
+      </div>
+    </div>
+    <div class="menu-list" style="padding:0 14px">
+      <button class="menu-item" onclick="openWish()"><i class="fas fa-heart mi-icon"></i> Wishlist<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item" onclick="openCart()"><i class="fas fa-shopping-bag mi-icon"></i> My Bag<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item" onclick="openNotifications()"><i class="fas fa-bell mi-icon"></i> Notifications${getUnreadCount()>0?`<span class="badge badge-gold" style="margin-left:auto;margin-right:8px">${getUnreadCount()}</span>`:''}<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item" onclick="openSub('contact')"><i class="fas fa-headset mi-icon"></i> Customer Support<i class="fas fa-chevron-right mi-arrow"></i></button>
+      ${isAdmin ? `<button class="menu-item" style="color:var(--gold)" onclick="openAdmin()"><i class="fas fa-shield-alt mi-icon"></i> Admin Dashboard<i class="fas fa-chevron-right mi-arrow"></i></button>` : ''}
+      <button class="menu-item" onclick="toggleTheme()"><i class="fas fa-adjust mi-icon"></i> Toggle Theme<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item" onclick="doLogout()" style="border-bottom:none">
+        <i class="fas fa-sign-out-alt mi-icon" style="color:var(--red)"></i>
+        <span style="color:var(--red)">Sign Out</span>
+        <i class="fas fa-chevron-right mi-arrow"></i>
+      </button>
+    </div>`;
+}
+async function doLogout(){
+  try {
+    if (sb) await sb.auth.signOut();
+  } catch(e) { /* ignore sign out errors */ }
+  user = null; userRole = null; isGuest = false;
+  try { sessionStorage.removeItem('tt_cart'); } catch{}
+  toast('Signed out successfully', 'nf');
+  renderAcc();
+  showTab('home');
+}
 
 /* ════════ GUEST MODE ════════ */
 let isGuest = false;
+function recordLastVisit() {
+  if (!user) return;
+  try { localStorage.setItem('tt_last_' + user.id, new Date().toISOString()); } catch {}
+}
+function getLastVisit() {
+  if (!user) return null;
+  try { return localStorage.getItem('tt_last_' + user.id); } catch { return null; }
+}
 function continueAsGuest() {
   isGuest = true;
   user = null; userRole = null;
@@ -1990,11 +1974,7 @@ async function renderAdmSettings(){
       <input type="url" class="fi" id="share-url-inp" value="${esc(rows.share_url||socialLinks.site||SITE)}" placeholder="https://yourapp.netlify.app" maxlength="300"></div>
     <button class="btn btn-gold btn-full" onclick="saveShareUrl()"><i class="fas fa-save"></i>Save Share URL</button>
   </div>
-  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
-    <h3>App Configuration</h3>
-    <p style="font-size:.72rem;color:var(--t3);margin-bottom:12px;line-height:1.6">Update your Supabase connection and WhatsApp number without editing the HTML file.</p>
-    <button class="btn btn-ghost btn-full btn-sm" onclick="openAppConfig()"><i class="fas fa-cog"></i>Update API Config</button>
-  </div>
+
   <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
     <h3>Dev Tools</h3>
     <button class="btn btn-ghost btn-full btn-sm" onclick="openDevTools()"><i class="fas fa-code"></i>Open Dev Tools</button>
