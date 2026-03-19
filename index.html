@@ -173,17 +173,19 @@ button,input,textarea,select{font-family:var(--fb)}
 .splash-fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold-d),var(--gold-l),var(--gold-d));animation:splashLoad 0.5s ease forwards 0s}
 @keyframes splashLoad{to{width:100%}}
 
-/* PWA BANNER */
-#pwa-banner{position:fixed;top:0;width:100%;max-width:430px;left:50%;transform:translateX(-50%);z-index:9998;background:linear-gradient(135deg,#1A1500,#2A2000);border-bottom:1px solid var(--gold-a45);padding:10px 14px;display:none;align-items:center;gap:10px;animation:bannerSlide .4s var(--ease)}
-#pwa-banner.show{display:flex}
-@keyframes bannerSlide{from{transform:translateX(-50%) translateY(-100%)}to{transform:translateX(-50%) translateY(0)}}
-.pwa-icon{width:38px;height:38px;background:var(--gold-a15);border:1px solid var(--gold-a45);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--gold);flex-shrink:0}
-.pwa-text{flex:1;min-width:0}
-.pwa-text strong{display:block;font-size:.76rem;color:var(--t1);margin-bottom:1px}
-.pwa-text span{font-size:.62rem;color:var(--t3)}
-.pwa-install-btn{background:var(--gold);color:#000;border:none;padding:7px 13px;border-radius:var(--r);font-size:.66rem;font-weight:600;letter-spacing:.06em;cursor:pointer;white-space:nowrap;transition:background .2s}
-.pwa-install-btn:hover{background:var(--gold-l)}
-.pwa-close{width:28px;height:28px;background:transparent;border:none;color:var(--t3);cursor:pointer;font-size:.78rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* APP INSTALL CARD (home page inline) */
+.install-card{margin:18px 14px;padding:20px 18px;background:linear-gradient(135deg,#1A1500,#1C1800,#221C00);border:1px solid var(--gold-a45);border-radius:var(--rxl);display:flex;align-items:center;gap:14px;position:relative;overflow:hidden}
+.install-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at top right,rgba(201,168,76,.12) 0%,transparent 65%);pointer-events:none}
+.install-card-ico{width:48px;height:48px;background:var(--gold-a15);border:1.5px solid var(--gold-a45);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.install-card-body{flex:1;min-width:0}
+.install-card-body strong{display:block;font-family:var(--fd);font-size:1rem;color:var(--t1);margin-bottom:3px}
+.install-card-body span{font-size:.66rem;color:var(--t3);line-height:1.55}
+.install-card-btn{background:var(--gold);color:#000;border:none;padding:9px 16px;border-radius:var(--r);font-size:.64rem;font-weight:600;letter-spacing:.08em;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
+.install-card-btn:hover{background:var(--gold-l);transform:translateY(-1px)}
+/* password reset overlay */
+#reset-pw-overlay{position:fixed;inset:0;z-index:9999;background:#0A0A0A;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+#reset-pw-overlay.on{display:flex}
+.reset-pw-box{width:100%;max-width:380px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rxl);padding:28px 24px}
 
 /* NOTIF BAR */
 #notif{position:relative;background:linear-gradient(90deg,var(--gold-d),var(--gold),var(--gold-d));color:#0A0A0A;font-size:.6rem;letter-spacing:.12em;text-align:center;padding:8px 36px 8px 16px;font-weight:600;text-transform:uppercase;max-width:430px;margin:0 auto;display:block}
@@ -630,9 +632,12 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 .terms-body{padding:16px;font-size:.8rem;color:var(--t2);line-height:1.8}
 .terms-body h3{font-family:var(--fd);font-size:1.05rem;color:var(--t1);margin:16px 0 6px}
 .terms-body p{margin-bottom:10px}
+.receipt-modal-wrap{width:100%}
+/* ── Order/History sub-screens ── */
+#sub-orders .sub-body,#sub-history .sub-body,#sub-editprofile .sub-body{padding:0}
 @media(min-width:460px){
   #shell{box-shadow:0 0 80px rgba(0,0,0,.6)}
-  #topbar,#botnav,#ovl,.fab-wa,#toasts,#notif,#pwa-banner{max-width:430px;left:50%;right:auto;transform:translateX(-50%)}
+  #topbar,#botnav,#ovl,.fab-wa,#toasts,#notif{max-width:430px;left:50%;right:auto;transform:translateX(-50%)}
   .sheet,.modal{left:50%;transform:translate(-50%,100%)}.sheet.on,.modal.on{transform:translate(-50%,0)}
   #admin,.sub{left:50%}
 }
@@ -658,20 +663,20 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
   </div>
 </div>
 
-<!-- PWA INSTALL BANNER -->
-<div id="pwa-banner" role="banner">
-  <div class="pwa-icon">
-    <svg width="22" height="22" viewBox="0 0 36 36" fill="none">
-      <path d="M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
-      <path d="M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-      <line x1="11" y1="18" x2="25" y2="18" stroke="#C9A84C" stroke-width="1" opacity=".7"/>
-      <line x1="11" y1="22" x2="21" y2="22" stroke="#C9A84C" stroke-width="1" opacity=".7"/>
-      <circle cx="18" cy="14.5" r="1.5" fill="#C9A84C"/>
-    </svg>
+<!-- PASSWORD RESET OVERLAY (shown when ?reset=1 in URL) -->
+<div id="reset-pw-overlay">
+  <div class="reset-pw-box">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:54px;height:54px;background:var(--gold-a8);border:1.5px solid var(--gold-a45);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:1.2rem;color:var(--gold)"><i class="fas fa-lock"></i></div>
+      <h3 style="font-family:var(--fd);font-size:1.4rem;margin-bottom:5px">Create New Password</h3>
+      <p style="font-size:.74rem;color:var(--t3);line-height:1.6">Choose a strong password for your Tote &amp; Tread account.</p>
+    </div>
+    <div class="fg"><label class="flbl">New Password</label><div class="pw-wrap"><input type="password" class="fi" id="np-pw" placeholder="At least 8 characters" maxlength="128" autocomplete="new-password"><button class="pw-eye" type="button" onclick="tglPW('np-pw','np-pi')"><i class="fas fa-eye" id="np-pi"></i></button></div></div>
+    <div class="fg"><label class="flbl">Confirm New Password</label><div class="pw-wrap"><input type="password" class="fi" id="np-pw2" placeholder="Repeat your password" maxlength="128" autocomplete="new-password"><button class="pw-eye" type="button" onclick="tglPW('np-pw2','np-pi2')"><i class="fas fa-eye" id="np-pi2"></i></button></div></div>
+    <div id="np-err" class="ferr" style="display:none;margin-bottom:10px"></div>
+    <button class="btn btn-gold btn-full" id="np-btn" onclick="doUpdatePassword()"><i class="fas fa-lock"></i>Save New Password</button>
+    <p style="text-align:center;margin-top:12px"><a href="#" style="font-size:.72rem;color:var(--t3)" onclick="document.getElementById('reset-pw-overlay').classList.remove('on');history.replaceState(null,'',location.pathname);return false">← Cancel</a></p>
   </div>
-  <div class="pwa-text"><strong>Install Tote &amp; Tread</strong><span>Add to home screen for quick access</span></div>
-  <button class="pwa-install-btn" onclick="pwaInstall()">Install</button>
-  <button class="pwa-close" onclick="pwaDismiss()" aria-label="Dismiss"><i class="fas fa-times"></i></button>
 </div>
 
 <!-- NOTIFICATION BAR -->
@@ -749,6 +754,23 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
         <h3>Where Elegance Meets<br>Every Step</h3>
         <p>Born in Nairobi, each piece is crafted with intention — to elevate your presence whether you step into a boardroom or set off on an adventure.</p>
         <button class="btn btn-outline" onclick="openSub('about')">Discover Our Story <i class="fas fa-arrow-right"></i></button>
+      </div>
+      <!-- APP INSTALL PROMPT - mid-scroll home -->
+      <div id="home-install-card" class="install-card rv" style="margin-top:18px">
+        <div class="install-card-ico">
+          <svg width="26" height="26" viewBox="0 0 36 36" fill="none">
+            <path d="M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+            <path d="M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            <line x1="11" y1="18" x2="25" y2="18" stroke="#C9A84C" stroke-width="1" opacity=".7"/>
+            <line x1="11" y1="22" x2="21" y2="22" stroke="#C9A84C" stroke-width="1" opacity=".7"/>
+            <circle cx="18" cy="14.5" r="1.5" fill="#C9A84C"/>
+          </svg>
+        </div>
+        <div class="install-card-body">
+          <strong>Tote &amp; Tread App</strong>
+          <span>Add to your home screen for a faster, full-screen shopping experience — no browser needed.</span>
+        </div>
+        <button class="install-card-btn" onclick="triggerInstall()"><i class="fas fa-download" style="margin-right:5px"></i>Install</button>
       </div>
       <!-- SOCIAL FOLLOW -->
       <div class="rv" style="padding:22px 16px;border-top:1px solid var(--bd);text-align:center">
@@ -860,6 +882,47 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 <div id="ovl" onclick="closeAll()"></div>
 <button class="fab-wa" onclick="openWA()" title="Chat on WhatsApp"><i class="fab fa-whatsapp"></i></button>
 <div id="toasts" aria-live="polite"></div>
+
+<!-- ORDERS SUB-SCREEN -->
+<div id="sub-orders" class="sub">
+  <div class="sub-hdr"><button class="sub-back" onclick="closeSub('orders')"><i class="fas fa-arrow-left"></i></button><h2>My Orders</h2></div>
+  <div class="sub-body" id="orders-body"><div class="load-center"><div class="spin"></div></div></div>
+</div>
+
+<!-- HISTORY SUB-SCREEN -->
+<div id="sub-history" class="sub">
+  <div class="sub-hdr"><button class="sub-back" onclick="closeSub('history')"><i class="fas fa-arrow-left"></i></button><h2>Browse History</h2>
+    <button onclick="clearHistory()" style="margin-left:auto;background:none;border:none;color:var(--t3);font-size:.66rem;cursor:pointer;letter-spacing:.08em;text-transform:uppercase">Clear All</button>
+  </div>
+  <div class="sub-body" id="history-body"><div class="load-center"><div class="spin"></div></div></div>
+</div>
+
+<!-- EDIT PROFILE SUB-SCREEN -->
+<div id="sub-editprofile" class="sub">
+  <div class="sub-hdr"><button class="sub-back" onclick="closeSub('editprofile')"><i class="fas fa-arrow-left"></i></button><h2>Edit Profile</h2></div>
+  <div class="sub-body" id="editprofile-body"><div class="load-center"><div class="spin"></div></div></div>
+</div>
+
+<!-- PHONE OTP RESET SUB-SCREEN -->
+<div id="sub-phonereset" class="sub">
+  <div class="sub-hdr"><button class="sub-back" onclick="closeSub('phonereset');renderAuthForms(document.getElementById('acc-body'),'login')"><i class="fas fa-arrow-left"></i></button><h2>Phone Reset</h2></div>
+  <div class="sub-body" style="padding:20px">
+    <div style="margin-bottom:20px">
+      <h3 style="font-family:var(--fd);font-size:1.3rem;margin-bottom:6px">Reset via Phone</h3>
+      <p style="font-size:.76rem;color:var(--t3);line-height:1.65">Enter your phone number and we'll send you an OTP to sign in and then set a new password.</p>
+    </div>
+    <div id="pr-send-wrap">
+      <div class="fg"><label class="flbl">Phone Number</label><div class="phone-wrap"><span class="phone-prefix">+254</span><input type="tel" class="fi" id="pr-ph" placeholder="7XX XXX XXX" maxlength="15"></div></div>
+      <button class="btn btn-gold btn-full" id="pr-send-btn" onclick="sendPhoneResetOTP()"><i class="fas fa-sms"></i>Send OTP</button>
+    </div>
+    <div id="pr-verify-wrap" style="display:none">
+      <p style="font-size:.74rem;color:var(--t3);margin-bottom:12px;text-align:center">Enter the 6-digit OTP sent to your phone</p>
+      <div class="otp-row"><input class="otp-inp" type="text" maxlength="1" id="protp1" oninput="otpNext(this,'protp2')" inputmode="numeric"><input class="otp-inp" type="text" maxlength="1" id="protp2" oninput="otpNext(this,'protp3')" inputmode="numeric"><input class="otp-inp" type="text" maxlength="1" id="protp3" oninput="otpNext(this,'protp4')" inputmode="numeric"><input class="otp-inp" type="text" maxlength="1" id="protp4" oninput="otpNext(this,'protp5')" inputmode="numeric"><input class="otp-inp" type="text" maxlength="1" id="protp5" oninput="otpNext(this,'protp6')" inputmode="numeric"><input class="otp-inp" type="text" maxlength="1" id="protp6" oninput="otpNext(this,'')" inputmode="numeric"></div>
+      <button class="btn btn-gold btn-full" id="pr-verify-btn" onclick="verifyPhoneResetOTP()"><i class="fas fa-check"></i>Verify &amp; Sign In</button>
+      <p style="text-align:center;margin-top:10px"><a href="#" style="font-size:.72rem;color:var(--t3)" onclick="document.getElementById('pr-send-wrap').style.display='';document.getElementById('pr-verify-wrap').style.display='none';return false">← Change number</a></p>
+    </div>
+  </div>
+</div>
 <!-- SUB-SCREENS -->
 <div id="sub-about" class="sub"><div class="sub-hdr"><button class="sub-back" onclick="closeSub('about')"><i class="fas fa-arrow-left"></i></button><h2>About Us</h2></div>
 <div class="sub-body">
@@ -1322,10 +1385,17 @@ async function init() {
     }).subscribe();
   }
 
-  // PWA
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; if (!localStorage.getItem('tt_pwa_dismissed')) { document.getElementById('pwa-banner').classList.add('show'); } });
-  window.addEventListener('appinstalled', () => { document.getElementById('pwa-banner').classList.remove('show'); toast('App installed! 🎉', 'ok'); });
+  // PWA - store deferred prompt for home page install card
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; const card = document.getElementById('home-install-card'); if (card) card.style.display = ''; });
+  window.addEventListener('appinstalled', () => { deferredPrompt = null; const card = document.getElementById('home-install-card'); if (card) card.style.display = 'none'; toast('Tote & Tread installed! 🎉', 'ok'); });
   registerManifest(); registerServiceWorker();
+  // Handle password reset redirect URL
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('reset') === '1' || urlParams.has('type') && urlParams.get('type') === 'recovery') {
+    document.getElementById('reset-pw-overlay').classList.add('on');
+  }
+  // Hide install card if already installed
+  if (window.matchMedia('(display-mode: standalone)').matches) { const card = document.getElementById('home-install-card'); if (card) card.style.display = 'none'; }
 
   // Gallery
   document.querySelectorAll('.gi').forEach(gi => {
@@ -1398,9 +1468,8 @@ self.addEventListener('fetch',e=>{
     })
     .catch(() => {});
 }
-function pwaInstall() { if (!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; document.getElementById('pwa-banner').classList.remove('show'); }); }
-function pwaDismiss() { document.getElementById('pwa-banner').classList.remove('show'); localStorage.setItem('tt_pwa_dismissed','1'); }
-function openPWAInstallMenu(){
+function pwaInstall() { if (!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; }); }
+function triggerInstall(){
   if(deferredPrompt){
     pwaInstall();
   } else if(window.matchMedia('(display-mode: standalone)').matches){
@@ -1410,8 +1479,161 @@ function openPWAInstallMenu(){
     const msg=isIOS
       ? 'On iPhone/iPad: tap the Share button (□↑) at the bottom of Safari, then tap "Add to Home Screen".'
       : 'Open this page in Chrome or Edge, then tap the menu (⋮) and select "Add to Home Screen" or "Install App".';
-    showPopup({title:'📲 Install App',msg,type:'nf',confirmLabel:'Got it'});
+    showPopup({title:'📲 Install Tote & Tread',msg,type:'nf',confirmLabel:'Got it'});
   }
+}
+/* backwards compat alias */
+function openPWAInstallMenu(){ triggerInstall(); }
+
+/* ════════ ORDERS ════════ */
+async function openOrders(){
+  if(!user){toast('Sign in to view your orders','nf');showTab('acc');return;}
+  openSub('orders');
+  const body=document.getElementById('orders-body');
+  body.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+  if(!sb){body.innerHTML='<div class="empty-state"><i class="fas fa-box-open"></i>Connect Supabase to view orders</div>';return;}
+  const{data:orders,error}=await sb.from('orders').select('*').eq('user_id',user.id).order('created_at',{ascending:false});
+  if(error||!orders?.length){body.innerHTML='<div class="empty-state"><i class="fas fa-box-open"></i>No orders yet<p style="margin-top:8px;font-size:.72rem">Your order history will appear here.</p></div>';return;}
+  const statusColors={pending:'badge-amber',confirmed:'badge-blue',processing:'badge-purple',shipped:'badge-blue',completed:'badge-green',cancelled:'badge-red'};
+  body.innerHTML=`<div style="padding:14px 14px 0;font-size:.62rem;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">${orders.length} Order${orders.length!==1?'s':''}</div>`+orders.map(o=>{
+    const items=Array.isArray(o.items)?o.items:[];
+    return `<div style="margin:0 14px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden">
+      <div style="padding:13px 14px 10px;border-bottom:1px solid var(--bd)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-family:var(--fd);font-size:.92rem;color:var(--t1)">#${esc(o.id.slice(0,8).toUpperCase())}</span>
+          <span class="badge ${statusColors[o.status]||'badge-blue'}">${esc(o.status||'pending')}</span>
+        </div>
+        <div style="font-size:.68rem;color:var(--t3)">${D(o.created_at)}</div>
+        <div style="margin-top:8px;font-size:.72rem;color:var(--t2)">${items.slice(0,2).map(i=>`${esc(i.name||'')} ×${i.qty||1}`).join(', ')}${items.length>2?` +${items.length-2} more`:''}</div>
+      </div>
+      <div style="padding:11px 14px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-family:var(--fd);font-size:1.05rem;color:var(--gold)">KES ${N(o.total)}</span>
+        <div style="display:flex;gap:7px">
+          <button class="btn btn-ghost btn-xs" title="Share receipt" onclick='shareReceipt(${JSON.stringify(o)})'><i class="fas fa-share-alt"></i> Share</button>
+          <button class="btn btn-ghost btn-xs" title="View receipt" onclick='viewReceipt(${JSON.stringify(o)})'><i class="fas fa-eye"></i> View</button>
+          <button class="btn btn-ghost btn-xs" title="Download receipt" onclick='dlReceipt(${JSON.stringify(o)})'><i class="fas fa-download"></i></button>
+          <button class="btn btn-red btn-xs" title="Cancel order" onclick='cancelOrder("${esc(o.id)}","${esc(o.status)}")'><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function cancelOrder(id,status){
+  if(status==='completed'||status==='shipped'){popupErr('Cannot Cancel','This order has already been shipped or completed and cannot be cancelled. Please contact support.');return;}
+  const confirmed=await popupConfirm('Cancel Order','Are you sure you want to cancel this order? This cannot be undone.','Cancel Order','Keep It');
+  if(!confirmed)return;
+  if(sb)await sb.from('orders').update({status:'cancelled'}).eq('id',id).eq('user_id',user.id);
+  toast('Order cancelled','nf');
+  openOrders();
+}
+function viewReceipt(o){
+  const items=Array.isArray(o.items)?o.items:[];
+  const html=`
+  <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:20px;max-width:380px;margin:0 auto">
+    <div style="text-align:center;border-bottom:1px solid var(--bd);padding-bottom:16px;margin-bottom:16px">
+      <div style="font-family:var(--fd);font-size:1.6rem;color:var(--gold);margin-bottom:2px">Tote &amp; Tread</div>
+      <div style="font-size:.56rem;letter-spacing:.22em;text-transform:uppercase;color:var(--t3)">Nairobi Collection</div>
+      <div style="font-size:.62rem;color:var(--t3);margin-top:6px">toteandtreadcollection@gmail.com · 0107545752</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:.64rem;color:var(--t3);letter-spacing:.1em;text-transform:uppercase">Receipt</span>
+      <span style="font-size:.68rem;color:var(--t2)">#${esc(o.id.slice(0,8).toUpperCase())}</span>
+    </div>
+    <div style="font-size:.7rem;color:var(--t3);margin-bottom:3px">${D(o.created_at)}</div>
+    <div style="font-size:.78rem;color:var(--t2);margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--bd)">
+      <div style="margin-bottom:3px"><strong style="color:var(--t1)">${esc(o.customer_name)}</strong></div>
+      <div>${esc(o.customer_phone)}</div>
+      <div>${esc(o.delivery_address)}</div>
+    </div>
+    ${items.map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:.78rem"><span style="color:var(--t2)">${esc(i.name||'')} <span style="color:var(--t3)">×${i.qty||1}</span></span><span style="color:var(--gold)">KES ${N((i.price||0)*(i.qty||1))}</span></div>`).join('')}
+    <div style="border-top:1px solid var(--bd);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-family:var(--fd);font-size:1rem;color:var(--t1)">Total</span>
+      <span style="font-family:var(--fd);font-size:1.2rem;color:var(--gold)">KES ${N(o.total)}</span>
+    </div>
+    <div style="text-align:center;margin-top:16px;font-size:.62rem;color:var(--t4);line-height:1.7">Thank you for shopping with Tote &amp; Tread!<br>Nairobi, Kenya</div>
+  </div>`;
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.9);display:flex;flex-direction:column;align-items:center;padding:20px;overflow-y:auto';
+  modal.innerHTML=`<div style="width:100%;max-width:420px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="font-family:var(--fd);font-size:1.2rem;color:var(--t1)">Order Receipt</h3><button onclick="this.closest('.receipt-modal-wrap').parentElement.remove()" style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);color:var(--t2);width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.8rem"><i class="fas fa-times"></i></button></div><div class="receipt-modal-wrap">${html}</div><div style="display:flex;gap:10px;margin-top:14px"><button class="btn btn-gold" style="flex:1" onclick='dlReceipt(${JSON.stringify(o).replace(/'/g,"&#39;")})'><i class="fas fa-download"></i>Download PDF</button><button class="btn btn-outline" style="flex:1" onclick='shareReceipt(${JSON.stringify(o).replace(/'/g,"&#39;")})'><i class="fas fa-share-alt"></i>Share</button></div></div>`;
+  // Add close on backdrop click
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+  document.body.appendChild(modal);
+}
+function shareReceipt(o){
+  const txt=`*Tote & Tread Receipt*\nOrder: #${(o.id||'').slice(0,8).toUpperCase()}\nDate: ${new Date(o.created_at).toLocaleDateString('en-KE')}\nCustomer: ${o.customer_name}\nTotal: KES ${N(o.total)}\n\nThank you for shopping with us!\ntoteandtreadcollection@gmail.com`;
+  if(navigator.share)navigator.share({title:'Tote & Tread Receipt',text:txt}).catch(()=>copyText(txt));
+  else{copyText(txt);toast('Receipt copied to clipboard!','ok');}
+}
+
+/* ════════ BROWSE HISTORY ════════ */
+const HISTORY_KEY='tt_history';
+function addToHistory(p){try{let h=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');h=h.filter(x=>x.id!==p.id);h.unshift({id:p.id,name:p.name,category:p.category,price:p.price,image_url:p.image_url,ts:new Date().toISOString()});localStorage.setItem(HISTORY_KEY,JSON.stringify(h.slice(0,50)));}catch{}}
+function clearHistory(){localStorage.removeItem(HISTORY_KEY);openHistory();}
+function openHistory(){
+  openSub('history');
+  const body=document.getElementById('history-body');
+  let h=[];try{h=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');}catch{}
+  if(!h.length){body.innerHTML='<div class="empty-state"><i class="fas fa-clock"></i>No browse history yet<p style="margin-top:8px;font-size:.72rem">Products you view will appear here.</p></div>';return;}
+  body.innerHTML=`<div style="padding:14px 14px 0;font-size:.62rem;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">${h.length} Viewed</div>`+h.map(p=>{
+    const img=safeImgSrc(p.image_url);
+    return `<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--bd);cursor:pointer" onclick='openPD(${JSON.stringify(p)});closeSub("history")'>
+      ${img?`<img src="${img}" style="width:52px;height:58px;object-fit:cover;border-radius:8px;background:var(--bg2)" loading="lazy" onerror="this.style.display='none'">`:`<div style="width:52px;height:58px;border-radius:8px;background:var(--bg2);display:flex;align-items:center;justify-content:center;color:var(--bd2)"><i class="fas fa-image"></i></div>`}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">${esc(fmtCat(p.category))}</div>
+        <div style="font-family:var(--fd);font-size:.92rem;color:var(--t1);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</div>
+        <div style="font-size:.7rem;color:var(--gold)">KES ${N(p.price)}</div>
+      </div>
+      <div style="font-size:.6rem;color:var(--t4)">${D(p.ts).split(',')[0]}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ════════ EDIT PROFILE ════════ */
+async function openEditProfile(){
+  if(!user){toast('Sign in to edit your profile','nf');return;}
+  openSub('editprofile');
+  const body=document.getElementById('editprofile-body');
+  body.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+  let profile={full_name:'',phone:'',email:''};
+  if(sb){try{const{data}=await sb.from('profiles').select('*').eq('id',user.id).single();if(data)profile={...profile,...data};}catch{}}
+  profile.full_name=profile.full_name||user?.user_metadata?.full_name||'';
+  profile.email=profile.email||user?.email||'';
+  body.innerHTML=`<div style="padding:20px">
+    <div style="text-align:center;margin-bottom:20px">
+      <div class="prof-avatar" style="margin:0 auto 8px">${user?.user_metadata?.avatar_url?`<img src="${esc(user.user_metadata.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : '<i class="fas fa-user"></i>'}</div>
+      <p style="font-size:.66rem;color:var(--t3)">Profile picture is linked to your sign-in provider</p>
+    </div>
+    <div class="fg"><label class="flbl">Full Name *</label><input type="text" class="fi" id="ep-name" value="${esc(profile.full_name)}" placeholder="Your full name" maxlength="100" autocomplete="name"></div>
+    <div class="fg"><label class="flbl">Email Address</label><input type="email" class="fi" id="ep-email" value="${esc(profile.email)}" placeholder="your@email.com" maxlength="200" autocomplete="email" disabled style="opacity:.55"><div class="fhint">Email cannot be changed here. Contact support if needed.</div></div>
+    <div class="fg"><label class="flbl">Phone Number</label><div class="phone-wrap"><span class="phone-prefix">+254</span><input type="tel" class="fi" id="ep-phone" value="${esc((profile.phone||'').replace(/^\+254/,''))}" placeholder="7XX XXX XXX" maxlength="15" autocomplete="tel"></div></div>
+    <div id="ep-err" class="ferr" style="display:none;margin-bottom:10px"></div>
+    <button class="btn btn-gold btn-full" id="ep-btn" onclick="saveProfile()"><i class="fas fa-save"></i>Save Changes</button>
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--bd)">
+      <h4 style="font-family:var(--fd);font-size:.98rem;margin-bottom:8px;color:var(--t2)">Change Password</h4>
+      <button class="btn btn-outline btn-full btn-sm" onclick="showReset();closeSub('editprofile')"><i class="fas fa-lock"></i>Reset Password</button>
+    </div>
+  </div>`;
+}
+async function saveProfile(){
+  if(!sb||!user){toast('Not signed in','er');return;}
+  const name=document.getElementById('ep-name')?.value?.trim();
+  const ph=document.getElementById('ep-phone')?.value?.trim();
+  const errEl=document.getElementById('ep-err');
+  const btn=document.getElementById('ep-btn');
+  if(!name){setErr(errEl,'Full name is required');return;}
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';
+  const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;
+  const{error}=await sb.from('profiles').update({full_name:name,phone:fullPhone||null,updated_at:new Date().toISOString()}).eq('id',user.id);
+  // Also update auth metadata
+  await sb.auth.updateUser({data:{full_name:name}}).catch(()=>{});
+  btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i>Save Changes';
+  if(error){setErr(errEl,error.message);return;}
+  // Update local user metadata
+  if(user.user_metadata)user.user_metadata.full_name=name;
+  errEl.style.display='none';
+  toast('Profile updated! ✓','ok');
+  closeSub('editprofile');
+  renderAcc();
 }
 
 /* ════════ SETTINGS ════════ */
@@ -1602,6 +1824,7 @@ function clearShopSearch() {
 
 /* ════════ PRODUCT DETAIL ════════ */
 function openPD(p) {
+  addToHistory(p);
   const el = document.getElementById('pd-body'); if (!el) return;
   const img1 = safeImgSrc(p.image_url), img2 = safeImgSrc(p.image_url_2);
   const tags = [];
@@ -1809,21 +2032,98 @@ function dlReceipt(o) {
     const { jsPDF } = window.jspdf, doc = new jsPDF();
     const items = typeof o.items==='string'?JSON.parse(o.items):(o.items||[]);
     const total = o.total||items.reduce((s,i)=>s+i.price*i.qty,0);
-    doc.setFontSize(22);doc.setFont('times','italic');doc.setTextColor(201,168,76);doc.text('Tote & Tread Collection',105,22,{align:'center'});
-    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(120,110,90);doc.text('Nairobi, Kenya  ·  0107545752  ·  toteandtreadcollection@gmail.com',105,30,{align:'center'});
-    doc.setDrawColor(201,168,76);doc.setLineWidth(.5);doc.line(20,34,190,34);
-    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(30,25,15);doc.text('ORDER RECEIPT',105,43,{align:'center'});
-    doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(100,90,70);doc.text(`Ref: #${(o.id||'').toString().slice(0,8)||'N/A'}`,105,51,{align:'center'});doc.text(`Date: ${D(o.created_at||new Date().toISOString())}`,105,57,{align:'center'});
-    doc.setLineWidth(.3);doc.setDrawColor(220,210,180);doc.line(20,63,190,63);
-    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(30,25,15);doc.text('CUSTOMER',20,71);
-    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(80,70,50);doc.text(`Name:    ${o.customer_name||'—'}`,20,79);doc.text(`Phone:   ${o.customer_phone||'—'}`,20,86);doc.text(`Address: ${(o.delivery_address||'—').slice(0,55)}`,20,93);
-    doc.line(20,99,190,99);doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(30,25,15);doc.text('ITEMS',20,107);
-    let y=115;
-    items.forEach((item,i)=>{doc.setFillColor(i%2===0?252:246,i%2===0?248:241,i%2===0?240:232);doc.rect(20,y-5,170,10,'F');doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(80,70,50);doc.text(`${item.qty}×  ${item.name}`,22,y);doc.text(`KES ${N(item.price*item.qty)}`,185,y,{align:'right'});y+=12;});
-    doc.setDrawColor(201,168,76);doc.line(20,y,190,y);y+=8;doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(201,168,76);doc.text('TOTAL',20,y);doc.text(`KES ${N(total)}`,185,y,{align:'right'});y+=14;
-    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(140,130,110);doc.text('Thank you for shopping with Tote & Tread Collection — Nairobi, Kenya.',105,y,{align:'center'});
-    doc.save(`TnT_Receipt_${(o.id||'').toString().slice(0,8)||Date.now()}.pdf`);toast('Receipt downloaded','ok');
-  } catch { toast('Could not generate receipt','er'); }
+    const pageW=210;
+
+    // ── LETTERHEAD BACKGROUND ──
+    doc.setFillColor(10,10,10);doc.rect(0,0,pageW,60,'F');
+    // Gold border stripe
+    doc.setFillColor(201,168,76);doc.rect(0,58,pageW,2,'F');
+
+    // Brand name
+    doc.setFontSize(26);doc.setFont('times','bolditalic');doc.setTextColor(201,168,76);
+    doc.text('Tote & Tread',pageW/2,24,{align:'center'});
+
+    // Brand sub-title
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(180,165,130);
+    doc.setCharSpace(2);doc.text('C O L L E C T I O N',pageW/2,31,{align:'center'});doc.setCharSpace(0);
+
+    // Contact info in header
+    doc.setFontSize(7.5);doc.setTextColor(140,125,95);
+    doc.text('Nairobi, Kenya',pageW/2,39,{align:'center'});
+    doc.text('0107545752  ·  toteandtreadcollection@gmail.com',pageW/2,46,{align:'center'});
+    doc.text('toteandtread.co.ke',pageW/2,53,{align:'center'});
+
+    // ── RECEIPT TITLE ──
+    doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(40,32,18);
+    doc.text('ORDER RECEIPT',pageW/2,72,{align:'center'});
+    doc.setDrawColor(201,168,76);doc.setLineWidth(.4);doc.line(60,74,pageW-60,74);
+
+    // Ref & Date
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(100,88,65);
+    doc.text(`Ref: #${(o.id||'').toString().slice(0,8).toUpperCase()||'N/A'}`,pageW/2,81,{align:'center'});
+    doc.text(`Date: ${D(o.created_at||new Date().toISOString())}`,pageW/2,87,{align:'center'});
+
+    // ── CUSTOMER INFO ──
+    doc.setLineWidth(.25);doc.setDrawColor(220,200,160);doc.line(20,93,pageW-20,93);
+    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(40,32,18);
+    doc.text('BILL TO',20,100);
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(80,68,48);
+    doc.text(o.customer_name||'—',20,108);
+    doc.text(o.customer_phone||'—',20,114);
+    const addr=(o.delivery_address||'—');
+    const addrLines=doc.splitTextToSize(addr,90);
+    doc.text(addrLines,20,120);
+
+    // ── STATUS badge ──
+    const statusY=100;
+    doc.setFillColor(25,20,10);doc.roundedRect(pageW-70,statusY-7,50,14,3,3,'F');
+    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(201,168,76);
+    doc.text((o.status||'pending').toUpperCase(),pageW-45,statusY+1,{align:'center'});
+
+    // ── ITEMS TABLE ──
+    let y=Math.max(130,120+addrLines.length*6+4);
+    doc.line(20,y,pageW-20,y);y+=2;
+    // Table header
+    doc.setFillColor(25,20,5);doc.rect(20,y,pageW-40,10,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(201,168,76);
+    doc.text('ITEM',24,y+7);doc.text('QTY',pageW-70,y+7,{align:'center'});doc.text('PRICE',pageW-22,y+7,{align:'right'});
+    y+=14;
+    items.forEach((item,idx)=>{
+      if(idx%2===0){doc.setFillColor(252,248,240);}else{doc.setFillColor(246,241,232);}
+      doc.rect(20,y-5,pageW-40,10,'F');
+      doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(60,50,32);
+      doc.text(String(item.name||'').slice(0,38),24,y);
+      doc.text(String(item.qty||1),pageW-70,y,{align:'center'});
+      doc.text(`KES ${N((item.price||0)*(item.qty||1))}`,pageW-22,y,{align:'right'});
+      y+=12;
+    });
+
+    // ── TOTAL ──
+    doc.setLineWidth(.4);doc.setDrawColor(201,168,76);doc.line(20,y,pageW-20,y);y+=8;
+    doc.setFillColor(25,20,5);doc.rect(20,y-4,pageW-40,14,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(201,168,76);
+    doc.text('TOTAL',26,y+5);
+    doc.text(`KES ${N(total)}`,pageW-22,y+5,{align:'right'});
+    y+=20;
+
+    // ── NOTES ──
+    if(o.notes){
+      doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor(120,105,78);
+      doc.text('Notes: '+o.notes.slice(0,80),20,y);y+=10;
+    }
+
+    // ── FOOTER ──
+    y=Math.max(y,260);
+    doc.setDrawColor(201,168,76);doc.setLineWidth(.4);doc.line(20,y,pageW-20,y);y+=8;
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,120,85);
+    doc.text('Thank you for shopping with Tote & Tread Collection!',pageW/2,y,{align:'center'});y+=5;
+    doc.text('For queries: toteandtreadcollection@gmail.com  ·  0107545752',pageW/2,y,{align:'center'});y+=5;
+    doc.setFontSize(7);doc.setTextColor(160,140,100);
+    doc.text(`Generated: ${new Date().toLocaleString('en-KE')}`,pageW/2,y,{align:'center'});
+
+    doc.save(`TnT_Receipt_${(o.id||'').toString().slice(0,8)||Date.now()}.pdf`);
+    toast('Receipt downloaded!','ok');
+  } catch(err) { console.error(err); toast('Could not generate receipt','er'); }
 }
 
 /* ════════ NOTIFY ME ════════ */
@@ -1907,13 +2207,17 @@ function renderAuthForms(el,tab){
 }
 function switchLoginMethod(m){const ef=document.getElementById('login-email-form'),pf=document.getElementById('login-phone-form'),et=document.getElementById('lm-email-tab'),pt=document.getElementById('lm-phone-tab');if(m==='email'){if(ef)ef.style.display='';if(pf)pf.style.display='none';et?.classList.add('on');pt?.classList.remove('on');}else{if(ef)ef.style.display='none';if(pf)pf.style.display='';pt?.classList.add('on');et?.classList.remove('on');}}
 function otpNext(el,nextId){el.value=el.value.replace(/\D/g,'');if(el.value&&nextId)document.getElementById(nextId)?.focus();}
-async function doGoogleLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys and enable Google OAuth in the Supabase dashboard.');return;}const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});if(error)popupErr('Google Sign-In Failed',error.message);}
+async function doGoogleLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys and enable Google OAuth in the Supabase dashboard.');return;}const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:SITE||window.location.origin,queryParams:{prompt:'select_account'}}});if(error)popupErr('Google Sign-In Failed',error.message);}
 async function doLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const e=document.getElementById('li-e')?.value?.trim(),p=document.getElementById('li-pw')?.value||'',errEl=document.getElementById('li-err'),btn=document.getElementById('li-btn');if(!e||!p){setErr(errEl,'Please enter email and password');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Please enter a valid email address');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Signing in…';const{error}=await sb.auth.signInWithPassword({email:e,password:p});btn.disabled=false;btn.innerHTML='<i class="fas fa-sign-in-alt"></i>Sign In';if(error){errEl.style.display='none';const msg=error.message.includes('Invalid login credentials')||error.message.includes('invalid_credentials')?'Wrong email or password. Please check your details and try again.':error.message.includes('Email not confirmed')?'Please check your inbox and confirm your email address before signing in.':error.message.includes('too many')?'Too many sign-in attempts. Please wait a few minutes and try again.':error.message;popupErr('Sign In Failed',msg);return;}errEl.style.display='none';toast('Welcome back! 👋','ok');}
 async function doPhoneLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('li-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('li-ph-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('li-otp-wrap').style.display='';document.getElementById('li-otp-send-wrap').style.display='none';toast('OTP sent to '+fullPhone,'ok');}
 async function doPhoneVerify(){if(!sb)return;const ph=document.getElementById('li-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('otp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('otp-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify OTP';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}toast('Signed in successfully! 👋','ok');}
-async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const{error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:window.location.href}});if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?'This email address is already registered. Try signing in instead, or reset your password.':error.message;setErr(errEl,'');popupErr('Account Creation Failed',msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','Your account has been created. Please check your email and click the confirmation link to activate your account.');}
-async function showReset(){const el=document.getElementById('acc-body');el.innerHTML=`<div style="margin-bottom:18px"><h3 style="font-family:var(--fd);font-size:1.3rem;margin-bottom:6px">Reset Password</h3><p style="font-size:.76rem;color:var(--t3);line-height:1.65">Enter your email and we'll send a reset link.</p></div><div class="fg"><label class="flbl">Email Address</label><input type="email" class="fi" id="rst-e" placeholder="your@email.com" maxlength="200" autocomplete="email"></div><button class="btn btn-gold btn-full" id="rst-btn" onclick="doReset()"><i class="fas fa-paper-plane"></i>Send Reset Link</button><p style="text-align:center;margin-top:12px"><a href="#" style="font-size:.72rem;color:var(--gold)" onclick="renderAuthForms(document.getElementById('acc-body'),'login');return false">← Back to Sign In</a></p>`;}
-async function doReset(){if(!sb){toast('Supabase not configured','er');return;}const e=document.getElementById('rst-e')?.value?.trim();if(!e||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){toast('Enter a valid email','er');return;}if(!rateLimit('reset',60000)){toast('Please wait before trying again','er');return;}const btn=document.getElementById('rst-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.resetPasswordForEmail(e,{redirectTo:window.location.href+'?reset=1'});btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Send Reset Link';if(error){toast(error.message,'er');return;}toast('Reset link sent! Check your email 📧','ok');}
+async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const appUrl=SITE||window.location.origin;const{error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:appUrl}});if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?'This email address is already registered. Try signing in instead, or reset your password.':error.message;setErr(errEl,'');popupErr('Account Creation Failed',msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','We\'ve sent a confirmation link to '+e+'. Click the link in your email to activate your Tote & Tread account, then come back and sign in.');}
+async function showReset(){const el=document.getElementById('acc-body');el.innerHTML=`<div style="margin-bottom:18px"><h3 style="font-family:var(--fd);font-size:1.3rem;margin-bottom:6px">Reset Password</h3><p style="font-size:.76rem;color:var(--t3);line-height:1.65">Enter your email and we'll send a reset link, or reset via phone OTP.</p></div><div class="fg"><label class="flbl">Email Address</label><input type="email" class="fi" id="rst-e" placeholder="your@email.com" maxlength="200" autocomplete="email"></div><button class="btn btn-gold btn-full" id="rst-btn" onclick="doReset()"><i class="fas fa-paper-plane"></i>Send Reset Link</button><div style="margin:16px 0;text-align:center;font-size:.68rem;color:var(--t3);letter-spacing:.1em;text-transform:uppercase">— or —</div><button class="btn btn-outline btn-full" onclick="openPhoneReset()"><i class="fas fa-sms"></i>Reset via Phone OTP</button><p style="text-align:center;margin-top:14px"><a href="#" style="font-size:.72rem;color:var(--gold)" onclick="renderAuthForms(document.getElementById('acc-body'),'login');return false">← Back to Sign In</a></p>`;}
+async function doReset(){if(!sb){toast('Supabase not configured','er');return;}const e=document.getElementById('rst-e')?.value?.trim();if(!e||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){toast('Enter a valid email','er');return;}if(!rateLimit('reset',60000)){toast('Please wait before trying again','er');return;}const btn=document.getElementById('rst-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const appUrl=(SITE||window.location.origin)+'?reset=1';const{error}=await sb.auth.resetPasswordForEmail(e,{redirectTo:appUrl});btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Send Reset Link';if(error){toast(error.message,'er');return;}toast('Reset link sent! Check your email 📧','ok');}
+function openPhoneReset(){openSub('phonereset');}
+async function sendPhoneResetOTP(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('pr-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('pr-send-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('pr-send-wrap').style.display='none';document.getElementById('pr-verify-wrap').style.display='';toast('OTP sent to '+fullPhone,'ok');}
+async function verifyPhoneResetOTP(){if(!sb)return;const ph=document.getElementById('pr-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('protp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('pr-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify & Sign In';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}closeSub('phonereset');document.getElementById('reset-pw-overlay').classList.add('on');toast('Verified! Now set your new password.','ok');}
+async function doUpdatePassword(){if(!sb){toast('Not configured','er');return;}const p=document.getElementById('np-pw')?.value||'',p2=document.getElementById('np-pw2')?.value||'',errEl=document.getElementById('np-err'),btn=document.getElementById('np-btn');if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){setErr(errEl,'Passwords do not match');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';const{error}=await sb.auth.updateUser({password:p});btn.disabled=false;btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';if(error){setErr(errEl,error.message);return;}document.getElementById('reset-pw-overlay').classList.remove('on');history.replaceState(null,'',location.pathname);toast('Password updated! You are now signed in. 🔐','ok');renderAcc();}
 async function renderLoggedIn(el){
   const name=user?.user_metadata?.full_name||user?.email?.split('@')[0]||'Member';
   const email=user?.email||user?.phone||'';
@@ -1966,10 +2270,13 @@ async function renderLoggedIn(el){
     </div>
 
     <div class="menu-list">
+      <button class="menu-item" onclick="openOrders()"><i class="fas fa-box mi-icon"></i>My Orders<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item" onclick="openHistory()"><i class="fas fa-clock mi-icon"></i>Browse History<i class="fas fa-chevron-right mi-arrow"></i></button>
       <button class="menu-item" onclick="openWish()"><i class="fas fa-heart mi-icon"></i>Wishlist<i class="fas fa-chevron-right mi-arrow"></i></button>
       <button class="menu-item" onclick="openCart()"><i class="fas fa-shopping-bag mi-icon"></i>My Bag<i class="fas fa-chevron-right mi-arrow"></i></button>
       <button class="menu-item" onclick="openNotifications()"><i class="fas fa-bell mi-icon"></i>Notifications${getUnreadCount()>0?`<span class="badge badge-gold" style="margin-left:auto;margin-right:8px">${getUnreadCount()}</span>`:''}<i class="fas fa-chevron-right mi-arrow"></i></button>
-      <button class="menu-item" onclick="openPWAInstallMenu()"><i class="fas fa-download mi-icon"></i>Install App<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item" onclick="openEditProfile()"><i class="fas fa-user-edit mi-icon"></i>Edit Profile<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item" onclick="triggerInstall()"><i class="fas fa-download mi-icon"></i>Install App<i class="fas fa-chevron-right mi-arrow"></i></button>
       <button class="menu-item" onclick="openSub('contact')"><i class="fas fa-headset mi-icon"></i>Customer Support<i class="fas fa-chevron-right mi-arrow"></i></button>
       ${isAdmin?`<button class="menu-item" style="color:var(--gold)" onclick="openAdmin()"><i class="fas fa-shield-alt mi-icon"></i>Admin Dashboard<i class="fas fa-chevron-right mi-arrow"></i></button>`:''}
       <button class="menu-item" onclick="toggleTheme()"><i class="fas fa-adjust mi-icon"></i>Toggle Theme<i class="fas fa-chevron-right mi-arrow"></i></button>
@@ -1977,16 +2284,17 @@ async function renderLoggedIn(el){
     </div>`;
 }
 async function doLogout(){
+  const confirmed=await popupConfirm('Sign Out','Are you sure you want to sign out of Tote & Tread?','Sign Out','Cancel');
+  if(!confirmed)return;
   const btn=document.getElementById('signout-btn');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid var(--red);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px"></span><span style="color:var(--red)">Signing out…</span>';}
-  try{
-    if(sb){await sb.auth.signOut();}
-  }catch(e){console.error('Sign-out error:',e);}
-  user=null;userRole=null;isGuest=false;
-  // Clear session data
-  cart=[];saveCart();updBadges();
-  toast('You have been signed out','nf');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(224,80,80,.3);border-top-color:var(--red);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:6px"></span><span style="color:var(--red)">Signing out…</span>';}
+  try{ if(sb) await sb.auth.signOut(); } catch(e){ console.error('Sign-out error:',e); }
+  user=null; userRole=null; isGuest=false;
+  cart=[]; saveCart(); wish=[]; localStorage.removeItem('tt_wish');
+  updBadges();
   await renderAcc();
+  showTab('home');
+  toast('You have been signed out. See you soon! 👋','nf');
 }
 
 /* ════════ GUEST MODE ════════ */
