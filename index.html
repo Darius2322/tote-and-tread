@@ -97,6 +97,10 @@
 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover">
+<!-- ══ PRODUCTION CONFIG ══ Fill these in so ALL visitors skip the setup wizard ══ -->
+<meta name="tt-sb-url" content="https://edxdjrdzzzkxwxketezu.supabase.co">
+<meta name="tt-sb-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkeGRqcmR6enpreHd4a2V0ZXp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzMzMzUsImV4cCI6MjA4OTQ0OTMzNX0.5QKlSamxcffgfLo_ZgcWlrHOWCS8BGgI5urw9AJNEjM">
+<!-- ══════════════════════════════════════════════════════════════════════════════ -->
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
@@ -111,12 +115,14 @@
 <meta property="og:title" content="Tote &amp; Tread Collection">
 <meta property="og:description" content="Premium accessories handcrafted in Nairobi, Kenya.">
 <meta property="og:image" content="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&q=80">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A0A0A'/%3E%3Cg transform='translate(32,32) scale(1.55) translate(-18,-18)'%3E%3Cpath d='M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z' stroke='%23C9A84C' stroke-width='1.6' fill='none' stroke-linejoin='round'/%3E%3Cpath d='M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11' stroke='%23C9A84C' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3Cline x1='11' y1='18' x2='25' y2='18' stroke='%23C9A84C' stroke-width='1.1' opacity='.7'/%3E%3Cline x1='11' y1='22' x2='21' y2='22' stroke='%23C9A84C' stroke-width='1.1' opacity='.7'/%3E%3Ccircle cx='18' cy='14.5' r='2' fill='%23C9A84C'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230A0A0A'/%3E%3Cg transform='translate(90,90) scale(4.2) translate(-18,-18)'%3E%3Cpath d='M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z' stroke='%23C9A84C' stroke-width='1.6' fill='none' stroke-linejoin='round'/%3E%3Cpath d='M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11' stroke='%23C9A84C' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3Cline x1='11' y1='18' x2='25' y2='18' stroke='%23C9A84C' stroke-width='1.1' opacity='.7'/%3E%3Cline x1='11' y1='22' x2='21' y2='22' stroke='%23C9A84C' stroke-width='1.1' opacity='.7'/%3E%3Ccircle cx='18' cy='14.5' r='2' fill='%23C9A84C'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" defer></script>
 <style>
 /* ══ TOKENS ══ */
 :root{
@@ -164,7 +170,7 @@ button,input,textarea,select{font-family:var(--fb)}
 .splash-name{font-family:var(--fd);font-size:1.6rem;color:var(--gold);letter-spacing:.08em;text-align:center}
 .splash-sub{font-size:.52rem;letter-spacing:.32em;text-transform:uppercase;color:var(--t3)}
 .splash-bar{width:140px;height:2px;background:var(--bd);border-radius:2px;overflow:hidden;margin-top:4px}
-.splash-fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold-d),var(--gold-l),var(--gold-d));animation:splashLoad 1.6s ease forwards .2s}
+.splash-fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold-d),var(--gold-l),var(--gold-d));animation:splashLoad 0.5s ease forwards 0s}
 @keyframes splashLoad{to{width:100%}}
 
 /* PWA BANNER */
@@ -919,7 +925,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
   <div class="card card-p" style="margin-bottom:14px">
     <div style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0"><i class="fas fa-phone"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">Phone</div><a href="tel:+254107545752" style="font-size:.84rem;color:var(--t1);font-weight:500">0107 545 752</a></div></div>
-      <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0"><i class="fas fa-envelope"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">Email</div><a href="mailto:toteandtreadcollection@gmail.com" style="font-size:.78rem;color:var(--t1);font-weight:500">toteandtreadcollection@gmail.com</a></div></div>
+      <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0"><i class="fas fa-envelope"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">Email</div><a href="/cdn-cgi/l/email-protection#9febf0ebfafef1fbebedfafefbfcf0f3f3fafcebf6f0f1dff8f2fef6f3b1fcf0f2" style="font-size:.78rem;color:var(--t1);font-weight:500"><span class="__cf_email__" data-cfemail="31455e4554505f554543545055525e5d5d545245585e5f71565c50585d1f525e5c">[email&#160;protected]</span></a></div></div>
       <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0;background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.3);color:#25D366"><i class="fab fa-whatsapp"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">WhatsApp</div><button onclick="openWA()" style="font-size:.84rem;color:#25D366;font-weight:500;background:none;border:none;cursor:pointer;padding:0">Chat with us now</button></div></div>
     </div>
   </div>
@@ -936,7 +942,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 <div class="sub-body">
   <div style="padding:16px 14px 8px"><span class="sec-eyebrow">Technical Support</span><h3 style="font-family:var(--fd);font-size:1.2rem;margin-bottom:8px;margin-top:4px">App Developer</h3><p style="font-size:.76rem;color:var(--t3);line-height:1.65;margin-bottom:16px">For technical issues, feature requests, API integrations, or any app-related inquiries, reach out directly to the developer.</p></div>
   <div style="padding:0 14px;display:flex;flex-direction:column;gap:10px">
-    <div class="dcc"><div class="dcc-ico"><i class="fas fa-envelope"></i></div><div class="dcc-info"><span class="dcc-label">Developer Email</span><span class="dcc-value">dariusmomanyi678@gmail.com</span></div><div class="dcc-acts"><button class="dcc-act" onclick="copyText('dariusmomanyi678@gmail.com')" title="Copy"><i class="fas fa-copy"></i></button><a class="dcc-act" href="mailto:dariusmomanyi678@gmail.com"><i class="fas fa-external-link-alt"></i></a></div></div>
+    <div class="dcc"><div class="dcc-ico"><i class="fas fa-envelope"></i></div><div class="dcc-info"><span class="dcc-label">Developer Email</span><span class="dcc-value"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7f1b1e0d160a0c1210121e1106164948473f18121e1613511c1012">[email&#160;protected]</a></span></div><div class="dcc-acts"><button class="dcc-act" onclick="copyText('dariusmomanyi678@gmail.com')" title="Copy"><i class="fas fa-copy"></i></button><a class="dcc-act" href="/cdn-cgi/l/email-protection#0f6b6e7d667a7c6260626e6176663938374f68626e6663216c6062"><i class="fas fa-external-link-alt"></i></a></div></div>
     <div class="dcc"><div class="dcc-ico" style="background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.3);color:#25D366"><i class="fab fa-whatsapp"></i></div><div class="dcc-info"><span class="dcc-label">Developer WhatsApp</span><span class="dcc-value">+254 110 554 040</span></div><div class="dcc-acts"><button class="dcc-act" onclick="copyText('+254110554040')"><i class="fas fa-copy"></i></button><a class="dcc-act" href="https://wa.me/254110554040" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp"></i></a></div></div>
   </div>
   <div style="padding:14px"><button class="btn btn-outline btn-full" onclick="shareDevContact()"><i class="fas fa-share-alt"></i>Share Developer Contact</button></div>
@@ -946,7 +952,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 <div id="sub-terms" class="sub"><div class="sub-hdr"><button class="sub-back" onclick="closeSub('terms')"><i class="fas fa-arrow-left"></i></button><h2>Terms &amp; Conditions</h2></div>
 <div class="sub-body"><div class="terms-body">
   <p style="font-size:.66rem;color:var(--t3);margin-bottom:16px">Last updated: January 2025. By using Tote &amp; Tread Collection, you agree to these terms.</p>
-  <h3>1. About Us</h3><p>Tote &amp; Tread Collection is a Nairobi-based fashion retailer specialising in handcrafted tote bags, footwear, and accessories. Contact: 0107545752 | toteandtreadcollection@gmail.com</p>
+  <h3>1. About Us</h3><p>Tote &amp; Tread Collection is a Nairobi-based fashion retailer specialising in handcrafted tote bags, footwear, and accessories. Contact: 0107545752 | <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="92e6fde6f7f3fcf6e6e0f7f3f6f1fdfefef7f1e6fbfdfcd2f5fff3fbfebcf1fdff">[email&#160;protected]</a></p>
   <h3>2. Orders &amp; Payment</h3><p>All orders are placed via WhatsApp. Prices are in Kenyan Shillings (KES). We reserve the right to refuse or cancel any order. Payment is due before or upon delivery as agreed.</p>
   <h3>3. Delivery</h3><p>We deliver within Nairobi and select counties. Free delivery on orders over KES 5,000 within Nairobi CBD. Delivery times and charges vary by location.</p>
   <h3>4. Returns &amp; Exchanges</h3><p>We accept returns within 7 days of delivery for items in original, unused condition. Customised products cannot be returned. Contact us on WhatsApp to initiate a return.</p>
@@ -957,7 +963,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
   <h3>9. Security</h3><p>This app is secured against common web vulnerabilities including XSS, SQL injection, and CSRF attacks. All database access is governed by Row Level Security policies. Input is sanitised and validated both client-side and server-side.</p>
   <h3>10. Limitation of Liability</h3><p>Tote &amp; Tread Collection is not liable for any indirect, incidental, or consequential damages beyond the value of your purchase.</p>
   <h3>11. Governing Law</h3><p>These terms are governed by the laws of Kenya. Disputes shall be resolved under the jurisdiction of Kenyan courts.</p>
-  <h3>Contact for Terms Queries</h3><p>Email: toteandtreadcollection@gmail.com<br>Phone: 0107 545 752<br>WhatsApp: <a href="https://wa.me/254107545752" style="color:var(--gold)">+254 107 545 752</a></p>
+  <h3>Contact for Terms Queries</h3><p>Email: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="90e4ffe4f5f1fef4e4e2f5f1f4f3fffcfcf5f3e4f9fffed0f7fdf1f9fcbef3fffd">[email&#160;protected]</a><br>Phone: 0107 545 752<br>WhatsApp: <a href="https://wa.me/254107545752" style="color:var(--gold)">+254 107 545 752</a></p>
 </div></div></div>
 
 <div id="sub-devtools" class="sub"><div class="sub-hdr"><button class="sub-back" onclick="closeSub('devtools')"><i class="fas fa-arrow-left"></i></button><h2>Dev Tools</h2></div>
@@ -1119,15 +1125,18 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 /* ════════════════════════════════════════════════════════
    == CONFIG ==  ← change these values
 ═══════════════════════════════════════════════════════ */
 // ── Runtime config (set by setup wizard, saved in localStorage) ──
 // To hard-code instead, replace the values in the _DEFAULTS object below.
+// ── Read production config from <meta> tags (set these in the HTML <head>) ──
+const _META_URL = document.querySelector('meta[name="tt-sb-url"]')?.content || '';
+const _META_KEY = document.querySelector('meta[name="tt-sb-key"]')?.content || '';
 const _DEFAULTS = {
-  u: '',           // Supabase Project URL  e.g. https://xxxx.supabase.co
-  k: '',           // Supabase anon key
+  u: _META_URL,      // Supabase Project URL  — set in <meta name="tt-sb-url">
+  k: _META_KEY,      // Supabase anon key     — set in <meta name="tt-sb-key">
   w: '254107545752', // WhatsApp number (no +)
   s: window.location.origin // Your site URL
 };
@@ -1283,7 +1292,7 @@ async function init() {
   try { wish = JSON.parse(localStorage.getItem('tt_wish') || '[]'); } catch { wish = []; }
 
   // Splash
-  setTimeout(() => { const s = document.getElementById('splash'); if (s) { s.classList.add('hide'); setTimeout(() => s.classList.add('gone'), 750); } }, 1400);
+  setTimeout(() => { const s = document.getElementById('splash'); if (s) { s.classList.add('hide'); setTimeout(() => s.classList.add('gone'), 600); } }, 600);
 
   // Theme
   const saved = localStorage.getItem('tt_theme');
@@ -1391,6 +1400,19 @@ self.addEventListener('fetch',e=>{
 }
 function pwaInstall() { if (!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; document.getElementById('pwa-banner').classList.remove('show'); }); }
 function pwaDismiss() { document.getElementById('pwa-banner').classList.remove('show'); localStorage.setItem('tt_pwa_dismissed','1'); }
+function openPWAInstallMenu(){
+  if(deferredPrompt){
+    pwaInstall();
+  } else if(window.matchMedia('(display-mode: standalone)').matches){
+    toast('Tote & Tread is already installed on your device! 📱','ok');
+  } else {
+    const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+    const msg=isIOS
+      ? 'On iPhone/iPad: tap the Share button (□↑) at the bottom of Safari, then tap "Add to Home Screen".'
+      : 'Open this page in Chrome or Edge, then tap the menu (⋮) and select "Add to Home Screen" or "Install App".';
+    showPopup({title:'📲 Install App',msg,type:'nf',confirmLabel:'Got it'});
+  }
+}
 
 /* ════════ SETTINGS ════════ */
 async function loadAppSettings() {
@@ -1843,7 +1865,7 @@ function openSub(name){document.getElementById('sub-'+name)?.classList.add('on')
 function closeSub(name){document.getElementById('sub-'+name)?.classList.remove('on');hideOvl();}
 
 /* ════════ ACCOUNT ════════ */
-function renderAcc(){const el=document.getElementById('acc-body');if(!el)return;if(user)renderLoggedIn(el);else if(isGuest)renderGuestProfile(el);else renderAuthForms(el,'login');}
+async function renderAcc(){const el=document.getElementById('acc-body');if(!el)return;if(user)await renderLoggedIn(el);else if(isGuest)renderGuestProfile(el);else renderAuthForms(el,'login');}
 function renderAuthForms(el,tab){
   const isLogin=tab==='login';
   el.innerHTML=`<div class="auth-tabs"><button class="atab ${isLogin?'on':''}" onclick="renderAuthForms(document.getElementById('acc-body'),'login')">Sign In</button><button class="atab ${!isLogin?'on':''}" onclick="renderAuthForms(document.getElementById('acc-body'),'signup')">Create Account</button></div>
@@ -1892,8 +1914,80 @@ async function doPhoneVerify(){if(!sb)return;const ph=document.getElementById('l
 async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const{error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:window.location.href}});if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?'This email address is already registered. Try signing in instead, or reset your password.':error.message;setErr(errEl,'');popupErr('Account Creation Failed',msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','Your account has been created. Please check your email and click the confirmation link to activate your account.');}
 async function showReset(){const el=document.getElementById('acc-body');el.innerHTML=`<div style="margin-bottom:18px"><h3 style="font-family:var(--fd);font-size:1.3rem;margin-bottom:6px">Reset Password</h3><p style="font-size:.76rem;color:var(--t3);line-height:1.65">Enter your email and we'll send a reset link.</p></div><div class="fg"><label class="flbl">Email Address</label><input type="email" class="fi" id="rst-e" placeholder="your@email.com" maxlength="200" autocomplete="email"></div><button class="btn btn-gold btn-full" id="rst-btn" onclick="doReset()"><i class="fas fa-paper-plane"></i>Send Reset Link</button><p style="text-align:center;margin-top:12px"><a href="#" style="font-size:.72rem;color:var(--gold)" onclick="renderAuthForms(document.getElementById('acc-body'),'login');return false">← Back to Sign In</a></p>`;}
 async function doReset(){if(!sb){toast('Supabase not configured','er');return;}const e=document.getElementById('rst-e')?.value?.trim();if(!e||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){toast('Enter a valid email','er');return;}if(!rateLimit('reset',60000)){toast('Please wait before trying again','er');return;}const btn=document.getElementById('rst-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.resetPasswordForEmail(e,{redirectTo:window.location.href+'?reset=1'});btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Send Reset Link';if(error){toast(error.message,'er');return;}toast('Reset link sent! Check your email 📧','ok');}
-function renderLoggedIn(el){const name=user?.user_metadata?.full_name||user?.email?.split('@')[0]||'Member',email=user?.email||user?.phone||'',isAdmin=userRole==='admin';el.innerHTML=`<div class="prof-card"><div class="prof-avatar"><i class="fas fa-user"></i></div><div class="prof-name">${esc(name)}</div><div class="prof-email">${esc(email)}</div>${isAdmin?'<div class="admin-badge"><i class="fas fa-shield-alt"></i> Admin</div>':''}</div><div class="menu-list"><button class="menu-item" onclick="openWish()"><i class="fas fa-heart mi-icon"></i> Wishlist<i class="fas fa-chevron-right mi-arrow"></i></button><button class="menu-item" onclick="openCart()"><i class="fas fa-shopping-bag mi-icon"></i> My Bag<i class="fas fa-chevron-right mi-arrow"></i></button><button class="menu-item" onclick="openNotifications()"><i class="fas fa-bell mi-icon"></i> Notifications${getUnreadCount()>0?`<span class="badge badge-gold" style="margin-left:auto;margin-right:8px">${getUnreadCount()}</span>`:''}<i class="fas fa-chevron-right mi-arrow"></i></button><button class="menu-item" onclick="openSub('contact')"><i class="fas fa-headset mi-icon"></i> Customer Support<i class="fas fa-chevron-right mi-arrow"></i></button>${isAdmin?`<button class="menu-item" style="color:var(--gold)" onclick="openAdmin()"><i class="fas fa-shield-alt mi-icon"></i> Admin Dashboard<i class="fas fa-chevron-right mi-arrow"></i></button>`:''}<button class="menu-item" onclick="toggleTheme()"><i class="fas fa-adjust mi-icon"></i> Toggle Theme<i class="fas fa-chevron-right mi-arrow"></i></button><button class="menu-item danger" onclick="doLogout()"><i class="fas fa-sign-out-alt mi-icon" style="color:var(--red)"></i><span style="color:var(--red)">Sign Out</span></button></div>`;}
-async function doLogout(){await sb?.auth.signOut();user=null;userRole=null;isGuest=false;toast('Signed out','nf');renderAcc();}
+async function renderLoggedIn(el){
+  const name=user?.user_metadata?.full_name||user?.email?.split('@')[0]||'Member';
+  const email=user?.email||user?.phone||'';
+  const isAdmin=userRole==='admin';
+  const joined=user?.created_at?D(user.created_at):'—';
+  const lastSeen=user?.last_sign_in_at?D(user.last_sign_in_at):'—';
+  const provider=(user?.app_metadata?.provider||'email');
+  const providerLabel=provider==='google'?'<i class="fab fa-google" style="color:#4285F4;margin-right:4px"></i>Google':provider==='phone'?'<i class="fas fa-phone" style="color:var(--gold);margin-right:4px"></i>Phone':'<i class="fas fa-envelope" style="color:var(--gold);margin-right:4px"></i>Email';
+
+  // Fetch order count and profile extra data
+  let orderCount=0;
+  if(sb&&user){try{const{count}=await sb.from('orders').select('*',{count:'exact',head:true}).eq('user_id',user.id);orderCount=count||0;}catch{}}
+
+  el.innerHTML=`
+    <div class="prof-card">
+      <div style="position:relative;display:inline-block">
+        <div class="prof-avatar">${user?.user_metadata?.avatar_url?`<img src="${esc(user.user_metadata.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-user\\'></i>'">` : '<i class="fas fa-user"></i>'}</div>
+        ${isAdmin?'<div style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;color:#000"><i class="fas fa-shield-alt"></i></div>':''}
+      </div>
+      <div class="prof-name">${esc(name)}</div>
+      <div class="prof-email">${esc(email)}</div>
+      <div style="display:inline-flex;align-items:center;gap:4px;font-size:.62rem;color:var(--t3);margin-top:4px">${providerLabel} sign-in</div>
+      ${isAdmin?'<div class="admin-badge" style="margin-top:8px"><i class="fas fa-shield-alt"></i> Admin</div>':''}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:16px;width:100%">
+        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:10px;text-align:center">
+          <div style="font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Orders</div>
+          <div style="font-family:var(--fd);font-size:1.4rem;color:var(--gold)">${orderCount}</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:10px;text-align:center">
+          <div style="font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Wishlist</div>
+          <div style="font-family:var(--fd);font-size:1.4rem;color:var(--gold)">${wish.length}</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:10px;text-align:center">
+          <div style="font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Bag</div>
+          <div style="font-family:var(--fd);font-size:1.4rem;color:var(--gold)">${cart.reduce((s,i)=>s+i.qty,0)}</div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:11px 13px;width:100%;font-size:.72rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="color:var(--t3)"><i class="fas fa-calendar-plus" style="width:14px;margin-right:5px;color:var(--gold);opacity:.7"></i>Member since</span>
+          <span style="color:var(--t2);font-size:.68rem">${joined}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="color:var(--t3)"><i class="fas fa-clock" style="width:14px;margin-right:5px;color:var(--gold);opacity:.7"></i>Last visit</span>
+          <span style="color:var(--t2);font-size:.68rem">${lastSeen}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="menu-list">
+      <button class="menu-item" onclick="openWish()"><i class="fas fa-heart mi-icon"></i>Wishlist<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item" onclick="openCart()"><i class="fas fa-shopping-bag mi-icon"></i>My Bag<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item" onclick="openNotifications()"><i class="fas fa-bell mi-icon"></i>Notifications${getUnreadCount()>0?`<span class="badge badge-gold" style="margin-left:auto;margin-right:8px">${getUnreadCount()}</span>`:''}<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item" onclick="openPWAInstallMenu()"><i class="fas fa-download mi-icon"></i>Install App<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item" onclick="openSub('contact')"><i class="fas fa-headset mi-icon"></i>Customer Support<i class="fas fa-chevron-right mi-arrow"></i></button>
+      ${isAdmin?`<button class="menu-item" style="color:var(--gold)" onclick="openAdmin()"><i class="fas fa-shield-alt mi-icon"></i>Admin Dashboard<i class="fas fa-chevron-right mi-arrow"></i></button>`:''}
+      <button class="menu-item" onclick="toggleTheme()"><i class="fas fa-adjust mi-icon"></i>Toggle Theme<i class="fas fa-chevron-right mi-arrow"></i></button>
+      <button class="menu-item danger" id="signout-btn" onclick="doLogout()"><i class="fas fa-sign-out-alt mi-icon" style="color:var(--red)"></i><span style="color:var(--red)">Sign Out</span></button>
+    </div>`;
+}
+async function doLogout(){
+  const btn=document.getElementById('signout-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid var(--red);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px"></span><span style="color:var(--red)">Signing out…</span>';}
+  try{
+    if(sb){await sb.auth.signOut();}
+  }catch(e){console.error('Sign-out error:',e);}
+  user=null;userRole=null;isGuest=false;
+  // Clear session data
+  cart=[];saveCart();updBadges();
+  toast('You have been signed out','nf');
+  await renderAcc();
+}
 
 /* ════════ GUEST MODE ════════ */
 let isGuest = false;
@@ -2110,15 +2204,20 @@ function showPopup({ title, msg, type='er', confirmLabel='OK', cancelLabel=null 
   document.getElementById('popup-overlay').classList.add('on');
   return new Promise(res => { _popupResolve = res; });
 }
-function closePopup() { document.getElementById('popup-overlay').classList.remove('on'); }
-function popupErr(title, msg) { return showPopup({ title, msg, type:'er', confirmLabel:'Got it' }); }
-function popupOk(title, msg)  { return showPopup({ title, msg, type:'ok', confirmLabel:'Great!' }); }
-function popupConfirm(title, msg, confirmLabel='Confirm', cancelLabel='Cancel') { return showPopup({ title, msg, type:'nf', confirmLabel, cancelLabel }); }
-
-// Enforce HTTPS in production (not on localhost)
-if(location.protocol==='http:'&&location.hostname!=='localhost'&&!location.hostname.startsWith('127.')){
-  location.replace('https:'+location.href.slice(5));
+function closePopup() {
+  document.getElementById('popup-overlay').classList.remove('on');
 }
+function popupErr(title, msg) {
+  return showPopup({ title, msg, type: 'er', confirmLabel: 'OK' });
+}
+function popupOk(title, msg) {
+  return showPopup({ title, msg, type: 'ok', confirmLabel: 'OK' });
+}
+function popupConfirm(title, msg, confirmLabel = 'Confirm', cancelLabel = 'Cancel') {
+  return showPopup({ title, msg, type: 'er', confirmLabel, cancelLabel });
+}
+
+/* ════════ START ════════ */
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
