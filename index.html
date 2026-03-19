@@ -161,31 +161,279 @@ button,input,textarea,select{font-family:var(--fb)}
 ::-webkit-scrollbar-thumb{background:var(--gold-d);border-radius:4px}
 .hidden{display:none!important}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 
-/* SPLASH */
-#splash{position:fixed;inset:0;z-index:9999;background:#0A0A0A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .7s var(--ease),transform .7s var(--ease),visibility .7s}
-#splash.hide{opacity:0;visibility:hidden;pointer-events:none;transform:scale(1.04)}
-#splash.gone{display:none}
-.splash-logo-wrap{width:108px;height:108px;background:#0F0F0F;border:1.5px solid var(--gold-a45);border-radius:28px;display:flex;align-items:center;justify-content:center;animation:splashPulse 2s ease-in-out infinite;box-shadow:0 0 0 0 var(--gold-a25)}
-@keyframes splashPulse{0%,100%{box-shadow:0 0 0 0 rgba(201,168,76,.18),0 8px 40px rgba(201,168,76,.12)}55%{box-shadow:0 0 0 14px rgba(201,168,76,.04),0 8px 40px rgba(201,168,76,.22)}}
-.splash-name{font-family:var(--fd);font-size:1.6rem;color:var(--gold);letter-spacing:.08em;text-align:center}
-.splash-sub{font-size:.52rem;letter-spacing:.32em;text-transform:uppercase;color:var(--t3)}
-.splash-bar{width:140px;height:2px;background:var(--bd);border-radius:2px;overflow:hidden;margin-top:4px}
-.splash-fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold-d),var(--gold-l),var(--gold-d));animation:splashLoad 0.5s ease forwards 0s}
-@keyframes splashLoad{to{width:100%}}
+/* ═══════════════════════════════════════════════
+   ELEGANT PRELOADER — Tote & Tread
+   ═══════════════════════════════════════════════ */
+#splash {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  /* Deep rich background with subtle warm gradient */
+  background: radial-gradient(ellipse at 30% 20%, #1A1408 0%, #0D0B06 40%, #050504 100%);
+}
+/* Ambient glow orbs — depth & atmosphere */
+#splash::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: -10%;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(circle, rgba(201,168,76,.07) 0%, transparent 65%);
+  animation: splashOrb1 6s ease-in-out infinite;
+  pointer-events: none;
+}
+#splash::after {
+  content: '';
+  position: absolute;
+  bottom: -15%;
+  right: -10%;
+  width: 55%;
+  height: 55%;
+  background: radial-gradient(circle, rgba(201,168,76,.05) 0%, transparent 65%);
+  animation: splashOrb2 7s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes splashOrb1 {
+  0%,100% { transform: translate(0,0) scale(1); opacity:.6; }
+  50%      { transform: translate(6%,8%) scale(1.12); opacity:1; }
+}
+@keyframes splashOrb2 {
+  0%,100% { transform: translate(0,0) scale(1); opacity:.5; }
+  50%      { transform: translate(-5%,-6%) scale(1.08); opacity:.9; }
+}
 
-/* APP INSTALL CARD (home page inline) */
-.install-card{margin:18px 14px;padding:20px 18px;background:linear-gradient(135deg,#1A1500,#1C1800,#221C00);border:1px solid var(--gold-a45);border-radius:var(--rxl);display:flex;align-items:center;gap:14px;position:relative;overflow:hidden}
-.install-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at top right,rgba(201,168,76,.12) 0%,transparent 65%);pointer-events:none}
-.install-card-ico{width:48px;height:48px;background:var(--gold-a15);border:1.5px solid var(--gold-a45);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.install-card-body{flex:1;min-width:0}
-.install-card-body strong{display:block;font-family:var(--fd);font-size:1rem;color:var(--t1);margin-bottom:3px}
-.install-card-body span{font-size:.66rem;color:var(--t3);line-height:1.55}
-.install-card-btn{background:var(--gold);color:#000;border:none;padding:9px 16px;border-radius:var(--r);font-size:.64rem;font-weight:600;letter-spacing:.08em;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
-.install-card-btn:hover{background:var(--gold-l);transform:translateY(-1px)}
+/* Decorative corner lines */
+.splash-corner {
+  position: absolute;
+  width: 48px; height: 48px;
+  opacity: 0;
+  animation: splashCornerIn .8s ease forwards;
+}
+.splash-corner::before, .splash-corner::after {
+  content: '';
+  position: absolute;
+  background: linear-gradient(90deg, var(--gold), transparent);
+  border-radius: 2px;
+}
+.splash-corner.tl { top: 32px; left: 32px; animation-delay: .3s; }
+.splash-corner.tr { top: 32px; right: 32px; transform: scaleX(-1); animation-delay: .45s; }
+.splash-corner.bl { bottom: 32px; left: 32px; transform: scaleY(-1); animation-delay: .6s; }
+.splash-corner.br { bottom: 32px; right: 32px; transform: scale(-1); animation-delay: .75s; }
+.splash-corner::before { top: 0; left: 0; width: 100%; height: 1.5px; }
+.splash-corner::after  { top: 0; left: 0; width: 1.5px; height: 100%; }
+@keyframes splashCornerIn {
+  from { opacity:0; transform:scale(.7); }
+  to   { opacity:.45; transform:scale(1); }
+}
+
+/* Centre stage */
+.splash-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  z-index: 1;
+}
+
+/* Outer ring — slow rotation */
+.splash-ring-outer {
+  position: absolute;
+  width: 156px; height: 156px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: conic-gradient(from 0deg, transparent 0%, rgba(201,168,76,.35) 25%, transparent 50%) border-box;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  animation: splashRingOuter 4s linear infinite;
+}
+@keyframes splashRingOuter { to { transform: rotate(360deg); } }
+
+/* Inner ring — counter-rotation, slightly faster */
+.splash-ring-inner {
+  position: absolute;
+  width: 130px; height: 130px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: conic-gradient(from 180deg, transparent 0%, rgba(201,168,76,.22) 30%, transparent 55%) border-box;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  animation: splashRingInner 3s linear infinite;
+}
+@keyframes splashRingInner { to { transform: rotate(-360deg); } }
+
+/* Logo container — pulse & breathe */
+.splash-logo-wrap {
+  position: relative;
+  width: 108px; height: 108px;
+  background: linear-gradient(145deg, #18130A, #0F0C06);
+  border: 1px solid rgba(201,168,76,.3);
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 0 0 0 rgba(201,168,76,.2),
+    0 8px 40px rgba(0,0,0,.7),
+    inset 0 1px 0 rgba(201,168,76,.12);
+  animation: splashLogoPulse 2.8s ease-in-out infinite;
+}
+@keyframes splashLogoPulse {
+  0%,100% {
+    box-shadow: 0 0 0 0 rgba(201,168,76,.2), 0 8px 40px rgba(0,0,0,.7), inset 0 1px 0 rgba(201,168,76,.12);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 18px rgba(201,168,76,.04), 0 12px 50px rgba(0,0,0,.8), inset 0 1px 0 rgba(201,168,76,.18);
+    transform: scale(1.025);
+  }
+}
+
+/* Logo SVG shimmer */
+.splash-logo-wrap svg {
+  filter: drop-shadow(0 2px 12px rgba(201,168,76,.3));
+  animation: splashSvgShimmer 3s ease-in-out infinite;
+}
+@keyframes splashSvgShimmer {
+  0%,100% { filter: drop-shadow(0 2px 12px rgba(201,168,76,.3)); }
+  50%      { filter: drop-shadow(0 2px 22px rgba(201,168,76,.55)); }
+}
+
+/* Text block */
+.splash-text {
+  margin-top: 36px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: splashTextIn .9s ease .55s forwards;
+}
+@keyframes splashTextIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+.splash-name {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.85rem;
+  font-weight: 300;
+  color: #E8D9BC;
+  letter-spacing: .14em;
+  line-height: 1;
+  margin-bottom: 7px;
+}
+.splash-name em {
+  font-style: italic;
+  color: var(--gold);
+}
+.splash-divider {
+  width: 40px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  margin: 0 auto 8px;
+  opacity: 0;
+  animation: splashTextIn .7s ease .8s forwards;
+}
+.splash-sub {
+  font-size: .48rem;
+  letter-spacing: .38em;
+  text-transform: uppercase;
+  color: rgba(201,168,76,.55);
+  font-family: 'Jost', sans-serif;
+}
+
+/* Progress track */
+.splash-progress {
+  margin-top: 38px;
+  opacity: 0;
+  animation: splashTextIn .7s ease .9s forwards;
+}
+.splash-bar {
+  width: 120px; height: 1px;
+  background: rgba(201,168,76,.12);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.splash-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, transparent, var(--gold-l), var(--gold), transparent);
+  border-radius: 1px;
+  animation: splashFill 1.6s cubic-bezier(.4,0,.2,1) .9s forwards;
+}
+@keyframes splashFill {
+  0%   { width: 0%;   opacity: 0; }
+  10%  { opacity: 1; }
+  60%  { width: 75%; }
+  100% { width: 100%; }
+}
+.splash-loading-text {
+  text-align: center;
+  font-size: .44rem;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: rgba(201,168,76,.35);
+  font-family: 'Jost', sans-serif;
+}
+
+/* Exit animation — the whole screen dissolves upward */
+#splash.hide {
+  animation: splashExit .9s cubic-bezier(.4,0,.2,1) forwards;
+  pointer-events: none;
+}
+@keyframes splashExit {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  40%  { opacity: 1; transform: translateY(-8px) scale(1.01); }
+  100% { opacity: 0; transform: translateY(-24px) scale(1.03); }
+}
+#splash.gone { display: none; }
+
 /* password reset overlay */
 #reset-pw-overlay{position:fixed;inset:0;z-index:9999;background:#0A0A0A;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px}
 #reset-pw-overlay.on{display:flex}
 .reset-pw-box{width:100%;max-width:380px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rxl);padding:28px 24px}
+
+/* PWA INSTALL POPUP */
+#pwa-popup{position:fixed;inset:0;z-index:9000;display:flex;align-items:flex-end;justify-content:center;pointer-events:none;opacity:0;transition:opacity .35s var(--ease)}
+#pwa-popup.on{opacity:1;pointer-events:all}
+#pwa-popup-scrim{position:absolute;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#pwa-popup-card{position:relative;width:100%;max-width:430px;background:linear-gradient(160deg,#0F0E08 0%,#141208 40%,#0A0A0A 100%);border:1px solid var(--gold-a45);border-bottom:none;border-radius:28px 28px 0 0;padding:0 0 env(safe-area-inset-bottom,0);transform:translateY(100%);transition:transform .42s cubic-bezier(.22,.82,.18,1);overflow:hidden}
+#pwa-popup.on #pwa-popup-card{transform:translateY(0)}
+#pwa-popup-card::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:200px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+#pwa-popup-card::after{content:'';position:absolute;top:-60px;right:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,.07) 0%,transparent 70%);pointer-events:none}
+.pwa-pull{width:36px;height:4px;background:rgba(201,168,76,.3);border-radius:4px;margin:14px auto 0}
+.pwa-popup-inner{padding:20px 24px 28px}
+.pwa-popup-top{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.pwa-popup-icon{width:64px;height:64px;background:linear-gradient(135deg,#1A1500,#2A2200);border:1.5px solid var(--gold-a45);border-radius:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 20px rgba(201,168,76,.15)}
+.pwa-popup-titles{flex:1}
+.pwa-popup-titles strong{display:block;font-family:var(--fd);font-size:1.25rem;color:var(--t1);margin-bottom:3px;letter-spacing:.01em}
+.pwa-popup-titles span{font-size:.68rem;color:var(--t3);line-height:1.55}
+.pwa-popup-features{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:22px}
+.pwa-feat{background:rgba(201,168,76,.05);border:1px solid rgba(201,168,76,.12);border-radius:12px;padding:12px 13px;display:flex;align-items:flex-start;gap:9px}
+.pwa-feat i{color:var(--gold);font-size:.82rem;margin-top:2px;flex-shrink:0}
+.pwa-feat-text strong{display:block;font-size:.72rem;color:var(--t1);margin-bottom:1px}
+.pwa-feat-text span{font-size:.62rem;color:var(--t3);line-height:1.4}
+.pwa-popup-actions{display:flex;gap:10px}
+.pwa-install-btn{flex:1;background:linear-gradient(135deg,var(--gold-d),var(--gold),var(--gold-l));color:#000;border:none;padding:14px 20px;border-radius:12px;font-family:var(--fb);font-size:.76rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;box-shadow:0 4px 20px rgba(201,168,76,.3)}
+.pwa-install-btn:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(201,168,76,.45)}
+.pwa-install-btn:active{transform:translateY(0)}
+.pwa-later-btn{background:transparent;border:1px solid rgba(201,168,76,.2);color:var(--t3);padding:14px 16px;border-radius:12px;font-family:var(--fb);font-size:.72rem;cursor:pointer;white-space:nowrap;transition:all .2s}
+.pwa-later-btn:hover{border-color:var(--gold-a45);color:var(--t2)}
+@media(min-width:460px){#pwa-popup{max-width:430px;left:50%;right:auto;transform:translateX(-50%);width:100%}}
+
+/* Hide app chrome while preloader is visible */
+body:has(#splash:not(.gone)) #topbar,
+body:has(#splash:not(.gone)) #botnav,
+body:has(#splash:not(.gone)) .fab-wa,
+body:has(#splash:not(.gone)) #notif {
+  opacity: 0;
+  pointer-events: none;
+}
 
 /* NOTIF BAR */
 #notif{position:relative;background:linear-gradient(90deg,var(--gold-d),var(--gold),var(--gold-d));color:#0A0A0A;font-size:.6rem;letter-spacing:.12em;text-align:center;padding:8px 36px 8px 16px;font-weight:600;text-transform:uppercase;max-width:430px;margin:0 auto;display:block}
@@ -321,6 +569,13 @@ button,input,textarea,select{font-family:var(--fb)}
 .phone-wrap{display:flex;gap:0}
 .phone-prefix{padding:10px 12px;background:var(--inp);border:1px solid var(--bd);border-right:none;border-radius:var(--r) 0 0 var(--r);color:var(--t3);font-size:.84rem;min-width:52px;text-align:center;flex-shrink:0}
 .phone-wrap .fi{border-radius:0 var(--r) var(--r) 0}
+
+/* SKELETONS */
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.skel-card{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden}
+.skel-img{width:100%;aspect-ratio:3/4;background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%);background-size:800px 100%;animation:shimmer 1.4s infinite}
+.skel-line{height:11px;margin:8px 11px 4px;background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%);background-size:800px 100%;animation:shimmer 1.4s infinite;border-radius:4px}
+.skel-line.short{width:55%;margin-bottom:12px}
 
 /* SPINNER */
 .spin{width:18px;height:18px;border:2px solid var(--gold-a25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;display:inline-block}
@@ -465,9 +720,6 @@ button,input,textarea,select{font-family:var(--fb)}
 .login-method-tabs{display:flex;gap:0;background:var(--bg4);border:1px solid var(--bd);border-radius:var(--r);padding:3px;margin-bottom:14px}
 .lmtab{flex:1;padding:7px;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;background:transparent;border:none;color:var(--t3);cursor:pointer;border-radius:6px;transition:all .2s;font-family:var(--fb)}
 .lmtab.on{background:var(--bg3);color:var(--gold);border:1px solid var(--bd)}
-.btn-google{background:#fff;color:#3c4043;border:1px solid #dadce0;font-family:var(--fb);display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:11px;border-radius:var(--r);font-size:.78rem;cursor:pointer;transition:all .2s;margin-bottom:12px}
-.btn-google:hover{background:#f8f9fa;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.btn-google svg{width:18px;height:18px;flex-shrink:0}
 .or-divider{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--bd)}
 .or-divider span{font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)}
@@ -526,6 +778,7 @@ button,input,textarea,select{font-family:var(--fb)}
 .val-title{font-family:var(--fd);font-size:.92rem;margin-bottom:4px}
 .val-desc{font-size:.7rem;color:var(--t3);line-height:1.55}
 .team-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 12px}
+.team-grid .team-card:last-child:nth-child(odd){grid-column:1/-1;max-width:200px;margin:0 auto;width:100%}
 .team-card{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;text-align:center}
 .team-card img,.team-ph{width:100%;aspect-ratio:1;object-fit:cover;background:var(--bg2)}
 .team-ph{display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:var(--bd2)}
@@ -643,23 +896,52 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 }
 </style>
 <body>
-<!-- SPLASH -->
-<div id="splash" role="status" aria-label="Loading Tote &amp; Tread">
-  <div style="display:flex;flex-direction:column;align-items:center;gap:20px">
+<!-- ═══════════════════════════════════════════
+     ELEGANT PRELOADER — Tote & Tread
+     Hides automatically once app is ready.
+     No browser install prompts here.
+     ═══════════════════════════════════════════ -->
+<div id="splash" role="status" aria-label="Loading Tote &amp; Tread" aria-live="polite">
+
+  <!-- Decorative corner brackets -->
+  <div class="splash-corner tl"></div>
+  <div class="splash-corner tr"></div>
+  <div class="splash-corner bl"></div>
+  <div class="splash-corner br"></div>
+
+  <!-- Centre composition -->
+  <div class="splash-stage">
+
+    <!-- Spinning rings around the logo -->
+    <div class="splash-ring-outer"></div>
+    <div class="splash-ring-inner"></div>
+
+    <!-- Logo mark -->
     <div class="splash-logo-wrap">
-      <svg width="64" height="64" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-        <path d="M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
-        <path d="M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-        <line x1="11" y1="18" x2="25" y2="18" stroke="#C9A84C" stroke-width="1.2" opacity=".7"/>
-        <line x1="11" y1="22" x2="21" y2="22" stroke="#C9A84C" stroke-width="1.2" opacity=".7"/>
+      <svg width="58" height="58" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+        <path d="M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z"
+              stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+        <path d="M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11"
+              stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <line x1="11" y1="18" x2="25" y2="18" stroke="#C9A84C" stroke-width="1.1" opacity=".75"/>
+        <line x1="11" y1="22" x2="21" y2="22" stroke="#C9A84C" stroke-width="1.1" opacity=".75"/>
         <circle cx="18" cy="14.5" r="1.8" fill="#C9A84C"/>
       </svg>
     </div>
-    <div style="text-align:center">
-      <div class="splash-name">Tote &amp; Tread</div>
-      <div class="splash-sub">Nairobi · Collection</div>
+
+    <!-- Brand name -->
+    <div class="splash-text">
+      <div class="splash-name"><em>Tote</em> &amp; Tread</div>
+      <div class="splash-divider"></div>
+      <div class="splash-sub">Nairobi &nbsp;·&nbsp; Collection</div>
     </div>
-    <div class="splash-bar"><div class="splash-fill"></div></div>
+
+    <!-- Progress indicator -->
+    <div class="splash-progress">
+      <div class="splash-bar"><div class="splash-fill"></div></div>
+      <div class="splash-loading-text">Loading</div>
+    </div>
+
   </div>
 </div>
 
@@ -676,6 +958,43 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
     <div id="np-err" class="ferr" style="display:none;margin-bottom:10px"></div>
     <button class="btn btn-gold btn-full" id="np-btn" onclick="doUpdatePassword()"><i class="fas fa-lock"></i>Save New Password</button>
     <p style="text-align:center;margin-top:12px"><a href="#" style="font-size:.72rem;color:var(--t3)" onclick="document.getElementById('reset-pw-overlay').classList.remove('on');history.replaceState(null,'',location.pathname);return false">← Cancel</a></p>
+  </div>
+</div>
+
+<!-- PWA INSTALL POPUP -->
+<div id="pwa-popup" role="dialog" aria-label="Install Tote &amp; Tread">
+  <div id="pwa-popup-scrim" onclick="pwaDismiss()"></div>
+  <div id="pwa-popup-card">
+    <div class="pwa-pull"></div>
+    <div class="pwa-popup-inner">
+      <div class="pwa-popup-top">
+        <div class="pwa-popup-icon">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+            <path d="M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+            <path d="M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            <line x1="11" y1="18" x2="25" y2="18" stroke="#C9A84C" stroke-width="1.1" opacity=".7"/>
+            <line x1="11" y1="22" x2="21" y2="22" stroke="#C9A84C" stroke-width="1.1" opacity=".7"/>
+            <circle cx="18" cy="14.5" r="1.8" fill="#C9A84C"/>
+          </svg>
+        </div>
+        <div class="pwa-popup-titles">
+          <strong>Tote &amp; Tread</strong>
+          <span>Install for the best shopping experience — fast, full-screen &amp; always ready.</span>
+        </div>
+      </div>
+      <div class="pwa-popup-features">
+        <div class="pwa-feat"><i class="fas fa-bolt"></i><div class="pwa-feat-text"><strong>Instant Access</strong><span>Opens straight from your home screen</span></div></div>
+        <div class="pwa-feat"><i class="fas fa-wifi"></i><div class="pwa-feat-text"><strong>Works Offline</strong><span>Browse even without internet</span></div></div>
+        <div class="pwa-feat"><i class="fas fa-expand"></i><div class="pwa-feat-text"><strong>Full Screen</strong><span>No browser bars, pure app feel</span></div></div>
+        <div class="pwa-feat"><i class="fas fa-bell"></i><div class="pwa-feat-text"><strong>Fast &amp; Light</strong><span>No app store, no download wait</span></div></div>
+      </div>
+      <div class="pwa-popup-actions">
+        <button class="pwa-install-btn" id="pwa-install-btn" onclick="pwaDoInstall()">
+          <i class="fas fa-download"></i>Install App
+        </button>
+        <button class="pwa-later-btn" onclick="pwaDismiss()">Not Now</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -743,7 +1062,12 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
         <div class="cat-chip" onclick="goShop('new')"><div class="cat-chip-bg" style="background-image:url('https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=400&q=80')"></div><div class="cat-chip-ovl"></div><div class="cat-chip-lbl">New In</div></div>
       </div>
       <div class="sec-head rv" style="padding-top:18px"><span class="sec-eyebrow">Curated for You</span><h2 class="sec-title">Featured Pieces</h2></div>
-      <div class="prod-grid rv" id="feat-grid"><div class="load-center"><div class="spin"></div></div></div>
+      <div class="prod-grid rv" id="feat-grid">
+        <div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>
+        <div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>
+        <div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>
+        <div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>
+      </div>
       <div style="text-align:center;padding:4px 12px 18px" class="rv">
         <button class="btn btn-outline" onclick="showTab('shop')">View All Products <i class="fas fa-arrow-right"></i></button>
       </div>
@@ -754,23 +1078,6 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
         <h3>Where Elegance Meets<br>Every Step</h3>
         <p>Born in Nairobi, each piece is crafted with intention — to elevate your presence whether you step into a boardroom or set off on an adventure.</p>
         <button class="btn btn-outline" onclick="openSub('about')">Discover Our Story <i class="fas fa-arrow-right"></i></button>
-      </div>
-      <!-- APP INSTALL PROMPT - mid-scroll home -->
-      <div id="home-install-card" class="install-card rv" style="margin-top:18px">
-        <div class="install-card-ico">
-          <svg width="26" height="26" viewBox="0 0 36 36" fill="none">
-            <path d="M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
-            <path d="M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-            <line x1="11" y1="18" x2="25" y2="18" stroke="#C9A84C" stroke-width="1" opacity=".7"/>
-            <line x1="11" y1="22" x2="21" y2="22" stroke="#C9A84C" stroke-width="1" opacity=".7"/>
-            <circle cx="18" cy="14.5" r="1.5" fill="#C9A84C"/>
-          </svg>
-        </div>
-        <div class="install-card-body">
-          <strong>Tote &amp; Tread App</strong>
-          <span>Add to your home screen for a faster, full-screen shopping experience — no browser needed.</span>
-        </div>
-        <button class="install-card-btn" onclick="triggerInstall()"><i class="fas fa-download" style="margin-right:5px"></i>Install</button>
       </div>
       <!-- SOCIAL FOLLOW -->
       <div class="rv" style="padding:22px 16px;border-top:1px solid var(--bd);text-align:center">
@@ -819,7 +1126,12 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
         <button class="fchip" onclick="setFilter('sale',this)">On Sale</button>
         <button class="fchip" onclick="setFilter('premium',this)">Premium</button>
       </div>
-      <div class="prod-grid" id="shop-grid"><div class="load-center"><div class="spin"></div></div></div>
+      <div class="prod-grid" id="shop-grid">
+        <div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>
+        <div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>
+        <div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>
+        <div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>
+      </div>
     </div>
 
     <!-- GALLERY -->
@@ -885,22 +1197,30 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 
 <!-- ORDERS SUB-SCREEN -->
 <div id="sub-orders" class="sub">
-  <div class="sub-hdr"><button class="sub-back" onclick="closeSub('orders')"><i class="fas fa-arrow-left"></i></button><h2>My Orders</h2></div>
-  <div class="sub-body" id="orders-body"><div class="load-center"><div class="spin"></div></div></div>
+  <div class="sub-hdr">
+    <button class="sub-back" onclick="closeSub('orders')"><i class="fas fa-arrow-left"></i></button>
+    <h2>My Orders</h2>
+  </div>
+  <div class="sub-body" id="orders-body" style="padding:0"><div class="load-center"><div class="spin"></div></div></div>
 </div>
 
 <!-- HISTORY SUB-SCREEN -->
 <div id="sub-history" class="sub">
-  <div class="sub-hdr"><button class="sub-back" onclick="closeSub('history')"><i class="fas fa-arrow-left"></i></button><h2>Browse History</h2>
-    <button onclick="clearHistory()" style="margin-left:auto;background:none;border:none;color:var(--t3);font-size:.66rem;cursor:pointer;letter-spacing:.08em;text-transform:uppercase">Clear All</button>
+  <div class="sub-hdr">
+    <button class="sub-back" onclick="closeSub('history')"><i class="fas fa-arrow-left"></i></button>
+    <h2>Browse History</h2>
+    <button onclick="clearHistory()" style="margin-left:auto;background:none;border:none;color:var(--t3);font-size:.66rem;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px">Clear All</button>
   </div>
-  <div class="sub-body" id="history-body"><div class="load-center"><div class="spin"></div></div></div>
+  <div class="sub-body" id="history-body" style="padding:0"><div class="load-center"><div class="spin"></div></div></div>
 </div>
 
 <!-- EDIT PROFILE SUB-SCREEN -->
 <div id="sub-editprofile" class="sub">
-  <div class="sub-hdr"><button class="sub-back" onclick="closeSub('editprofile')"><i class="fas fa-arrow-left"></i></button><h2>Edit Profile</h2></div>
-  <div class="sub-body" id="editprofile-body"><div class="load-center"><div class="spin"></div></div></div>
+  <div class="sub-hdr">
+    <button class="sub-back" onclick="closeSub('editprofile')"><i class="fas fa-arrow-left"></i></button>
+    <h2>Edit Profile</h2>
+  </div>
+  <div class="sub-body" id="editprofile-body" style="padding:0"><div class="load-center"><div class="spin"></div></div></div>
 </div>
 
 <!-- PHONE OTP RESET SUB-SCREEN -->
@@ -938,10 +1258,27 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
   </div>
   <div class="sec-head rv" style="padding-top:18px"><span class="sec-eyebrow">The Makers</span><h2 class="sec-title" style="font-size:1.45rem">Meet the Team</h2></div>
   <div class="team-grid rv">
-    <div class="team-card"><img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=300&q=80" alt="Amara Ochieng" loading="lazy"><div class="team-body"><div class="team-name">Amara Ochieng</div><div class="team-role">Founder &amp; Lead Designer</div></div></div>
-    <div class="team-card"><div class="team-ph"><i class="fas fa-user"></i></div><div class="team-body"><div class="team-name">David Kamau</div><div class="team-role">Head Artisan</div></div></div>
-    <div class="team-card"><div class="team-ph"><i class="fas fa-user"></i></div><div class="team-body"><div class="team-name">Fatuma Abdi</div><div class="team-role">Footwear Specialist</div></div></div>
-    <div class="team-card"><div class="team-ph"><i class="fas fa-user"></i></div><div class="team-body"><div class="team-name">Kevin Mwangi</div><div class="team-role">Brand &amp; Marketing</div></div></div>
+    <div class="team-card">
+      <div class="team-ph" style="background:linear-gradient(135deg,var(--bg2),var(--bg3));font-size:2.8rem">👜</div>
+      <div class="team-body">
+        <div class="team-name">Bethesheba Nyaboke</div>
+        <div class="team-role">Founder &amp; CEO</div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-ph" style="background:linear-gradient(135deg,var(--bg2),var(--bg3));font-size:2.8rem">💻</div>
+      <div class="team-body">
+        <div class="team-name">Darius Momanyi</div>
+        <div class="team-role">App Developer</div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-ph" style="background:linear-gradient(135deg,var(--bg2),var(--bg3));font-size:2.8rem">✨</div>
+      <div class="team-body">
+        <div class="team-name">Bethesheba Nyaboke</div>
+        <div class="team-role">Creative Designer</div>
+      </div>
+    </div>
   </div>
   <div style="height:24px"></div>
 </div></div>
@@ -987,16 +1324,32 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 <div class="sub-body" style="padding:14px">
   <div class="card card-p" style="margin-bottom:14px">
     <div style="display:flex;flex-direction:column;gap:12px">
-      <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0"><i class="fas fa-phone"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">Phone</div><a href="tel:+254107545752" style="font-size:.84rem;color:var(--t1);font-weight:500">0107 545 752</a></div></div>
-      <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0"><i class="fas fa-envelope"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">Email</div><a href="/cdn-cgi/l/email-protection#9febf0ebfafef1fbebedfafefbfcf0f3f3fafcebf6f0f1dff8f2fef6f3b1fcf0f2" style="font-size:.78rem;color:var(--t1);font-weight:500"><span class="__cf_email__" data-cfemail="31455e4554505f554543545055525e5d5d545245585e5f71565c50585d1f525e5c">[email&#160;protected]</span></a></div></div>
+      <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0"><i class="fas fa-phone"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">Phone</div><a href="tel:+254107545752" style="font-size:.84rem;color:var(--t1);font-weight:500">+254 107 545 752</a></div></div>
+      <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0"><i class="fas fa-envelope"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">Email</div><a href="mailto:toteandtreadcollection@gmail.com" style="font-size:.78rem;color:var(--t1);font-weight:500">toteandtreadcollection@gmail.com</a></div></div>
       <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0;background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.3);color:#25D366"><i class="fab fa-whatsapp"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">WhatsApp</div><button onclick="openWA()" style="font-size:.84rem;color:#25D366;font-weight:500;background:none;border:none;cursor:pointer;padding:0">Chat with us now</button></div></div>
     </div>
   </div>
+  <div style="background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.2);border-radius:var(--rl);padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+    <i class="fab fa-whatsapp" style="font-size:1.4rem;color:#25D366;flex-shrink:0"></i>
+    <p style="font-size:.74rem;color:var(--t2);line-height:1.6;margin:0">Fill in your details below and we'll open WhatsApp with your message pre-written — just hit send!</p>
+  </div>
   <div class="fg"><label class="flbl">Your Name *</label><input type="text" class="fi" id="ct-name" placeholder="Full name" maxlength="100" autocomplete="name"></div>
-  <div class="fg"><label class="flbl">Email *</label><input type="email" class="fi" id="ct-email" placeholder="your@email.com" maxlength="200" autocomplete="email"></div>
-  <div class="fg"><label class="flbl">Subject</label><input type="text" class="fi" id="ct-subj" placeholder="What's it about?" maxlength="200"></div>
-  <div class="fg"><label class="flbl">Message *</label><textarea class="fta" id="ct-msg" placeholder="How can we help you?" maxlength="2000" style="min-height:110px"></textarea></div>
-  <button class="btn btn-gold btn-full" id="ct-btn" onclick="submitContact()"><i class="fas fa-paper-plane"></i>Send Message</button>
+  <div class="fg"><label class="flbl">Phone / Email</label><input type="text" class="fi" id="ct-contact" placeholder="Your phone or email (optional)" maxlength="200" autocomplete="tel"></div>
+  <div class="fg"><label class="flbl">Topic</label>
+    <select class="fi fsel" id="ct-subj">
+      <option value="">Select a topic…</option>
+      <option value="Order Inquiry">Order Inquiry</option>
+      <option value="Product Question">Product Question</option>
+      <option value="Delivery">Delivery</option>
+      <option value="Returns & Exchanges">Returns &amp; Exchanges</option>
+      <option value="Wholesale / Bulk Order">Wholesale / Bulk Order</option>
+      <option value="Become an Agent">Become an Agent</option>
+      <option value="Other">Other</option>
+    </select>
+  </div>
+  <div class="fg"><label class="flbl">Message *</label><textarea class="fta" id="ct-msg" placeholder="How can we help you?" maxlength="1000" style="min-height:110px"></textarea></div>
+  <button class="btn btn-full" id="ct-btn" onclick="submitContact()" style="background:#25D366;color:#fff;border:none;gap:9px;font-size:.74rem;font-weight:600;padding:13px;border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s" onmouseover="this.style.background='#22c05e'" onmouseout="this.style.background='#25D366'"><i class="fab fa-whatsapp" style="font-size:1.1rem"></i>Send via WhatsApp</button>
+  <p style="text-align:center;font-size:.66rem;color:var(--t3);margin-top:10px">Opens WhatsApp with your message ready to send</p>
 </div></div>
 
 <div id="sub-notifs" class="sub"><div class="sub-hdr"><button class="sub-back" onclick="closeSub('notifs')"><i class="fas fa-arrow-left"></i></button><h2>Notifications</h2><button onclick="markAllRead()" style="margin-left:auto;font-size:.64rem;color:var(--gold);background:none;border:none;cursor:pointer">Mark all read</button></div><div class="sub-body" id="notifs-body"></div></div>
@@ -1189,6 +1542,15 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 </div>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+/* ── Capture install prompt as early as possible — before DOMContentLoaded ── */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+});
 /* ════════════════════════════════════════════════════════
    == CONFIG ==  ← change these values
 ═══════════════════════════════════════════════════════ */
@@ -1241,7 +1603,6 @@ let sb, user = null, userRole = null;
 let socialLinks = { instagram:'', facebook:'', twitter:'', tiktok:'', whatsapp:'', site:'' };
 let products = [], cart = [], wish = [];
 let shopFilter = 'all', lbIdx = 0;
-let deferredPrompt = null;
 
 const MOCK_PRODUCTS = [
   { id:'m1', name:'Savanna Leather Tote', category:'tote-bags', price:7500, compare_price:9500, stock:12, description:'Full-grain leather tote crafted for durability and elegance. Spacious interior with interior pockets.', image_url:'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&q=80', image_url_2:'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80', is_featured:true, is_trending:true, is_premium:true, is_new:false, is_bestseller:true },
@@ -1348,16 +1709,12 @@ async function init() {
     swShowSetup();
     return;
   }
-  try { sb = supabase.createClient(SB_URL, SB_KEY); } catch { toast('Supabase not configured — using demo mode', 'nf'); products = MOCK_PRODUCTS; }
 
-  // Load cart & wish
+  // Load cart & wish immediately (local, instant)
   try { cart = JSON.parse(sessionStorage.getItem('tt_cart') || '[]'); } catch { cart = []; }
   try { wish = JSON.parse(localStorage.getItem('tt_wish') || '[]'); } catch { wish = []; }
 
-  // Splash
-  setTimeout(() => { const s = document.getElementById('splash'); if (s) { s.classList.add('hide'); setTimeout(() => s.classList.add('gone'), 600); } }, 600);
-
-  // Theme
+  // Theme (instant, no network)
   const saved = localStorage.getItem('tt_theme');
   if (saved) document.documentElement.setAttribute('data-theme', saved);
   const ic = document.getElementById('theme-ic');
@@ -1366,48 +1723,76 @@ async function init() {
   // Brand nav
   document.getElementById('brand-btn')?.addEventListener('click', () => showTab('home'));
 
-  // Auth state
-  if (sb) {
-    sb.auth.onAuthStateChange(async (_e, session) => {
-      user = session?.user || null;
-      if (user) { await fetchRole(); } else { userRole = null; }
-      updBadges();
-      if (document.getElementById('scr-acc').classList.contains('on')) renderAcc();
-    });
-    const { data: { session } } = await sb.auth.getSession();
-    user = session?.user || null;
-    if (user) await fetchRole();
+  // Init Supabase client
+  try { sb = supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } }); }
+  catch { toast('Supabase error — using demo mode', 'nf'); products = MOCK_PRODUCTS; }
 
-    // Realtime
+  // Render account immediately with whatever state we have (guest/empty)
+  // so the tab never looks broken
+  renderAcc();
+  updBadges();
+
+  // Preloader — let the animation breathe, then exit gracefully
+  setTimeout(() => {
+    const s = document.getElementById('splash');
+    if (s) {
+      s.classList.add('hide');
+      setTimeout(() => s.classList.add('gone'), 920);
+    }
+  }, 2000);
+
+  // ── PARALLEL: auth session + products + settings ──
+  // Don't await one then the other — fire them all at once
+  const authPromise = sb ? (async () => {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      user = session?.user || null;
+      if (user) {
+        // Fetch role in background — don't block products
+        fetchRole().then(() => { updBadges(); renderAcc(); });
+      }
+      updBadges();
+      renderAcc();
+
+      // Auth state listener (handles login/logout events)
+      sb.auth.onAuthStateChange(async (_e, session) => {
+        user = session?.user || null;
+        if (user) { await fetchRole(); } else { userRole = null; }
+        updBadges();
+        if (document.getElementById('scr-acc').classList.contains('on')) renderAcc();
+      });
+    } catch(e) { console.error('Auth error', e); }
+  })() : Promise.resolve();
+
+  const productsPromise = loadProducts(); // non-blocking, updates UI when done
+
+  const settingsPromise = sb ? loadAppSettings() : Promise.resolve();
+
+  // Realtime (set up after client ready, non-blocking)
+  if (sb) {
     sb.channel('rt-products').on('postgres_changes',{event:'*',schema:'public',table:'products'},() => loadProducts()).subscribe();
     sb.channel('rt-settings').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},async (payload) => {
       if (payload.new?.key === 'announcement') showAnnouncement(payload.new.value);
     }).subscribe();
   }
 
-  // PWA - store deferred prompt for home page install card
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; const card = document.getElementById('home-install-card'); if (card) card.style.display = ''; });
-  window.addEventListener('appinstalled', () => { deferredPrompt = null; const card = document.getElementById('home-install-card'); if (card) card.style.display = 'none'; toast('Tote & Tread installed! 🎉', 'ok'); });
-  registerManifest(); registerServiceWorker();
+  // Run auth + settings in background; products renders as it arrives
+  Promise.all([authPromise, settingsPromise]).catch(() => {});
+
+
   // Handle password reset redirect URL
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('reset') === '1' || urlParams.has('type') && urlParams.get('type') === 'recovery') {
+  if (urlParams.get('reset') === '1' || (urlParams.has('type') && urlParams.get('type') === 'recovery')) {
     document.getElementById('reset-pw-overlay').classList.add('on');
   }
-  // Hide install card if already installed
-  if (window.matchMedia('(display-mode: standalone)').matches) { const card = document.getElementById('home-install-card'); if (card) card.style.display = 'none'; }
 
-  // Gallery
+  // PWA — register service worker + show install popup every visit
+  initPWA();
   document.querySelectorAll('.gi').forEach(gi => {
     gi.addEventListener('click', () => openLB(parseInt(gi.dataset.gal)));
     gi.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLB(parseInt(gi.dataset.gal)); } });
   });
 
-  // Load data
-  await loadProducts();
-  loadAppSettings();
-  updBadges();
-  renderAcc();
   animateHeroStats();
   initReveal();
 
@@ -1421,105 +1806,223 @@ async function init() {
 }
 
 /* ════════ PWA ════════ */
+
+/**
+ * Draw the Tote & Tread icon onto a canvas and return a PNG data URL.
+ * Chrome requires real PNG icons (not SVG) to trigger the install prompt.
+ */
+function makePngIcon(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const s = size;
+
+  // Background
+  ctx.fillStyle = '#0A0A0A';
+  const r = s * 0.22;
+  ctx.beginPath();
+  ctx.moveTo(r, 0); ctx.lineTo(s - r, 0);
+  ctx.quadraticCurveTo(s, 0, s, r);
+  ctx.lineTo(s, s - r); ctx.quadraticCurveTo(s, s, s - r, s);
+  ctx.lineTo(r, s); ctx.quadraticCurveTo(0, s, 0, s - r);
+  ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Gold ring border
+  ctx.strokeStyle = 'rgba(201,168,76,0.4)';
+  ctx.lineWidth = s * 0.012;
+  ctx.stroke();
+
+  // Scale everything to fit nicely inside the icon
+  const scale = s / 36;
+  ctx.save();
+  ctx.translate(s * 0.5 - 18 * scale, s * 0.5 - 18 * scale);
+  ctx.scale(scale, scale);
+  ctx.strokeStyle = '#C9A84C';
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Bag body
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(7, 11); ctx.lineTo(7, 28);
+  ctx.quadraticCurveTo(7, 30, 9, 30);
+  ctx.lineTo(27, 30); ctx.quadraticCurveTo(29, 30, 29, 28);
+  ctx.lineTo(29, 15); ctx.lineTo(21, 11);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Bag handle
+  ctx.beginPath();
+  ctx.moveTo(13, 11); ctx.lineTo(13, 7.5);
+  ctx.quadraticCurveTo(13, 5.5, 15, 5.5);
+  ctx.lineTo(21, 5.5); ctx.quadraticCurveTo(23, 5.5, 23, 7.5);
+  ctx.lineTo(23, 11);
+  ctx.stroke();
+
+  // Lines on bag
+  ctx.globalAlpha = 0.75;
+  ctx.lineWidth = 1.1;
+  ctx.beginPath(); ctx.moveTo(11, 18); ctx.lineTo(25, 18); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(11, 22); ctx.lineTo(21, 22); ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Dot
+  ctx.fillStyle = '#C9A84C';
+  ctx.beginPath(); ctx.arc(18, 14.5, 1.8, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  return c.toDataURL('image/png');
+}
+
 function registerManifest() {
-  const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" rx="44" fill="#0A0A0A"/><rect width="200" height="200" rx="44" fill="none" stroke="#C9A84C" stroke-width="3" opacity=".2"/><g transform="translate(100,100) scale(4.5) translate(-18,-18)"><path d="M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11" stroke="#C9A84C" stroke-width="1.5" fill="none" stroke-linecap="round"/><line x1="11" y1="18" x2="25" y2="18" stroke="#C9A84C" stroke-width="1.1" opacity=".7"/><line x1="11" y1="22" x2="21" y2="22" stroke="#C9A84C" stroke-width="1.1" opacity=".7"/><circle cx="18" cy="14.5" r="1.8" fill="#C9A84C"/></g></svg>`;
-  const iconUrl = 'data:image/svg+xml;base64,' + btoa(iconSvg);
-  const manifest = { name:'Tote & Tread Collection', short_name:'Tote & Tread', description:'Premium Nairobi accessories', start_url:'/', display:'standalone', background_color:'#0A0A0A', theme_color:'#0A0A0A', icons:[{src:iconUrl,sizes:'192x192',type:'image/svg+xml'},{src:iconUrl,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}] };
-  const blob = new Blob([JSON.stringify(manifest)], { type:'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('link'); link.rel='manifest'; link.href=url;
+  // Generate real PNG icons — required by Chrome for install eligibility
+  const icon192 = makePngIcon(192);
+  const icon512 = makePngIcon(512);
+
+  const manifest = {
+    name: 'Tote & Tread Collection',
+    short_name: 'Tote & Tread',
+    description: 'Premium Nairobi accessories — bags, footwear & more',
+    start_url: window.location.pathname || './',
+    scope: window.location.pathname.replace(/[^/]*$/, '') || '/',
+    display: 'standalone',
+    background_color: '#0A0A0A',
+    theme_color: '#0A0A0A',
+    orientation: 'portrait-primary',
+    icons: [
+      { src: icon192, sizes: '192x192', type: 'image/png' },
+      { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+    ]
+  };
+
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = URL.createObjectURL(blob);
   document.head.appendChild(link);
 }
+
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-  // Cache-first for assets, network-first for API, stale-while-revalidate for HTML
   const sw = `
-const CACHE='tt-v3';
+const CACHE='tt-v4';
 const ASSETS=[
   'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
 ];
-self.addEventListener('install',e=>{
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS).catch(()=>{})).then(()=>self.skipWaiting()));
-});
-self.addEventListener('activate',e=>{
-  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
-});
+self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS).catch(()=>{})).then(()=>self.skipWaiting()));});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 self.addEventListener('fetch',e=>{
   const u=e.request.url;
-  // Never cache Supabase API calls or auth
   if(u.includes('supabase.co')||u.includes('/auth/')){e.respondWith(fetch(e.request));return;}
-  // Cache-first for CDN assets (fonts, icons, libs)
   if(u.includes('cdnjs')||u.includes('fonts.google')||u.includes('jsdelivr')||u.includes('gstatic')){
-    e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const c=res.clone();caches.open(CACHE).then(ca=>ca.put(e.request,c));return res;})));
-    return;
+    e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const c=res.clone();caches.open(CACHE).then(ca=>ca.put(e.request,c));return res;})));return;
   }
-  // Network-first for everything else (HTML page)
   e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
 });`;
-  const blob = new Blob([sw], { type:'text/javascript' });
-  const url = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(url)
-    .then(reg => {
-      // Check for updates every 60 min
-      setInterval(() => reg.update(), 60 * 60 * 1000);
-    })
-    .catch(() => {});
+  const blob = new Blob([sw], { type: 'text/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
 }
-function pwaInstall() { if (!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; }); }
-function triggerInstall(){
-  if(deferredPrompt){
-    pwaInstall();
-  } else if(window.matchMedia('(display-mode: standalone)').matches){
-    toast('Tote & Tread is already installed on your device! 📱','ok');
+
+function initPWA() {
+  registerManifest();
+  registerServiceWorker();
+
+  // Already installed — no popup
+  if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) return;
+
+  // Handle post-install event
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    pwaDismiss();
+    toast('Tote & Tread installed! 🎉', 'ok');
+  });
+
+  // Show popup every visit after preloader clears (2s preloader + 0.5s grace)
+  setTimeout(() => {
+    document.getElementById('pwa-popup')?.classList.add('on');
+  }, 2800);
+}
+
+function pwaDoInstall() {
+  if (deferredPrompt) {
+    // Native install prompt is ready — fire it directly
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(result => {
+      deferredPrompt = null;
+      if (result.outcome === 'accepted') {
+        pwaDismiss();
+        toast('Installing Tote & Tread… 🎉', 'ok');
+      }
+    });
   } else {
-    const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
-    const msg=isIOS
-      ? 'On iPhone/iPad: tap the Share button (□↑) at the bottom of Safari, then tap "Add to Home Screen".'
-      : 'Open this page in Chrome or Edge, then tap the menu (⋮) and select "Add to Home Screen" or "Install App".';
-    showPopup({title:'📲 Install Tote & Tread',msg,type:'nf',confirmLabel:'Got it'});
+    // Prompt not fired yet (browser still evaluating criteria) — dismiss quietly
+    pwaDismiss();
+    toast('Install not available on this browser yet', 'nf');
   }
 }
-/* backwards compat alias */
-function openPWAInstallMenu(){ triggerInstall(); }
+
+function pwaDismiss() {
+  const popup = document.getElementById('pwa-popup');
+  if (!popup) return;
+  popup.classList.remove('on');
+}
 
 /* ════════ ORDERS ════════ */
+const _ordersCache = {};
 async function openOrders(){
   if(!user){toast('Sign in to view your orders','nf');showTab('acc');return;}
   openSub('orders');
   const body=document.getElementById('orders-body');
-  body.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+  body.innerHTML='<div class="load-center"><div class="spin"></div><span style="font-size:.76rem;color:var(--t3);margin-left:10px">Loading orders…</span></div>';
   if(!sb){body.innerHTML='<div class="empty-state"><i class="fas fa-box-open"></i>Connect Supabase to view orders</div>';return;}
+
   const{data:orders,error}=await sb.from('orders').select('*').eq('user_id',user.id).order('created_at',{ascending:false});
-  if(error||!orders?.length){body.innerHTML='<div class="empty-state"><i class="fas fa-box-open"></i>No orders yet<p style="margin-top:8px;font-size:.72rem">Your order history will appear here.</p></div>';return;}
+
+  if(error){body.innerHTML=`<div class="empty-state"><i class="fas fa-exclamation-circle" style="color:var(--red)"></i>Could not load orders<p style="font-size:.72rem;margin-top:8px">${esc(error.message)}</p></div>`;return;}
+  if(!orders?.length){body.innerHTML='<div class="empty-state"><i class="fas fa-box-open"></i>No orders yet<p style="margin-top:8px;font-size:.72rem">Your orders will appear here once you place one.</p></div>';return;}
+
+  // Store orders in cache so onclick handlers can retrieve them by index
+  orders.forEach((o,i) => { _ordersCache['o'+i] = o; });
+
   const statusColors={pending:'badge-amber',confirmed:'badge-blue',processing:'badge-purple',shipped:'badge-blue',completed:'badge-green',cancelled:'badge-red'};
-  body.innerHTML=`<div style="padding:14px 14px 0;font-size:.62rem;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">${orders.length} Order${orders.length!==1?'s':''}</div>`+orders.map(o=>{
-    const items=Array.isArray(o.items)?o.items:[];
+  const statusIcons={pending:'fa-clock',confirmed:'fa-check',processing:'fa-cog',shipped:'fa-truck',completed:'fa-check-double',cancelled:'fa-times'};
+
+  body.innerHTML=`<div style="padding:16px 14px 8px;display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:.62rem;color:var(--t3);letter-spacing:.1em;text-transform:uppercase">${orders.length} Order${orders.length!==1?'s':''}</span>
+  </div>`+orders.map((o,i)=>{
+    const items=Array.isArray(o.items)?o.items:(typeof o.items==='string'?JSON.parse(o.items||'[]'):[]);
+    const itemSummary=items.slice(0,2).map(it=>`${esc(it.name||'')} ×${it.qty||1}`).join(', ')+(items.length>2?` +${items.length-2} more`:'');
+    const idx='o'+i;
     return `<div style="margin:0 14px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden">
-      <div style="padding:13px 14px 10px;border-bottom:1px solid var(--bd)">
+      <div style="padding:14px;border-bottom:1px solid var(--bd)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <span style="font-family:var(--fd);font-size:.92rem;color:var(--t1)">#${esc(o.id.slice(0,8).toUpperCase())}</span>
-          <span class="badge ${statusColors[o.status]||'badge-blue'}">${esc(o.status||'pending')}</span>
+          <span style="font-family:var(--fd);font-size:.95rem;color:var(--t1);font-weight:500">#${esc(o.id.slice(0,8).toUpperCase())}</span>
+          <span class="badge ${statusColors[o.status]||'badge-blue'}"><i class="fas ${statusIcons[o.status]||'fa-circle'}" style="margin-right:4px;font-size:.5rem"></i>${esc(o.status||'pending')}</span>
         </div>
-        <div style="font-size:.68rem;color:var(--t3)">${D(o.created_at)}</div>
-        <div style="margin-top:8px;font-size:.72rem;color:var(--t2)">${items.slice(0,2).map(i=>`${esc(i.name||'')} ×${i.qty||1}`).join(', ')}${items.length>2?` +${items.length-2} more`:''}</div>
+        <div style="font-size:.68rem;color:var(--t3);margin-bottom:6px">${D(o.created_at)}</div>
+        ${itemSummary?`<div style="font-size:.74rem;color:var(--t2);line-height:1.5">${itemSummary}</div>`:''}
+        ${o.delivery_address?`<div style="font-size:.68rem;color:var(--t3);margin-top:4px"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--gold);opacity:.7"></i>${esc(o.delivery_address)}</div>`:''}
       </div>
-      <div style="padding:11px 14px;display:flex;align-items:center;justify-content:space-between">
-        <span style="font-family:var(--fd);font-size:1.05rem;color:var(--gold)">KES ${N(o.total)}</span>
-        <div style="display:flex;gap:7px">
-          <button class="btn btn-ghost btn-xs" title="Share receipt" onclick='shareReceipt(${JSON.stringify(o)})'><i class="fas fa-share-alt"></i> Share</button>
-          <button class="btn btn-ghost btn-xs" title="View receipt" onclick='viewReceipt(${JSON.stringify(o)})'><i class="fas fa-eye"></i> View</button>
-          <button class="btn btn-ghost btn-xs" title="Download receipt" onclick='dlReceipt(${JSON.stringify(o)})'><i class="fas fa-download"></i></button>
-          <button class="btn btn-red btn-xs" title="Cancel order" onclick='cancelOrder("${esc(o.id)}","${esc(o.status)}")'><i class="fas fa-trash"></i></button>
+      <div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span style="font-family:var(--fd);font-size:1.08rem;color:var(--gold);flex-shrink:0">KES ${N(o.total)}</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn btn-ghost btn-xs" onclick="viewReceipt(_ordersCache['${idx}'])" title="View"><i class="fas fa-eye"></i></button>
+          <button class="btn btn-ghost btn-xs" onclick="dlReceipt(_ordersCache['${idx}'])" title="Download PDF"><i class="fas fa-download"></i></button>
+          <button class="btn btn-ghost btn-xs" onclick="shareReceipt(_ordersCache['${idx}'])" title="Share"><i class="fas fa-share-alt"></i></button>
+          <button class="btn btn-red btn-xs" onclick="cancelOrder('${esc(o.id)}','${esc(o.status)}')" title="Cancel"><i class="fas fa-trash-alt"></i></button>
         </div>
       </div>
     </div>`;
   }).join('');
 }
 async function cancelOrder(id,status){
-  if(status==='completed'||status==='shipped'){popupErr('Cannot Cancel','This order has already been shipped or completed and cannot be cancelled. Please contact support.');return;}
+  if(status==='completed'||status==='shipped'){popupErr('Cannot Cancel','This order has already been shipped or completed. Please contact support.');return;}
+  if(status==='cancelled'){toast('This order is already cancelled','nf');return;}
   const confirmed=await popupConfirm('Cancel Order','Are you sure you want to cancel this order? This cannot be undone.','Cancel Order','Keep It');
   if(!confirmed)return;
   if(sb)await sb.from('orders').update({status:'cancelled'}).eq('id',id).eq('user_id',user.id);
@@ -1527,7 +2030,9 @@ async function cancelOrder(id,status){
   openOrders();
 }
 function viewReceipt(o){
-  const items=Array.isArray(o.items)?o.items:[];
+  // Store in cache so modal buttons can reference it safely
+  _ordersCache['_viewing'] = o;
+  const items=Array.isArray(o.items)?o.items:(typeof o.items==='string'?JSON.parse(o.items||'[]'):[]);
   const html=`
   <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:20px;max-width:380px;margin:0 auto">
     <div style="text-align:center;border-bottom:1px solid var(--bd);padding-bottom:16px;margin-bottom:16px">
@@ -1537,13 +2042,13 @@ function viewReceipt(o){
     </div>
     <div style="display:flex;justify-content:space-between;margin-bottom:10px">
       <span style="font-size:.64rem;color:var(--t3);letter-spacing:.1em;text-transform:uppercase">Receipt</span>
-      <span style="font-size:.68rem;color:var(--t2)">#${esc(o.id.slice(0,8).toUpperCase())}</span>
+      <span style="font-size:.68rem;color:var(--t2)">#${esc((o.id||'').slice(0,8).toUpperCase())}</span>
     </div>
     <div style="font-size:.7rem;color:var(--t3);margin-bottom:3px">${D(o.created_at)}</div>
     <div style="font-size:.78rem;color:var(--t2);margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--bd)">
-      <div style="margin-bottom:3px"><strong style="color:var(--t1)">${esc(o.customer_name)}</strong></div>
-      <div>${esc(o.customer_phone)}</div>
-      <div>${esc(o.delivery_address)}</div>
+      <div style="margin-bottom:3px"><strong style="color:var(--t1)">${esc(o.customer_name||'')}</strong></div>
+      <div>${esc(o.customer_phone||'')}</div>
+      <div>${esc(o.delivery_address||'')}</div>
     </div>
     ${items.map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:.78rem"><span style="color:var(--t2)">${esc(i.name||'')} <span style="color:var(--t3)">×${i.qty||1}</span></span><span style="color:var(--gold)">KES ${N((i.price||0)*(i.qty||1))}</span></div>`).join('')}
     <div style="border-top:1px solid var(--bd);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;align-items:center">
@@ -1553,11 +2058,22 @@ function viewReceipt(o){
     <div style="text-align:center;margin-top:16px;font-size:.62rem;color:var(--t4);line-height:1.7">Thank you for shopping with Tote &amp; Tread!<br>Nairobi, Kenya</div>
   </div>`;
   const modal=document.createElement('div');
-  modal.style.cssText='position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.9);display:flex;flex-direction:column;align-items:center;padding:20px;overflow-y:auto';
-  modal.innerHTML=`<div style="width:100%;max-width:420px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="font-family:var(--fd);font-size:1.2rem;color:var(--t1)">Order Receipt</h3><button onclick="this.closest('.receipt-modal-wrap').parentElement.remove()" style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);color:var(--t2);width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.8rem"><i class="fas fa-times"></i></button></div><div class="receipt-modal-wrap">${html}</div><div style="display:flex;gap:10px;margin-top:14px"><button class="btn btn-gold" style="flex:1" onclick='dlReceipt(${JSON.stringify(o).replace(/'/g,"&#39;")})'><i class="fas fa-download"></i>Download PDF</button><button class="btn btn-outline" style="flex:1" onclick='shareReceipt(${JSON.stringify(o).replace(/'/g,"&#39;")})'><i class="fas fa-share-alt"></i>Share</button></div></div>`;
-  // Add close on backdrop click
-  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+  modal.id='receipt-modal-overlay';
+  modal.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;padding:20px;overflow-y:auto';
+  modal.innerHTML=`<div style="width:100%;max-width:420px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="font-family:var(--fd);font-size:1.2rem;color:var(--t1)">Order Receipt</h3>
+      <button id="receipt-close-btn" style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);color:var(--t2);width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.8rem"><i class="fas fa-times"></i></button>
+    </div>
+    ${html}
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-gold" style="flex:1" onclick="dlReceipt(_ordersCache['_viewing'])"><i class="fas fa-download"></i>Download PDF</button>
+      <button class="btn btn-outline" style="flex:1" onclick="shareReceipt(_ordersCache['_viewing'])"><i class="fas fa-share-alt"></i>Share</button>
+    </div>
+  </div>`;
+  modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
   document.body.appendChild(modal);
+  document.getElementById('receipt-close-btn')?.addEventListener('click', () => modal.remove());
 }
 function shareReceipt(o){
   const txt=`*Tote & Tread Receipt*\nOrder: #${(o.id||'').slice(0,8).toUpperCase()}\nDate: ${new Date(o.created_at).toLocaleDateString('en-KE')}\nCustomer: ${o.customer_name}\nTotal: KES ${N(o.total)}\n\nThank you for shopping with us!\ntoteandtreadcollection@gmail.com`;
@@ -1655,7 +2171,7 @@ async function loadAppSettings() {
   } catch {}
 }
 function renderSocialIcons(){
-  const wa = socialLinks.whatsapp ? `https://wa.me/${socialLinks.whatsapp.replace(/\D/g,'')}` : `https://wa.me/${WA_NUM}`;
+  const wa = `https://wa.me/${getWANum()}`;
   const build = (align) => `
     ${socialLinks.instagram ? `<a href="${esc(socialLinks.instagram)}" target="_blank" rel="noopener noreferrer" class="soc-btn ig"><i class="fab fa-instagram"></i></a>` : ''}
     ${socialLinks.facebook  ? `<a href="${esc(socialLinks.facebook)}"  target="_blank" rel="noopener noreferrer" class="soc-btn fb"><i class="fab fa-facebook-f"></i></a>` : ''}
@@ -1674,13 +2190,39 @@ function showAnnouncement(txt) {
 }
 
 /* ════════ ROLE / AUTH ════════ */
+
+/* ── Hard-coded admin emails ──────────────────────────────────────────────
+   Any user who signs in with one of these emails automatically gets admin
+   access, regardless of their database role value.
+   Add or remove emails here freely — up to as many as you need.
+   ──────────────────────────────────────────────────────────────────────── */
+const ADMIN_EMAILS = [
+  'toteandtreadcollection@gmail.com',   // Bethesheba — Primary Admin
+  'dariusmomanyi678@gmail.com',         // Darius — Developer Admin
+];
+
 async function fetchRole() {
   if (!user || !sb) return;
   try {
+    const emailLower = (user.email || '').toLowerCase();
+
+    if (ADMIN_EMAILS.some(e => e.toLowerCase() === emailLower)) {
+      userRole = 'admin';
+      // Always write admin role to DB — ensures RLS policies, reports,
+      // and all queries recognise these users as admin unconditionally
+      await sb.from('profiles')
+        .update({ role: 'admin', updated_at: new Date().toISOString() })
+        .eq('id', user.id)
+        .catch(() => {});
+      toast('Welcome back, Admin 🛡', 'ok');
+      return;
+    }
+
+    // Regular users — read role from DB
     const { data } = await sb.from('profiles').select('role').eq('id', user.id).single();
-    userRole = data?.role || null;
+    userRole = data?.role || 'customer';
     if (userRole === 'admin') toast('Welcome back, Admin 🛡', 'ok');
-  } catch { userRole = null; }
+  } catch { userRole = 'customer'; }
 }
 
 /* ════════ THEME ════════ */
@@ -1711,12 +2253,20 @@ function goShop(filter) {
 }
 
 /* ════════ PRODUCTS ════════ */
+function skelCards(n=4){return Array(n).fill(`<div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>`).join('');}
 async function loadProducts() {
+  // Show skeletons immediately so the page looks alive
+  const fg = document.getElementById('feat-grid');
+  const sg = document.getElementById('shop-grid');
+  const ts = document.getElementById('trend-strip');
+  if (fg && !products.length) fg.innerHTML = `<div style="display:contents">${skelCards(4)}</div>`;
+  if (sg && !products.length) sg.innerHTML = `<div style="grid-column:1/-1">${skelCards(4)}</div>`;
+
   if (!sb) { products = MOCK_PRODUCTS; renderFeatured(); renderTrending(); renderShop(); return; }
   try {
     const { data } = await sb.from('products').select('*').order('created_at', { ascending: false });
     products = data?.length ? data : MOCK_PRODUCTS;
-  } catch { products = MOCK_PRODUCTS; }
+  } catch { products = products.length ? products : MOCK_PRODUCTS; }
   renderFeatured(); renderTrending(); renderShop();
 }
 function sortProducts(list) {
@@ -1848,7 +2398,7 @@ function openPD(p) {
       <div class="pd-actions">
         ${p.stock > 0 ? `<button class="btn btn-gold" onclick='addToCartAndClose(${JSON.stringify(p)})'><i class="fas fa-shopping-bag"></i>Add to Bag</button>` : `<button class="btn btn-outline" onclick="openNotify('${esc(p.id)}')"><i class="fas fa-bell"></i>Notify Me</button>`}
         <button class="btn btn-ghost" onclick='toggleWish(null,${JSON.stringify(p)})'><i class="fas fa-heart${isWished(p.id)?' solid':' regular'}"></i>${isWished(p.id) ? 'Wishlisted' : 'Wishlist'}</button>
-        <a class="btn btn-ghost btn-sm" href="https://wa.me/${WA_NUM}?text=${encodeURIComponent('Hi! I\'m interested in: '+p.name+' (KES '+p.price+')')}" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp" style="color:#25D366"></i>Enquire</a>
+        <a class="btn btn-ghost btn-sm" href="#" onclick="window.open('https://wa.me/'+getWANum()+'?text='+encodeURIComponent('Hi! I\'m interested in: '+p.name+' (KES '+p.price+')'), '_blank', 'noopener,noreferrer'); return false" rel="noopener noreferrer"><i class="fab fa-whatsapp" style="color:#25D366"></i>Enquire</a>
       </div>
     </div>`;
   document.getElementById('pd-sheet').classList.add('on');
@@ -2021,7 +2571,7 @@ async function placeOrder() {
     try { if (sb) { const { data:ord } = await sb.from('orders').insert([od]).select().single(); ordId = ord?.id||''; if (ord) dlReceipt({...od,id:ord.id}); } } catch {}
     const lines = safeCart.map(i=>`• ${i.qty}× ${i.name} — KES ${N(i.price*i.qty)}`).join('\n');
     const waMsg = `🛍️ *NEW ORDER — Tote & Tread*\n\n*Ref:* #${ordId.toString().slice(0,8)||'NEW'}\n*Customer:* ${name}\n*Phone:* ${fullPhone}\n*Address:* ${addr}${notes?'\n*Notes:* '+notes:''}\n\n*Items:*\n${lines}\n\n*TOTAL: KES ${N(total)}*`;
-    window.open(`https://wa.me/${WA_NUM}?text=${encodeURIComponent(waMsg)}`,'_blank','noopener,noreferrer');
+    window.open(`https://wa.me/${getWANum()}?text=${encodeURIComponent(waMsg)}`,'_blank','noopener,noreferrer');
     await notifyOrderPlaced(ordId, total);
     cart=[]; saveCart(); updBadges(); closeCO(); toast('Order placed successfully! 🎉','ok');
   } catch { toast('Could not place order. Please try again.','er'); btn.disabled=false; btn.innerHTML='<i class="fas fa-lock"></i>Confirm Order via WhatsApp'; }
@@ -2169,8 +2719,7 @@ async function renderAcc(){const el=document.getElementById('acc-body');if(!el)r
 function renderAuthForms(el,tab){
   const isLogin=tab==='login';
   el.innerHTML=`<div class="auth-tabs"><button class="atab ${isLogin?'on':''}" onclick="renderAuthForms(document.getElementById('acc-body'),'login')">Sign In</button><button class="atab ${!isLogin?'on':''}" onclick="renderAuthForms(document.getElementById('acc-body'),'signup')">Create Account</button></div>
-  ${isLogin?`<button class="btn-google" onclick="doGoogleLogin()"><svg viewBox="0 0 48 48"><path fill="#4285F4" d="M44.5 20H24v8.5h11.8C34.7 33.9 29.8 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.1 16.2 19.2 13 24 13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 16.3 2 9.6 7.4 6.3 14.7z"/><path fill="#FBBC05" d="M24 46c5.5 0 10.5-1.9 14.3-5l-6.6-5.4C29.7 37.2 27 38 24 38c-5.7 0-10.6-3.1-13.2-7.6l-7 5.4C7.5 42.5 15.3 46 24 46z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.8c-.9 2.8-2.8 5.1-5.4 6.6l6.6 5.4C41.5 37.3 45 31.2 45 24c0-1.3-.2-2.7-.5-4z"/></svg>Continue with Google</button>
-  <div class="or-divider"><span>or</span></div>
+  ${isLogin?`
   <div class="login-method-tabs"><button class="lmtab on" id="lm-email-tab" onclick="switchLoginMethod('email')"><i class="fas fa-envelope"></i> Email</button><button class="lmtab" id="lm-phone-tab" onclick="switchLoginMethod('phone')"><i class="fas fa-phone"></i> Phone</button></div>
   <div id="login-email-form">
     <div class="fg"><label class="flbl">Email</label><input type="email" class="fi" id="li-e" placeholder="your@email.com" autocomplete="email" maxlength="200"></div>
@@ -2188,9 +2737,7 @@ function renderAuthForms(el,tab){
     </div>
     <div id="li-otp-send-wrap"><button class="btn btn-gold btn-full" id="li-ph-btn" onclick="doPhoneLogin()"><i class="fas fa-sms"></i>Send OTP</button></div>
   </div>`
-  :`<button class="btn-google" onclick="doGoogleLogin()"><svg viewBox="0 0 48 48"><path fill="#4285F4" d="M44.5 20H24v8.5h11.8C34.7 33.9 29.8 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"/><path fill="#34A853" d="M6.3 14.7l7 5.1C15.1 16.2 19.2 13 24 13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 16.3 2 9.6 7.4 6.3 14.7z"/><path fill="#FBBC05" d="M24 46c5.5 0 10.5-1.9 14.3-5l-6.6-5.4C29.7 37.2 27 38 24 38c-5.7 0-10.6-3.1-13.2-7.6l-7 5.4C7.5 42.5 15.3 46 24 46z"/><path fill="#EA4335" d="M44.5 20H24v8.5h11.8c-.9 2.8-2.8 5.1-5.4 6.6l6.6 5.4C41.5 37.3 45 31.2 45 24c0-1.3-.2-2.7-.5-4z"/></svg>Continue with Google</button>
-  <div class="or-divider"><span>or</span></div>
-  <p style="font-size:.72rem;color:var(--t3);text-align:center;margin-bottom:13px">Join <strong style="color:var(--gold)">500+ happy customers</strong> — create your free account.</p>
+  :`<p style="font-size:.72rem;color:var(--t3);text-align:center;margin-bottom:13px">Join <strong style="color:var(--gold)">500+ happy customers</strong> — create your free account.</p>
   <div class="fg"><label class="flbl">Full Name *</label><input type="text" class="fi" id="su-n" placeholder="Your full name" autocomplete="name" maxlength="100"></div>
   <div class="fg"><label class="flbl">Email *</label><input type="email" class="fi" id="su-e" placeholder="your@email.com" autocomplete="email" maxlength="200"></div>
   <div class="fg"><label class="flbl">Phone Number</label><div class="phone-wrap"><span class="phone-prefix">+254</span><input type="tel" class="fi" id="su-ph" placeholder="7XX XXX XXX" maxlength="15" autocomplete="tel"></div></div>
@@ -2207,7 +2754,6 @@ function renderAuthForms(el,tab){
 }
 function switchLoginMethod(m){const ef=document.getElementById('login-email-form'),pf=document.getElementById('login-phone-form'),et=document.getElementById('lm-email-tab'),pt=document.getElementById('lm-phone-tab');if(m==='email'){if(ef)ef.style.display='';if(pf)pf.style.display='none';et?.classList.add('on');pt?.classList.remove('on');}else{if(ef)ef.style.display='none';if(pf)pf.style.display='';pt?.classList.add('on');et?.classList.remove('on');}}
 function otpNext(el,nextId){el.value=el.value.replace(/\D/g,'');if(el.value&&nextId)document.getElementById(nextId)?.focus();}
-async function doGoogleLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys and enable Google OAuth in the Supabase dashboard.');return;}const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:SITE||window.location.origin,queryParams:{prompt:'select_account'}}});if(error)popupErr('Google Sign-In Failed',error.message);}
 async function doLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const e=document.getElementById('li-e')?.value?.trim(),p=document.getElementById('li-pw')?.value||'',errEl=document.getElementById('li-err'),btn=document.getElementById('li-btn');if(!e||!p){setErr(errEl,'Please enter email and password');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Please enter a valid email address');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Signing in…';const{error}=await sb.auth.signInWithPassword({email:e,password:p});btn.disabled=false;btn.innerHTML='<i class="fas fa-sign-in-alt"></i>Sign In';if(error){errEl.style.display='none';const msg=error.message.includes('Invalid login credentials')||error.message.includes('invalid_credentials')?'Wrong email or password. Please check your details and try again.':error.message.includes('Email not confirmed')?'Please check your inbox and confirm your email address before signing in.':error.message.includes('too many')?'Too many sign-in attempts. Please wait a few minutes and try again.':error.message;popupErr('Sign In Failed',msg);return;}errEl.style.display='none';toast('Welcome back! 👋','ok');}
 async function doPhoneLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('li-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('li-ph-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('li-otp-wrap').style.display='';document.getElementById('li-otp-send-wrap').style.display='none';toast('OTP sent to '+fullPhone,'ok');}
 async function doPhoneVerify(){if(!sb)return;const ph=document.getElementById('li-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('otp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('otp-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify OTP';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}toast('Signed in successfully! 👋','ok');}
@@ -2276,7 +2822,6 @@ async function renderLoggedIn(el){
       <button class="menu-item" onclick="openCart()"><i class="fas fa-shopping-bag mi-icon"></i>My Bag<i class="fas fa-chevron-right mi-arrow"></i></button>
       <button class="menu-item" onclick="openNotifications()"><i class="fas fa-bell mi-icon"></i>Notifications${getUnreadCount()>0?`<span class="badge badge-gold" style="margin-left:auto;margin-right:8px">${getUnreadCount()}</span>`:''}<i class="fas fa-chevron-right mi-arrow"></i></button>
       <button class="menu-item" onclick="openEditProfile()"><i class="fas fa-user-edit mi-icon"></i>Edit Profile<i class="fas fa-chevron-right mi-arrow"></i></button>
-      <button class="menu-item" onclick="triggerInstall()"><i class="fas fa-download mi-icon"></i>Install App<i class="fas fa-chevron-right mi-arrow"></i></button>
       <button class="menu-item" onclick="openSub('contact')"><i class="fas fa-headset mi-icon"></i>Customer Support<i class="fas fa-chevron-right mi-arrow"></i></button>
       ${isAdmin?`<button class="menu-item" style="color:var(--gold)" onclick="openAdmin()"><i class="fas fa-shield-alt mi-icon"></i>Admin Dashboard<i class="fas fa-chevron-right mi-arrow"></i></button>`:''}
       <button class="menu-item" onclick="toggleTheme()"><i class="fas fa-adjust mi-icon"></i>Toggle Theme<i class="fas fa-chevron-right mi-arrow"></i></button>
@@ -2284,17 +2829,24 @@ async function renderLoggedIn(el){
     </div>`;
 }
 async function doLogout(){
-  const confirmed=await popupConfirm('Sign Out','Are you sure you want to sign out of Tote & Tread?','Sign Out','Cancel');
-  if(!confirmed)return;
-  const btn=document.getElementById('signout-btn');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(224,80,80,.3);border-top-color:var(--red);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:6px"></span><span style="color:var(--red)">Signing out…</span>';}
-  try{ if(sb) await sb.auth.signOut(); } catch(e){ console.error('Sign-out error:',e); }
-  user=null; userRole=null; isGuest=false;
-  cart=[]; saveCart(); wish=[]; localStorage.removeItem('tt_wish');
+  // Show signing-out state on the button immediately
+  const btn = document.getElementById('signout-btn');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(224,80,80,.25);border-top-color:var(--red);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span><span style="color:var(--red)">Signing out…</span>'; }
+
+  // Clear all local state immediately so UI feels instant
+  user = null; userRole = null; isGuest = false;
+  cart = []; saveCart();
+  wish = []; try{ localStorage.removeItem('tt_wish'); }catch{}
   updBadges();
-  await renderAcc();
+
+  // Switch to home tab and re-render account as sign-in form NOW
   showTab('home');
-  toast('You have been signed out. See you soon! 👋','nf');
+  const el = document.getElementById('acc-body');
+  if(el) renderAuthForms(el, 'login');
+  toast('Signed out successfully. See you soon! 👋', 'nf');
+
+  // Then do the actual Supabase signOut in background
+  if(sb){ try{ await sb.auth.signOut({ scope: 'local' }); }catch(e){ console.warn('Supabase signOut:', e); } }
 }
 
 /* ════════ GUEST MODE ════════ */
@@ -2346,9 +2898,59 @@ function openEditProd(p){editingProd=p;const body=document.getElementById('edit-
 function closeEditProd(){document.getElementById('edit-prod-modal')?.classList.remove('on');hideOvl();editingProd=null;}
 async function saveEditProd(){if(!editingProd||userRole!=='admin'||!sb)return;const n=document.getElementById('ep-n')?.value?.trim(),cat=document.getElementById('ep-c')?.value,pr=parseFloat(document.getElementById('ep-p')?.value),cp=parseFloat(document.getElementById('ep-cp')?.value)||null,stk=parseInt(document.getElementById('ep-s')?.value)||0,dsc=document.getElementById('ep-d')?.value?.trim(),img=document.getElementById('ep-i')?.value?.trim(),img2=document.getElementById('ep-i2')?.value?.trim();if(!n||isNaN(pr)||pr<0){toast('Fill required fields','er');return;}const flags={is_featured:!!document.getElementById('ep-feat')?.checked,is_trending:!!document.getElementById('ep-trend')?.checked,is_bestseller:!!document.getElementById('ep-best')?.checked,is_premium:!!document.getElementById('ep-prem')?.checked,is_new:!!document.getElementById('ep-new')?.checked};const{error}=await sb.from('products').update({name:n,category:cat,price:pr,compare_price:cp,stock:stk,description:dsc,image_url:img||null,image_url_2:img2||null,...flags}).eq('id',editingProd.id);if(error){toast(error.message,'er');return;}toast('Product updated!','ok');closeEditProd();await loadProducts();loadAdmProducts();}
 async function delProduct(id){if(userRole!=='admin'||!sb)return;const confirmed=await popupConfirm('Delete Product','Are you sure you want to permanently delete this product? This cannot be undone.','Delete','Cancel');if(!confirmed)return;await sb.from('products').delete().eq('id',id);await loadProducts();loadAdmProducts();toast('Product deleted','nf');}
-async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('*').order('created_at',{ascending:false});el.innerHTML=`<div class="adm-section"><h3>All Orders (${data?.length||0})</h3>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" href="https://wa.me/${WA_NUM}?text=${encodeURIComponent('Hello! Your Tote & Tread order update:')}" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
+async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('*').order('created_at',{ascending:false});el.innerHTML=`<div class="adm-section"><h3>All Orders (${data?.length||0})</h3>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" onclick="window.open('https://wa.me/'+getWANum(),'_blank','noopener,noreferrer')" href="#"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
 async function updateOrderStatus(id,status){if(userRole!=='admin'||!sb)return;await sb.from('orders').update({status}).eq('id',id);toast('Status updated','ok');}
-async function renderAdmUsers(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('profiles').select('*').order('created_at',{ascending:false});el.innerHTML=`<div class="adm-section"><h3>All Users (${data?.length||0})</h3>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No users.</p>':`<table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr></thead><tbody>${data.map(u=>`<tr><td class="td-name">${esc(u.full_name||'—')}</td><td class="td-sm">${esc(u.email||u.phone||'—')}</td><td><span class="badge ${u.role==='admin'?'badge-purple':'badge-gold'}">${esc(u.role||'customer')}</span></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='openEditUser(${JSON.stringify(u)})'><i class="fas fa-edit"></i></button><button class="btn btn-outline btn-xs" onclick='openSendRecovery(${JSON.stringify({id:u.id,email:u.email,name:u.full_name})})'><i class="fas fa-key"></i></button></td></tr>`).join('')}</tbody></table>`}</div>`;}
+async function renderAdmUsers(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  const{data}=await sb.from('profiles').select('*').order('created_at',{ascending:false});
+  const users=data||[];
+  el.innerHTML=`
+  <div class="adm-section">
+    <h3>Admin Access List</h3>
+    <p style="font-size:.72rem;color:var(--t3);margin-bottom:10px;line-height:1.65">These emails are permanently hardcoded as admins. Edit <code style="background:var(--bg4);padding:1px 5px;border-radius:4px;font-size:.68rem">ADMIN_EMAILS</code> in the source file to add or remove them.</p>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:4px">
+      ${ADMIN_EMAILS.map(e=>`<div style="display:flex;align-items:center;gap:9px;padding:8px 11px;background:rgba(201,168,76,.06);border:1px solid var(--gold-a25);border-radius:var(--r)">
+        <i class="fas fa-shield-alt" style="color:var(--gold);font-size:.78rem"></i>
+        <span style="font-size:.78rem;color:var(--t1);flex:1">${esc(e)}</span>
+        <span class="badge badge-purple">Admin</span>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
+    <h3>All Users (${users.length})</h3>
+    ${!users.length?'<p style="font-size:.76rem;color:var(--t3)">No users yet.</p>':`
+    <div style="overflow-x:auto">
+    <table><thead><tr><th>Name</th><th>Email / Phone</th><th>Role</th><th>Actions</th></tr></thead><tbody>
+    ${users.map(u=>{
+      const isHardAdmin=ADMIN_EMAILS.some(e=>e.toLowerCase()===(u.email||'').toLowerCase());
+      return `<tr>
+        <td class="td-name">${esc(u.full_name||'—')}</td>
+        <td class="td-sm">${esc(u.email||u.phone||'—')}</td>
+        <td>
+          ${isHardAdmin
+            ? `<span class="badge badge-purple"><i class="fas fa-lock" style="margin-right:3px;font-size:.5rem"></i>Admin</span>`
+            : `<select style="background:var(--bg3);border:1px solid var(--bd);border-radius:4px;font-size:.62rem;color:var(--t2);padding:3px 6px;cursor:pointer" onchange="setUserRole('${esc(u.id)}',this.value,this)">
+                <option value="customer" ${(u.role||'customer')==='customer'?'selected':''}>Customer</option>
+                <option value="admin"    ${u.role==='admin'?'selected':''}>Admin</option>
+              </select>`
+          }
+        </td>
+        <td style="display:flex;gap:4px;align-items:center">
+          <button class="btn btn-ghost btn-xs" onclick='openEditUser(${JSON.stringify(u)})' title="Edit"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-outline btn-xs" onclick='openSendRecovery(${JSON.stringify({id:u.id,email:u.email,name:u.full_name})})' title="Recovery code"><i class="fas fa-key"></i></button>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody></table></div>`}
+  </div>`;
+}
+async function setUserRole(userId, newRole, selectEl){
+  if(userRole!=='admin'||!sb)return;
+  const{error}=await sb.from('profiles').update({role:newRole}).eq('id',userId);
+  if(error){toast(error.message,'er');if(selectEl)selectEl.value=newRole==='admin'?'customer':'admin';return;}
+  toast(`Role updated to ${newRole} ✓`,'ok');
+}
 let editingUser=null;
 function openEditUser(u){editingUser=u;const body=document.getElementById('edit-user-body');body.innerHTML=`<div class="fg"><label class="flbl">Full Name</label><input type="text" class="fi" id="eu-name" value="${esc(u.full_name||'')}" maxlength="100"></div><div class="fg"><label class="flbl">Email</label><input type="email" class="fi" id="eu-email" value="${esc(u.email||'')}" maxlength="200" disabled style="opacity:.5"></div><div class="fg"><label class="flbl">Phone</label><input type="tel" class="fi" id="eu-phone" value="${esc(u.phone||'')}" maxlength="20"></div><div class="fg"><label class="flbl">Role</label><select class="fsel" id="eu-role"><option value="customer" ${u.role==='customer'?'selected':''}>Customer</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select></div><button class="btn btn-gold btn-full" onclick="saveEditUser()"><i class="fas fa-save"></i>Save Changes</button>`;document.getElementById('edit-user-modal').classList.add('on');showOvl();}
 function closeEditUser(){document.getElementById('edit-user-modal')?.classList.remove('on');hideOvl();editingUser=null;}
@@ -2452,7 +3054,27 @@ async function devReloadProducts(){const log=document.getElementById('dev-log');
 function devShowLogs(){const log=document.getElementById('dev-log');if(!log)return;log.style.display='block';log.textContent=[`App: Tote & Tread v2.0.0`,`User: ${user?.email||user?.phone||'Guest'}`,`Role: ${userRole||'none'}`,`Products: ${products.length}`,`Cart: ${cart.length} items`,`Wishlist: ${wish.length} items`,`Notifs: ${getNotifs().length} (${getUnreadCount()} unread)`,`Supabase: ${SB_URL!=='YOUR_SUPABASE_URL'?'Configured ✓':'NOT configured ⚠'}`,`Theme: ${localStorage.getItem('tt_theme')||'dark'}`,`PWA: ${window.matchMedia('(display-mode: standalone)').matches?'Installed':'Browser'}`,`UA: ${navigator.userAgent.slice(0,80)}`].join('\n');}
 
 /* ════════ CONTACT / AGENT ════════ */
-async function submitContact(){if(!rateLimit('contact',30000)){toast('Please wait before sending another message','er');return;}const n=document.getElementById('ct-name')?.value?.trim(),e=document.getElementById('ct-email')?.value?.trim(),s=document.getElementById('ct-subj')?.value?.trim(),m=document.getElementById('ct-msg')?.value?.trim(),btn=document.getElementById('ct-btn');if(!n||!e||!m){toast('Fill required fields','er');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){toast('Enter a valid email','er');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';if(sb){const{error}=await sb.from('contact_messages').insert([{name:n,email:e,subject:s||null,message:m}]);if(error){toast('Failed to send','er');btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Send Message';return;}}['ct-name','ct-email','ct-subj','ct-msg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Send Message';toast("Message sent! We'll reply soon. 📧",'ok');}
+/* Safe WhatsApp number — always returns a full valid number */
+function getWANum() {
+  const n = (socialLinks.whatsapp || WA_NUM || '').replace(/\D/g, '');
+  // Must be at least 9 digits (local) — if too short it's corrupted, use hardcoded
+  return n.length >= 9 ? n : '254107545752';
+}
+
+function submitContact(){
+  const n=document.getElementById('ct-name')?.value?.trim();
+  const c=document.getElementById('ct-contact')?.value?.trim();
+  const s=document.getElementById('ct-subj')?.value||'';
+  const m=document.getElementById('ct-msg')?.value?.trim();
+  if(!n){toast('Please enter your name','er');return;}
+  if(!m){toast('Please enter your message','er');return;}
+  const waMsg=`*New Message — Tote & Tread*\n\n👤 *Name:* ${n}${c?`\n📞 *Contact:* ${c}`:''}${s?`\n📌 *Topic:* ${s}`:''}\n\n💬 *Message:*\n${m}`;
+  const waUrl=`https://wa.me/${getWANum()}?text=${encodeURIComponent(waMsg)}`;
+  window.open(waUrl,'_blank','noopener,noreferrer');
+  ['ct-name','ct-contact','ct-msg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const sel=document.getElementById('ct-subj');if(sel)sel.value='';
+  toast('Opening WhatsApp… 💬','ok');
+}
 async function submitAgent(){if(!rateLimit('agent',60000)){toast('Please wait before resubmitting','er');return;}const n=document.getElementById('ag-name')?.value?.trim(),e=document.getElementById('ag-email')?.value?.trim(),ph=document.getElementById('ag-phone')?.value?.trim(),l=document.getElementById('ag-loc')?.value?.trim(),c=document.getElementById('ag-ch')?.value,b=document.getElementById('ag-bio')?.value?.trim(),btn=document.getElementById('ag-btn');if(!n||!e||!ph||!l){toast('Fill required fields','er');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){toast('Enter a valid email','er');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Submitting…';const fullPhone='+254'+ph.replace(/\D/g,'');if(sb){const{error}=await sb.from('agent_applications').insert([{name:n,email:e,phone:fullPhone,location:l,channel:c||null,bio:b||null}]);if(error){toast('Submission failed','er');btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Submit Application';return;}}btn.innerHTML='<i class="fas fa-check"></i>Application Submitted!';toast("Application sent! We'll be in touch. 🤝",'ok');setTimeout(()=>{btn.innerHTML='<i class="fas fa-paper-plane"></i>Submit Application';btn.disabled=false;},4000);}
 
 /* ════════ FEEDBACK / SUGGESTIONS ════════ */
@@ -2471,7 +3093,7 @@ function shareWA(){window.open(`https://wa.me/?text=${encodeURIComponent('✨ Ch
 function shareTW(){window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent('Loving Tote & Tread Collection — authentic Nairobi fashion! 👜')}&url=${encodeURIComponent(_shareUrl())}`,'_blank','noopener,noreferrer');}
 function shareFBsoc(){window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(_shareUrl())}`,'_blank','noopener,noreferrer');}
 function copyLink(){copyText(_shareUrl());}
-function openWA(){window.open(`https://wa.me/${WA_NUM}`,'_blank','noopener,noreferrer');}
+function openWA(){window.open(`https://wa.me/${getWANum()}`,'_blank','noopener,noreferrer');}
 function nativeShare(){if(navigator.share)navigator.share({title:'Tote & Tread Collection',text:'Premium handcrafted accessories from Nairobi 🇰🇪',url:_shareUrl()}).catch(()=>{});else copyLink();}
 function shareDevContact(){const msg='🛠️ App Developer\nDarius Momanyi\nWhatsApp: +254 110 554 040\nEmail: dariusmomanyi678@gmail.com';if(navigator.share)navigator.share({title:'Developer Contact',text:msg}).catch(()=>{});else copyText(msg);}
 function copyText(text){navigator.clipboard?.writeText(text).then(()=>toast('Copied!','ok')).catch(()=>{const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied!','ok');});}
