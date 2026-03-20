@@ -12,7 +12,7 @@
   const SB_URL = 'https://YOUR_PROJECT.supabase.co';   ← Supabase URL
   const SB_KEY = 'YOUR_ANON_PUBLIC_KEY';               ← Supabase anon key
   const WA_NUM = '254107545752';                        ← WhatsApp number
-  const SITE   = 'https://your-deployed-url.com';       ← Your app URL
+  const SITE   = 'https://tote-and-tread.vercel.app';   ← Your app URL
 
   GOOGLE OAUTH: Supabase Dashboard → Authentication → Providers → Google
   PHONE AUTH:   Supabase Dashboard → Authentication → Providers → Phone (Twilio)
@@ -75,23 +75,80 @@
   ALTER TABLE public.recovery_codes ENABLE ROW LEVEL SECURITY;
 
   CREATE POLICY "products_read" ON public.products FOR SELECT USING (true);
-  CREATE POLICY "products_admin" ON public.products FOR ALL USING (EXISTS(SELECT 1 FROM public.profiles WHERE id=auth.uid() AND role='admin'));
+  CREATE POLICY "products_admin" ON public.products FOR ALL USING (public.get_my_role() = 'admin');
   CREATE POLICY "settings_read" ON public.app_settings FOR SELECT USING (true);
-  CREATE POLICY "settings_admin" ON public.app_settings FOR ALL USING (EXISTS(SELECT 1 FROM public.profiles WHERE id=auth.uid() AND role='admin'));
+  CREATE POLICY "settings_admin" ON public.app_settings FOR ALL USING (public.get_my_role() = 'admin');
+  -- Function to read role without triggering RLS recursion
+  CREATE OR REPLACE FUNCTION public.get_my_role() RETURNS TEXT AS $$ SELECT role FROM public.profiles WHERE id = auth.uid(); $$ LANGUAGE sql SECURITY DEFINER STABLE;
   CREATE POLICY "profiles_own" ON public.profiles FOR ALL USING (auth.uid()=id);
-  CREATE POLICY "profiles_admin" ON public.profiles FOR ALL USING (EXISTS(SELECT 1 FROM public.profiles p2 WHERE p2.id=auth.uid() AND p2.role='admin'));
+  CREATE POLICY "profiles_admin" ON public.profiles FOR ALL USING (public.get_my_role() = 'admin');
   CREATE POLICY "orders_insert" ON public.orders FOR INSERT WITH CHECK (true);
   CREATE POLICY "orders_own" ON public.orders FOR SELECT USING (auth.uid()=user_id OR user_id IS NULL);
-  CREATE POLICY "orders_admin" ON public.orders FOR ALL USING (EXISTS(SELECT 1 FROM public.profiles WHERE id=auth.uid() AND role='admin'));
+  CREATE POLICY "orders_admin" ON public.orders FOR ALL USING (public.get_my_role() = 'admin');
   CREATE POLICY "contact_insert" ON public.contact_messages FOR INSERT WITH CHECK (true);
-  CREATE POLICY "contact_admin" ON public.contact_messages FOR SELECT USING (EXISTS(SELECT 1 FROM public.profiles WHERE id=auth.uid() AND role='admin'));
+  CREATE POLICY "contact_admin" ON public.contact_messages FOR SELECT USING (public.get_my_role() = 'admin');
   CREATE POLICY "feedback_insert" ON public.feedback FOR INSERT WITH CHECK (true);
   CREATE POLICY "suggestions_insert" ON public.suggestions FOR INSERT WITH CHECK (true);
   CREATE POLICY "restock_insert" ON public.restock_notifications FOR INSERT WITH CHECK (true);
-  CREATE POLICY "recovery_admin" ON public.recovery_codes FOR ALL USING (EXISTS(SELECT 1 FROM public.profiles WHERE id=auth.uid() AND role='admin'));
+  CREATE POLICY "recovery_admin" ON public.recovery_codes FOR ALL USING (public.get_my_role() = 'admin');
 
   ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
   ALTER PUBLICATION supabase_realtime ADD TABLE public.app_settings;
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+
+  -- User contacts table (unique per user, used for checkout/reset autofill)
+  CREATE TABLE IF NOT EXISTS public.user_contacts (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+    phone TEXT,
+    alt_phone TEXT,
+    delivery_address TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  ALTER TABLE public.user_contacts ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "contacts_own" ON public.user_contacts FOR ALL USING (auth.uid()=user_id);
+  CREATE POLICY "contacts_admin_read" ON public.user_contacts FOR SELECT USING (public.get_my_role() = 'admin');
+  CREATE POLICY "contacts_admin_delete" ON public.user_contacts FOR DELETE USING (public.get_my_role() = 'admin');
+
+  -- Broadcast emails log
+  CREATE TABLE IF NOT EXISTS public.broadcast_emails (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    subject TEXT NOT NULL, body TEXT NOT NULL,
+    type TEXT DEFAULT 'general', recipient_ids JSONB, sent_count INTEGER DEFAULT 0,
+    sent_by UUID REFERENCES auth.users(id), created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  ALTER TABLE public.broadcast_emails ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "broadcast_admin" ON public.broadcast_emails FOR ALL USING (public.get_my_role() = 'admin');
+
+  -- Notifications table (DB-backed, all activity)
+  CREATE TABLE public.notifications (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL DEFAULT 'system',
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    link TEXT,
+    read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "notifs_own" ON public.notifications FOR ALL USING (auth.uid()=user_id);
+  CREATE POLICY "notifs_admin_insert" ON public.notifications FOR INSERT WITH CHECK (true);
+
+  -- Visit tracking columns
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS visit_count INTEGER DEFAULT 0;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_visit TIMESTAMPTZ;
+
+  -- Storage buckets (run in Supabase Storage UI or SQL editor)
+  -- INSERT INTO storage.buckets (id,name,public) VALUES ('avatars','avatars',true) ON CONFLICT DO NOTHING;
+  -- INSERT INTO storage.buckets (id,name,public) VALUES ('products','products',true) ON CONFLICT DO NOTHING;
+  -- CREATE POLICY "avatars_public_read" ON storage.objects FOR SELECT USING (bucket_id='avatars');
+  -- CREATE POLICY "avatars_auth_upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id='avatars' AND auth.uid() IS NOT NULL);
+  -- CREATE POLICY "avatars_auth_update" ON storage.objects FOR UPDATE USING (bucket_id='avatars' AND auth.uid() IS NOT NULL);
+  -- CREATE POLICY "products_public_read" ON storage.objects FOR SELECT USING (bucket_id='products');
+  CREATE POLICY "products_admin_upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id='products' AND public.get_my_role() = 'admin');
+  CREATE POLICY "products_admin_update" ON storage.objects FOR UPDATE USING (bucket_id='products' AND public.get_my_role() = 'admin');
+  CREATE POLICY "products_admin_delete" ON storage.objects FOR DELETE USING (bucket_id='products' AND public.get_my_role() = 'admin');
 
 =======================================================================
 -->
@@ -1096,7 +1153,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
           &nbsp;·&nbsp;
           <button onclick="openSub('contact')" style="font-size:.55rem;color:var(--t3);background:none;border:none;cursor:pointer;text-decoration:underline">Contact Us</button>
         </div>
-        <span id="admin-trigger" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--gold);cursor:default;margin-top:12px" aria-hidden="true"></span>
+
       </footer>
     </div>
 
@@ -1325,7 +1382,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
   <div class="card card-p" style="margin-bottom:14px">
     <div style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0"><i class="fas fa-phone"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">Phone</div><a href="tel:+254107545752" style="font-size:.84rem;color:var(--t1);font-weight:500">+254 107 545 752</a></div></div>
-      <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0"><i class="fas fa-envelope"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">Email</div><a href="mailto:toteandtreadcollection@gmail.com" style="font-size:.78rem;color:var(--t1);font-weight:500">toteandtreadcollection@gmail.com</a></div></div>
+      <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0"><i class="fas fa-envelope"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">Email</div><a href="/cdn-cgi/l/email-protection#0a7e657e6f6b646e7e786f6b6e696566666f697e6365644a6d676b636624696567" style="font-size:.78rem;color:var(--t1);font-weight:500"><span class="__cf_email__" data-cfemail="a5d1cad1c0c4cbc1d1d7c0c4c1c6cac9c9c0c6d1cccacbe5c2c8c4ccc98bc6cac8">[email&#160;protected]</span></a></div></div>
       <div style="display:flex;gap:10px;align-items:center"><div class="val-ico" style="margin-bottom:0;flex-shrink:0;background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.3);color:#25D366"><i class="fab fa-whatsapp"></i></div><div><div style="font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">WhatsApp</div><button onclick="openWA()" style="font-size:.84rem;color:#25D366;font-weight:500;background:none;border:none;cursor:pointer;padding:0">Chat with us now</button></div></div>
     </div>
   </div>
@@ -1444,6 +1501,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
     <button class="adm-tab" onclick="admTab('orders')">Orders</button>
     <button class="adm-tab" onclick="admTab('users')">Users</button>
     <button class="adm-tab" onclick="admTab('messages')">Messages</button>
+    <button class="adm-tab" onclick="admTab('broadcast')">Broadcast</button>
     <button class="adm-tab" onclick="admTab('settings')">Settings</button>
   </div>
   <div class="adm-content" id="adm-content"></div>
@@ -1506,7 +1564,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
           </div>
         </div>
         <div class="fg"><label class="flbl">Your App / Website URL</label>
-          <input type="url" class="fi" id="sw-site" placeholder="https://toteandtread.netlify.app">
+          <input type="url" class="fi" id="sw-site" placeholder="https://tote-and-tread.vercel.app">
           <div class="fhint">Where you will host this file. Used for share links.</div>
         </div>
         <button class="setup-btn" onclick="swStep2Save()"><i class="fas fa-arrow-right"></i> Continue</button>
@@ -1541,7 +1599,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 /* ── Capture install prompt as early as possible — before DOMContentLoaded ── */
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
@@ -1563,7 +1621,7 @@ const _DEFAULTS = {
   u: _META_URL,      // Supabase Project URL  — set in <meta name="tt-sb-url">
   k: _META_KEY,      // Supabase anon key     — set in <meta name="tt-sb-key">
   w: '254107545752', // WhatsApp number (no +)
-  s: window.location.origin // Your site URL
+  s: 'https://tote-and-tread.vercel.app' // Your site URL
 };
 const _C = (()=>{ try{ const raw=localStorage.getItem('tt_cfg'); return raw?JSON.parse(atob(raw)):{};} catch{return{};} })();
 const SB_URL  = _C.u || _DEFAULTS.u;
@@ -1704,8 +1762,20 @@ function swStep2Save(){
 function swFinish(){ document.getElementById('setup').classList.add('gone'); location.reload(); }
 
 async function init() {
+  // ── Guaranteed splash dismissal — registered first, before anything can fail ──
+  function dismissSplash() {
+    const s = document.getElementById('splash');
+    if (s && !s.classList.contains('hide') && !s.classList.contains('gone')) {
+      s.classList.add('hide');
+      setTimeout(() => s.classList.add('gone'), 920);
+    }
+  }
+  const splashTimer = setTimeout(dismissSplash, 1800);          // normal exit
+  setTimeout(dismissSplash, 5000);                              // hard failsafe
+
   // Show setup wizard if not configured
   if(!_isConfigured()){
+    clearTimeout(splashTimer);
     swShowSetup();
     return;
   }
@@ -1728,18 +1798,8 @@ async function init() {
   catch { toast('Supabase error — using demo mode', 'nf'); products = MOCK_PRODUCTS; }
 
   // Render account immediately with whatever state we have (guest/empty)
-  // so the tab never looks broken
-  renderAcc();
-  updBadges();
-
-  // Preloader — let the animation breathe, then exit gracefully
-  setTimeout(() => {
-    const s = document.getElementById('splash');
-    if (s) {
-      s.classList.add('hide');
-      setTimeout(() => s.classList.add('gone'), 920);
-    }
-  }, 2000);
+  try { renderAcc(); } catch(e) { console.warn('renderAcc error:', e); }
+  try { updBadges(); } catch(e) {}
 
   // ── PARALLEL: auth session + products + settings ──
   // Don't await one then the other — fire them all at once
@@ -1755,9 +1815,13 @@ async function init() {
       renderAcc();
 
       // Auth state listener (handles login/logout events)
-      sb.auth.onAuthStateChange(async (_e, session) => {
-        user = session?.user || null;
-        if (user) { await fetchRole(); } else { userRole = null; }
+     sb.auth.onAuthStateChange(async (_e, session) => {
+  user = session?.user || null;
+  if (user) {
+    await fetchRole();
+    renderAcc();
+    loadNotifications();
+  } else { userRole = null; _notifCache = []; updNotifBadge(); }
         updBadges();
         if (document.getElementById('scr-acc').classList.contains('on')) renderAcc();
       });
@@ -1780,10 +1844,15 @@ async function init() {
   Promise.all([authPromise, settingsPromise]).catch(() => {});
 
 
-  // Handle password reset redirect URL
+  // Handle redirect URL params
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('reset') === '1' || (urlParams.has('type') && urlParams.get('type') === 'recovery')) {
     document.getElementById('reset-pw-overlay').classList.add('on');
+  }
+  // Verification email link → open account tab automatically
+  if (urlParams.get('tab') === 'acc') {
+    setTimeout(() => { showTab('acc'); }, 800);
+    history.replaceState(null, '', window.location.pathname);
   }
 
   // PWA — register service worker + show install popup every visit
@@ -1796,13 +1865,7 @@ async function init() {
   animateHeroStats();
   initReveal();
 
-  // Admin secret tap (footer dot ×7)
-  let taps = 0, tapTimer;
-  document.getElementById('admin-trigger')?.addEventListener('click', () => {
-    taps++; clearTimeout(tapTimer);
-    tapTimer = setTimeout(() => taps = 0, 2000);
-    if (taps >= 3) { taps = 0; if (userRole === 'admin') openAdmin(); else toast('Admin access required', 'er'); }
-  });
+
 }
 
 /* ════════ PWA ════════ */
@@ -2012,7 +2075,7 @@ async function openOrders(){
         <span style="font-family:var(--fd);font-size:1.08rem;color:var(--gold);flex-shrink:0">KES ${N(o.total)}</span>
         <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
           <button class="btn btn-ghost btn-xs" onclick="viewReceipt(_ordersCache['${idx}'])" title="View"><i class="fas fa-eye"></i></button>
-          <button class="btn btn-ghost btn-xs" onclick="dlReceipt(_ordersCache['${idx}'])" title="Download PDF"><i class="fas fa-download"></i></button>
+          <button class="btn btn-ghost btn-xs" onclick="dlReceipt(_ordersCache['${idx}'])" title="Download PDF"><i class="fas fa-download"></i></button><button class="btn btn-ghost btn-xs" onclick="shareReceipt(_ordersCache['${idx}'])" title="Share PDF"><i class="fas fa-share-alt"></i></button>
           <button class="btn btn-ghost btn-xs" onclick="shareReceipt(_ordersCache['${idx}'])" title="Share"><i class="fas fa-share-alt"></i></button>
           <button class="btn btn-red btn-xs" onclick="cancelOrder('${esc(o.id)}','${esc(o.status)}')" title="Cancel"><i class="fas fa-trash-alt"></i></button>
         </div>
@@ -2068,6 +2131,7 @@ function viewReceipt(o){
     ${html}
     <div style="display:flex;gap:10px;margin-top:14px">
       <button class="btn btn-gold" style="flex:1" onclick="dlReceipt(_ordersCache['_viewing'])"><i class="fas fa-download"></i>Download PDF</button>
+      <button class="btn btn-outline" onclick="shareReceipt(_ordersCache['_viewing'])"><i class="fas fa-share-alt"></i>Share</button>
       <button class="btn btn-outline" style="flex:1" onclick="shareReceipt(_ordersCache['_viewing'])"><i class="fas fa-share-alt"></i>Share</button>
     </div>
   </div>`;
@@ -2116,8 +2180,15 @@ async function openEditProfile(){
   profile.email=profile.email||user?.email||'';
   body.innerHTML=`<div style="padding:20px">
     <div style="text-align:center;margin-bottom:20px">
-      <div class="prof-avatar" style="margin:0 auto 8px">${user?.user_metadata?.avatar_url?`<img src="${esc(user.user_metadata.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : '<i class="fas fa-user"></i>'}</div>
-      <p style="font-size:.66rem;color:var(--t3)">Profile picture is linked to your sign-in provider</p>
+      <div style="position:relative;display:inline-block;margin:0 auto 8px">
+        <div class="prof-avatar" id="ep-avatar-preview" style="margin:0;width:72px;height:72px;font-size:1.6rem">${user?.user_metadata?.avatar_url?`<img src="${esc(user.user_metadata.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" id="ep-avatar-img">` : '<i class="fas fa-user"></i>'}</div>
+        <label for="ep-avatar-file" style="position:absolute;bottom:-2px;right:-2px;width:26px;height:26px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)">
+          <i class="fas fa-camera" style="font-size:.62rem;color:#000"></i>
+        </label>
+        <input type="file" id="ep-avatar-file" accept="image/*" capture="environment" style="display:none" onchange="previewAvatar(this)">
+      </div>
+      <p style="font-size:.66rem;color:var(--t3)">Tap the camera to change your photo</p>
+      <div id="ep-avatar-uploading" style="display:none;font-size:.68rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:10px;height:10px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:5px"></span>Uploading…</div>
     </div>
     <div class="fg"><label class="flbl">Full Name *</label><input type="text" class="fi" id="ep-name" value="${esc(profile.full_name)}" placeholder="Your full name" maxlength="100" autocomplete="name"></div>
     <div class="fg"><label class="flbl">Email Address</label><input type="email" class="fi" id="ep-email" value="${esc(profile.email)}" placeholder="your@email.com" maxlength="200" autocomplete="email" disabled style="opacity:.55"><div class="fhint">Email cannot be changed here. Contact support if needed.</div></div>
@@ -2130,6 +2201,32 @@ async function openEditProfile(){
     </div>
   </div>`;
 }
+function previewAvatar(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const prev=document.getElementById('ep-avatar-preview');
+    if(prev)prev.innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  };
+  reader.readAsDataURL(file);
+}
+async function uploadAvatarFile(){
+  const input=document.getElementById('ep-avatar-file');
+  if(!input||!input.files[0])return null;
+  if(!sb){toast('Supabase not configured','er');return null;}
+  const file=input.files[0];
+  if(file.size>2*1024*1024){toast('Image too large (max 2MB)','er');return null;}
+  const ext=file.name.split('.').pop()||'jpg';
+  const path=`${user.id}/avatar_${Date.now()}.${ext}`;
+  document.getElementById('ep-avatar-uploading').style.display='';
+  try{
+    const{error}=await sb.storage.from('avatars').upload(path,file,{upsert:true,contentType:file.type});
+    document.getElementById('ep-avatar-uploading').style.display='none';
+    if(error){toast('Upload failed: '+error.message,'er');return null;}
+    const{data}=sb.storage.from('avatars').getPublicUrl(path);
+    return data?.publicUrl||null;
+  }catch(e){document.getElementById('ep-avatar-uploading').style.display='none';toast('Upload error','er');return null;}
+}
 async function saveProfile(){
   if(!sb||!user){toast('Not signed in','er');return;}
   const name=document.getElementById('ep-name')?.value?.trim();
@@ -2139,14 +2236,26 @@ async function saveProfile(){
   if(!name){setErr(errEl,'Full name is required');return;}
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';
   const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;
-  const{error}=await sb.from('profiles').update({full_name:name,phone:fullPhone||null,updated_at:new Date().toISOString()}).eq('id',user.id);
+  // Upload avatar if changed
+  let avatarUrl=null;
+  const avatarFile=document.getElementById('ep-avatar-file');
+  if(avatarFile&&avatarFile.files[0])avatarUrl=await uploadAvatarFile();
+  const updateData={full_name:name,phone:fullPhone||null,updated_at:new Date().toISOString()};
+  if(avatarUrl)updateData.avatar_url=avatarUrl;
+  const{error}=await sb.from('profiles').update(updateData).eq('id',user.id);
   // Also update auth metadata
-  await sb.auth.updateUser({data:{full_name:name}}).catch(()=>{});
+  const metaUpdate={full_name:name};
+  if(avatarUrl)metaUpdate.avatar_url=avatarUrl;
+  await sb.auth.updateUser({data:metaUpdate}).catch(()=>{});
   btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i>Save Changes';
   if(error){setErr(errEl,error.message);return;}
   // Update local user metadata
   if(user.user_metadata)user.user_metadata.full_name=name;
   errEl.style.display='none';
+  // Keep user_contacts in sync
+  if (sb && fullPhone) {
+    await sb.from('user_contacts').upsert({user_id:user.id,phone:fullPhone,updated_at:new Date().toISOString()},{onConflict:'user_id'}).catch(()=>{});
+  }
   toast('Profile updated! ✓','ok');
   closeSub('editprofile');
   renderAcc();
@@ -2191,39 +2300,41 @@ function showAnnouncement(txt) {
 
 /* ════════ ROLE / AUTH ════════ */
 
-/* ── Hard-coded admin emails ──────────────────────────────────────────────
-   Any user who signs in with one of these emails automatically gets admin
-   access, regardless of their database role value.
-   Add or remove emails here freely — up to as many as you need.
-   ──────────────────────────────────────────────────────────────────────── */
+/* ── Admin emails: guaranteed fallback even if DB query fails ── */
 const ADMIN_EMAILS = [
-  'toteandtreadcollection@gmail.com',   // Bethesheba — Primary Admin
-  'dariusmomanyi678@gmail.com',         // Darius — Developer Admin
+  'toteandtreadcollection@gmail.com',
+  'dariusmomanyi678@gmail.com',
 ];
 
 async function fetchRole() {
   if (!user || !sb) return;
+
+  // 1. Instant check — email-based guarantee (works even if DB/RLS has issues)
+  const emailLower = (user.email || '').toLowerCase();
+  if (ADMIN_EMAILS.some(a => a.toLowerCase() === emailLower)) {
+    userRole = 'admin';
+    toast('Welcome back, Admin 🛡', 'ok');
+    // Still try to sync role to DB and track visit in background
+    sb.from('profiles').update({ role: 'admin', visit_count: 1, last_visit: new Date().toISOString() })
+      .eq('id', user.id).catch(() => {});
+    loadNotifications();
+    return;
+  }
+
+  // 2. DB check for all other users
   try {
-    const emailLower = (user.email || '').toLowerCase();
-
-    if (ADMIN_EMAILS.some(e => e.toLowerCase() === emailLower)) {
-      userRole = 'admin';
-      // Always write admin role to DB — ensures RLS policies, reports,
-      // and all queries recognise these users as admin unconditionally
-      await sb.from('profiles')
-        .update({ role: 'admin', updated_at: new Date().toISOString() })
-        .eq('id', user.id)
-        .catch(() => {});
-      toast('Welcome back, Admin 🛡', 'ok');
-      renderAcc();
-      return;
-    }
-
-    // Regular users — read role from DB
-    const { data } = await sb.from('profiles').select('role').eq('id', user.id).single();
+    const { data, error } = await sb.from('profiles').select('role,visit_count').eq('id', user.id).maybeSingle();
+    if (error) { console.warn('fetchRole error:', error.message); userRole = 'customer'; return; }
     userRole = data?.role || 'customer';
     if (userRole === 'admin') toast('Welcome back, Admin 🛡', 'ok');
-  } catch { userRole = 'customer'; }
+    // Track visit
+    sb.from('profiles').update({
+      visit_count: (data?.visit_count || 0) + 1,
+      last_visit: new Date().toISOString()
+    }).eq('id', user.id).catch(() => {});
+    // Load notifications from DB
+    loadNotifications();
+  } catch(e) { console.warn('fetchRole catch:', e); userRole = 'customer'; }
 }
 
 /* ════════ THEME ════════ */
@@ -2530,16 +2641,29 @@ function openWish() {
 function closeWish() { document.getElementById('wish-sheet')?.classList.remove('on'); hideOvl(); }
 
 /* ════════ CHECKOUT ════════ */
-function openCheckout() {
+async function openCheckout() {
   if (!cart.length) { toast('Your bag is empty', 'er'); return; }
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const body = document.getElementById('co-body');
+  // Load saved contact for autofill
+  let savedContact = {};
+  if (user && sb) {
+    try {
+      const { data: c } = await sb.from('user_contacts').select('*').eq('user_id', user.id).single();
+      if (c) savedContact = c;
+    } catch {}
+  }
+  const savedPhone = (savedContact.phone||'').replace(/^\+254/, '');
+  const savedAddr  = savedContact.delivery_address || '';
+  const autofillNote = (savedPhone||savedAddr) ? '<div style="font-size:.64rem;color:var(--gold);margin-bottom:12px;padding:6px 10px;background:rgba(201,168,76,.07);border:1px solid var(--gold-a25);border-radius:var(--r)"><i class="fas fa-magic" style="margin-right:5px"></i>Details filled from your saved contact</div>' : '';
   body.innerHTML = `
+    ${autofillNote}
     <p style="font-size:.74rem;color:var(--t3);margin-bottom:14px;line-height:1.6"><i class="fab fa-whatsapp" style="color:#25D366"></i> Your order will be sent via WhatsApp. Please fill in your details below.</p>
     <div class="fg"><label class="flbl" for="co-n">Full Name *</label><input type="text" class="fi" id="co-n" placeholder="Your full name" maxlength="100" autocomplete="name" value="${esc(user?.user_metadata?.full_name||'')}"></div>
-    <div class="fg"><label class="flbl" for="co-ph">Phone Number *</label><div class="phone-wrap"><span class="phone-prefix">+254</span><input type="tel" class="fi" id="co-ph" placeholder="7XX XXX XXX" maxlength="15" autocomplete="tel"></div></div>
-    <div class="fg"><label class="flbl" for="co-addr">Delivery Address *</label><textarea class="fta" id="co-addr" placeholder="Street, estate, county…" maxlength="300" style="min-height:70px"></textarea></div>
+    <div class="fg"><label class="flbl" for="co-ph">Phone Number *</label><div class="phone-wrap"><span class="phone-prefix">+254</span><input type="tel" class="fi" id="co-ph" placeholder="7XX XXX XXX" maxlength="15" autocomplete="tel" value="${esc(savedPhone)}"></div></div>
+    <div class="fg"><label class="flbl" for="co-addr">Delivery Address *</label><textarea class="fta" id="co-addr" placeholder="Street, estate, county…" maxlength="300" style="min-height:70px">${esc(savedAddr)}</textarea></div>
     <div class="fg"><label class="flbl" for="co-notes">Order Notes (optional)</label><input type="text" class="fi" id="co-notes" placeholder="Size, colour preference, special requests…" maxlength="300"></div>
+    ${user?'<label style="display:flex;align-items:center;gap:8px;font-size:.72rem;color:var(--t2);margin-bottom:14px;cursor:pointer"><input type="checkbox" id="co-save-contact" checked style="accent-color:var(--gold)"> Save contact details for next time</label>':''}
     <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:12px;margin-bottom:14px">
       <div style="font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Order Summary</div>
       ${cart.map(i=>`<div style="display:flex;justify-content:space-between;font-size:.76rem;color:var(--t2);margin-bottom:5px"><span>${esc(i.name)} ×${i.qty}</span><span style="color:var(--gold)">KES ${N(i.price*i.qty)}</span></div>`).join('')}
@@ -2574,6 +2698,10 @@ async function placeOrder() {
     const waMsg = `🛍️ *NEW ORDER — Tote & Tread*\n\n*Ref:* #${ordId.toString().slice(0,8)||'NEW'}\n*Customer:* ${name}\n*Phone:* ${fullPhone}\n*Address:* ${addr}${notes?'\n*Notes:* '+notes:''}\n\n*Items:*\n${lines}\n\n*TOTAL: KES ${N(total)}*`;
     window.open(`https://wa.me/${getWANum()}?text=${encodeURIComponent(waMsg)}`,'_blank','noopener,noreferrer');
     await notifyOrderPlaced(ordId, total);
+    // Save contact if user checked the option
+    if (user && sb && document.getElementById('co-save-contact')?.checked) {
+      await sb.from('user_contacts').upsert({user_id:user.id, phone:fullPhone, delivery_address:addr, updated_at:new Date().toISOString()},{onConflict:'user_id'}).catch(()=>{});
+    }
     cart=[]; saveCart(); updBadges(); closeCO(); toast('Order placed successfully! 🎉','ok');
   } catch { toast('Could not place order. Please try again.','er'); btn.disabled=false; btn.innerHTML='<i class="fas fa-lock"></i>Confirm Order via WhatsApp'; }
 }
@@ -2602,7 +2730,7 @@ function dlReceipt(o) {
     doc.setFontSize(7.5);doc.setTextColor(140,125,95);
     doc.text('Nairobi, Kenya',pageW/2,39,{align:'center'});
     doc.text('0107545752  ·  toteandtreadcollection@gmail.com',pageW/2,46,{align:'center'});
-    doc.text('toteandtread.co.ke',pageW/2,53,{align:'center'});
+    doc.text('tote-and-tread.vercel.app',pageW/2,53,{align:'center'});
 
     // ── RECEIPT TITLE ──
     doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(40,32,18);
@@ -2669,12 +2797,82 @@ function dlReceipt(o) {
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,120,85);
     doc.text('Thank you for shopping with Tote & Tread Collection!',pageW/2,y,{align:'center'});y+=5;
     doc.text('For queries: toteandtreadcollection@gmail.com  ·  0107545752',pageW/2,y,{align:'center'});y+=5;
+    doc.setFontSize(7.5);doc.setTextColor(201,168,76);
+    doc.text(_shareUrl()||SITE,pageW/2,y,{align:'center'});y+=5;
     doc.setFontSize(7);doc.setTextColor(160,140,100);
     doc.text(`Generated: ${new Date().toLocaleString('en-KE')}`,pageW/2,y,{align:'center'});
 
     doc.save(`TnT_Receipt_${(o.id||'').toString().slice(0,8)||Date.now()}.pdf`);
     toast('Receipt downloaded!','ok');
   } catch(err) { console.error(err); toast('Could not generate receipt','er'); }
+}
+async function shareReceipt(o) {
+  try {
+    const { jsPDF } = window.jspdf, doc = new jsPDF();
+    const items = typeof o.items==='string'?JSON.parse(o.items):(o.items||[]);
+    const total = o.total||items.reduce((s,i)=>s+i.price*i.qty,0);
+    const pageW=210;
+    doc.setFillColor(10,10,10);doc.rect(0,0,pageW,60,'F');
+    doc.setFillColor(201,168,76);doc.rect(0,58,pageW,2,'F');
+    doc.setFontSize(26);doc.setFont('times','bolditalic');doc.setTextColor(201,168,76);
+    doc.text('Tote & Tread',pageW/2,24,{align:'center'});
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(180,165,130);
+    doc.setCharSpace(2);doc.text('C O L L E C T I O N',pageW/2,31,{align:'center'});doc.setCharSpace(0);
+    doc.setFontSize(7.5);doc.setTextColor(140,125,95);
+    doc.text('Nairobi, Kenya',pageW/2,39,{align:'center'});
+    doc.text('0107545752  ·  toteandtreadcollection@gmail.com',pageW/2,46,{align:'center'});
+    doc.text(_shareUrl()||SITE,pageW/2,53,{align:'center'});
+    doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(40,32,18);
+    doc.text('ORDER RECEIPT',pageW/2,72,{align:'center'});
+    doc.setDrawColor(201,168,76);doc.setLineWidth(.4);doc.line(60,74,pageW-60,74);
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(100,88,65);
+    doc.text(`Ref: #${(o.id||'').toString().slice(0,8).toUpperCase()||'N/A'}`,pageW/2,81,{align:'center'});
+    doc.text(`Date: ${D(o.created_at||new Date().toISOString())}`,pageW/2,87,{align:'center'});
+    doc.setLineWidth(.25);doc.setDrawColor(220,200,160);doc.line(20,93,pageW-20,93);
+    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(40,32,18);doc.text('BILL TO',20,100);
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(80,68,48);
+    doc.text(o.customer_name||'—',20,108);doc.text(o.customer_phone||'—',20,114);
+    const addr=(o.delivery_address||'—');const addrLines=doc.splitTextToSize(addr,90);doc.text(addrLines,20,120);
+    const statusY=100;doc.setFillColor(25,20,10);doc.roundedRect(pageW-70,statusY-7,50,14,3,3,'F');
+    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(201,168,76);
+    doc.text((o.status||'pending').toUpperCase(),pageW-45,statusY+1,{align:'center'});
+    let y=Math.max(130,120+addrLines.length*6+4);
+    doc.line(20,y,pageW-20,y);y+=2;
+    doc.setFillColor(25,20,5);doc.rect(20,y,pageW-40,10,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(201,168,76);
+    doc.text('ITEM',24,y+7);doc.text('QTY',pageW-70,y+7,{align:'center'});doc.text('PRICE',pageW-22,y+7,{align:'right'});y+=14;
+    items.forEach((item,idx)=>{
+      if(idx%2===0){doc.setFillColor(252,248,240);}else{doc.setFillColor(246,241,232);}
+      doc.rect(20,y-5,pageW-40,10,'F');
+      doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(60,50,32);
+      doc.text(String(item.name||'').slice(0,38),24,y);
+      doc.text(String(item.qty||1),pageW-70,y,{align:'center'});
+      doc.text(`KES ${N((item.price||0)*(item.qty||1))}`,pageW-22,y,{align:'right'});y+=12;
+    });
+    doc.setLineWidth(.4);doc.setDrawColor(201,168,76);doc.line(20,y,pageW-20,y);y+=8;
+    doc.setFillColor(25,20,5);doc.rect(20,y-4,pageW-40,14,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(201,168,76);
+    doc.text('TOTAL',26,y+5);doc.text(`KES ${N(total)}`,pageW-22,y+5,{align:'right'});y+=20;
+    if(o.notes){doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor(120,105,78);doc.text('Notes: '+o.notes.slice(0,80),20,y);y+=10;}
+    y=Math.max(y,260);
+    doc.setDrawColor(201,168,76);doc.setLineWidth(.4);doc.line(20,y,pageW-20,y);y+=8;
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,120,85);
+    doc.text('Thank you for shopping with Tote & Tread Collection!',pageW/2,y,{align:'center'});y+=5;
+    doc.text('For queries: toteandtreadcollection@gmail.com  ·  0107545752',pageW/2,y,{align:'center'});y+=5;
+    doc.setFontSize(7.5);doc.setTextColor(201,168,76);doc.text(_shareUrl()||SITE,pageW/2,y,{align:'center'});y+=5;
+    doc.setFontSize(7);doc.setTextColor(160,140,100);
+    doc.text(`Generated: ${new Date().toLocaleString('en-KE')}`,pageW/2,y,{align:'center'});
+    const pdfBlob = doc.output('blob');
+    const fname = `TnT_Receipt_${(o.id||'').toString().slice(0,8)||Date.now()}.pdf`;
+    const file = new File([pdfBlob], fname, {type:'application/pdf'});
+    if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
+      await navigator.share({title:'Tote & Tread Receipt', text:`Order Receipt — ${_shareUrl()||SITE}`, files:[file]});
+    } else {
+      // Fallback: download
+      dlReceipt(o);
+      toast('Share not supported — PDF downloaded instead','nf');
+    }
+  } catch(err) { if(err.name!=='AbortError'){console.error(err);toast('Could not share receipt','er');} }
 }
 
 /* ════════ NOTIFY ME ════════ */
@@ -2688,25 +2886,63 @@ async function submitNotify() {
   closeNotify(); toast("We'll notify you when it's back!",'ok');
 }
 
-/* ════════ NOTIFICATIONS ════════ */
-function notifKey(){return user?`tt_notifs_${user.id}`:null;}
-function getNotifs(){const k=notifKey();if(!k)return[];try{return JSON.parse(localStorage.getItem(k)||'[]');}catch{return[];}}
-function saveNotifs(list){const k=notifKey();if(k)try{localStorage.setItem(k,JSON.stringify(list));}catch{}}
-function getUnreadCount(){return getNotifs().filter(n=>!n.read).length;}
-async function pushLocalNotif({type,title,body,link=null}){if(!user)return;const notifs=getNotifs();notifs.unshift({id:Date.now(),type,title,body,link,read:false,ts:new Date().toISOString()});saveNotifs(notifs.slice(0,50));updNotifBadge();}
+/* ════════ NOTIFICATIONS (DB-backed) ════════ */
+let _notifCache = [];
+function getUnreadCount(){ return _notifCache.filter(n=>!n.read).length; }
 function updNotifBadge(){const cnt=getUnreadCount();const badge=document.getElementById('notif-badge');if(badge){badge.textContent=cnt;badge.classList.toggle('hidden',cnt===0);}}
-function openNotifications(){if(!user){showTab('acc');toast('Sign in to view notifications','nf');return;}document.getElementById('sub-notifs').classList.add('on');showOvl();renderNotifications();}
-function renderNotifications(){
-  const body=document.getElementById('notifs-body');if(!body)return;
-  const notifs=getNotifs();
-  if(!notifs.length){body.innerHTML='<div class="empty-state"><i class="fas fa-bell"></i>No notifications yet</div>';return;}
-  const icons={welcome:'fa-gift',order:'fa-box',restock:'fa-bell',promo:'fa-tag',system:'fa-info-circle'};
-  const colors={welcome:'badge-green',order:'badge-gold',restock:'badge-amber',promo:'badge-purple',system:'badge-blue'};
-  body.innerHTML=notifs.map(n=>`<div class="notif-item${n.read?' read':''}" onclick="readNotif(${n.id})"><div class="notif-ico ${colors[n.type]||'badge-blue'}"><i class="fas ${icons[n.type]||'fa-info-circle'}"></i></div><div style="flex:1;min-width:0"><div class="notif-title">${esc(n.title)}</div><div class="notif-body">${esc(n.body)}</div><div class="notif-ts">${D(n.ts)}</div></div>${!n.read?'<div class="notif-dot"></div>':''}</div>`).join('');
+async function loadNotifications(){
+  if(!user||!sb)return;
+  try{
+    const{data}=await sb.from('notifications').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(50);
+    _notifCache=data||[];
+    updNotifBadge();
+  }catch{}
 }
-function readNotif(id){const notifs=getNotifs();const n=notifs.find(x=>x.id===id);if(n){n.read=true;saveNotifs(notifs);}renderNotifications();updNotifBadge();}
-function markAllRead(){saveNotifs(getNotifs().map(n=>({...n,read:true})));renderNotifications();updNotifBadge();}
-async function notifyOrderPlaced(orderId,total){await pushLocalNotif({type:'order',title:'Order Confirmed ✓',body:`Your order #${(orderId||'').toString().slice(0,8)} for KES ${N(total)} has been received. We'll be in touch shortly.`});}
+async function pushDBNotif({type='system',title,body,link=null,targetUserId=null}){
+  if(!sb)return;
+  const uid=targetUserId||(user?.id||null);
+  if(!uid)return;
+  try{await sb.from('notifications').insert([{user_id:uid,type,title,body,link,read:false}]);}catch{}
+  if(uid===user?.id){await loadNotifications();}
+}
+function openNotifications(){if(!user){showTab('acc');toast('Sign in to view notifications','nf');return;}document.getElementById('sub-notifs').classList.add('on');showOvl();renderNotifications();}
+async function renderNotifications(){
+  const bodyEl=document.getElementById('notifs-body');if(!bodyEl)return;
+  bodyEl.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+  await loadNotifications();
+  const notifs=_notifCache;
+  if(!notifs.length){bodyEl.innerHTML='<div class="empty-state"><i class="fas fa-bell"></i>No notifications yet</div>';return;}
+  const icons={welcome:'fa-gift',order:'fa-box',restock:'fa-bell',promo:'fa-tag',system:'fa-info-circle',product:'fa-tag',user:'fa-user',admin:'fa-shield-alt'};
+  const colors={welcome:'badge-green',order:'badge-gold',restock:'badge-amber',promo:'badge-purple',system:'badge-blue',product:'badge-amber',user:'badge-green',admin:'badge-purple'};
+  bodyEl.innerHTML=notifs.map(n=>`<div class="notif-item${n.read?' read':''}" onclick="readNotif('${n.id}')"><div class="notif-ico ${colors[n.type]||'badge-blue'}"><i class="fas ${icons[n.type]||'fa-info-circle'}"></i></div><div style="flex:1;min-width:0"><div class="notif-title">${esc(n.title)}</div><div class="notif-body">${esc(n.body)}</div><div class="notif-ts">${D(n.created_at)}</div></div>${!n.read?'<div class="notif-dot"></div>':''}</div>`).join('');
+}
+async function readNotif(id){
+  if(!sb||!user)return;
+  _notifCache=_notifCache.map(n=>n.id===id?{...n,read:true}:n);
+  renderNotifications();updNotifBadge();
+  await sb.from('notifications').update({read:true}).eq('id',id).eq('user_id',user.id).catch(()=>{});
+}
+async function markAllRead(){
+  if(!sb||!user)return;
+  _notifCache=_notifCache.map(n=>({...n,read:true}));
+  renderNotifications();updNotifBadge();
+  await sb.from('notifications').update({read:true}).eq('user_id',user.id).catch(()=>{});
+}
+async function notifyOrderPlaced(orderId,total){
+  // Notify the customer
+  await pushDBNotif({type:'order',title:'Order Confirmed ✓',body:`Your order #${(orderId||'').toString().slice(0,8)} for KES ${N(total)} has been received. We'll be in touch shortly.`});
+  // Notify all admins
+  if(sb){
+    try{
+      const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');
+      for(const admin of (admins||[])){
+        if(admin.id!==user?.id){
+          await pushDBNotif({type:'order',title:'New Order Received 🛍',body:`Order #${(orderId||'').toString().slice(0,8)} — KES ${N(total)}. Check the admin dashboard.`,targetUserId:admin.id});
+        }
+      }
+    }catch{}
+  }
+}
 
 /* ════════ OVERLAYS / SUBS ════════ */
 function showOvl(){document.getElementById('ovl').classList.add('on');}
@@ -2758,13 +2994,13 @@ function otpNext(el,nextId){el.value=el.value.replace(/\D/g,'');if(el.value&&nex
 async function doLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const e=document.getElementById('li-e')?.value?.trim(),p=document.getElementById('li-pw')?.value||'',errEl=document.getElementById('li-err'),btn=document.getElementById('li-btn');if(!e||!p){setErr(errEl,'Please enter email and password');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Please enter a valid email address');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Signing in…';const{error}=await sb.auth.signInWithPassword({email:e,password:p});btn.disabled=false;btn.innerHTML='<i class="fas fa-sign-in-alt"></i>Sign In';if(error){errEl.style.display='none';const msg=error.message.includes('Invalid login credentials')||error.message.includes('invalid_credentials')?'Wrong email or password. Please check your details and try again.':error.message.includes('Email not confirmed')?'Please check your inbox and confirm your email address before signing in.':error.message.includes('too many')?'Too many sign-in attempts. Please wait a few minutes and try again.':error.message;popupErr('Sign In Failed',msg);return;}errEl.style.display='none';toast('Welcome back! 👋','ok');}
 async function doPhoneLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('li-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('li-ph-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('li-otp-wrap').style.display='';document.getElementById('li-otp-send-wrap').style.display='none';toast('OTP sent to '+fullPhone,'ok');}
 async function doPhoneVerify(){if(!sb)return;const ph=document.getElementById('li-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('otp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('otp-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify OTP';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}toast('Signed in successfully! 👋','ok');}
-async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const appUrl=SITE||window.location.origin;const{error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:appUrl}});if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?'This email address is already registered. Try signing in instead, or reset your password.':error.message;setErr(errEl,'');popupErr('Account Creation Failed',msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','We\'ve sent a confirmation link to '+e+'. Click the link in your email to activate your Tote & Tread account, then come back and sign in.');}
-async function showReset(){const el=document.getElementById('acc-body');el.innerHTML=`<div style="margin-bottom:18px"><h3 style="font-family:var(--fd);font-size:1.3rem;margin-bottom:6px">Reset Password</h3><p style="font-size:.76rem;color:var(--t3);line-height:1.65">Enter your email and we'll send a reset link, or reset via phone OTP.</p></div><div class="fg"><label class="flbl">Email Address</label><input type="email" class="fi" id="rst-e" placeholder="your@email.com" maxlength="200" autocomplete="email"></div><button class="btn btn-gold btn-full" id="rst-btn" onclick="doReset()"><i class="fas fa-paper-plane"></i>Send Reset Link</button><div style="margin:16px 0;text-align:center;font-size:.68rem;color:var(--t3);letter-spacing:.1em;text-transform:uppercase">— or —</div><button class="btn btn-outline btn-full" onclick="openPhoneReset()"><i class="fas fa-sms"></i>Reset via Phone OTP</button><p style="text-align:center;margin-top:14px"><a href="#" style="font-size:.72rem;color:var(--gold)" onclick="renderAuthForms(document.getElementById('acc-body'),'login');return false">← Back to Sign In</a></p>`;}
-async function doReset(){if(!sb){toast('Supabase not configured','er');return;}const e=document.getElementById('rst-e')?.value?.trim();if(!e||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){toast('Enter a valid email','er');return;}if(!rateLimit('reset',60000)){toast('Please wait before trying again','er');return;}const btn=document.getElementById('rst-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const appUrl=(SITE||window.location.origin)+'?reset=1';const{error}=await sb.auth.resetPasswordForEmail(e,{redirectTo:appUrl});btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Send Reset Link';if(error){toast(error.message,'er');return;}toast('Reset link sent! Check your email 📧','ok');}
+async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const redirectUrl=(SITE&&SITE.startsWith('https://'))?SITE+'?tab=acc':(window.location.origin+window.location.pathname+'?tab=acc');const{error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:redirectUrl}});if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?null:error.message;if(!msg){const errWrap=document.getElementById('su-err');errWrap.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px;margin-bottom:4px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">' + esc(e) + '</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');document.getElementById(\'li-e\')&&(document.getElementById(\'li-e\').value=\'' + e.replace(/'/g,"\\'")+'\')"><i class="fas fa-sign-in-alt"></i>Sign In</button><button class="btn btn-ghost" style="flex:1;font-size:.72rem" onclick="this.closest(\'[id=su-err]\').style.display=\'none\';"><i class="fas fa-times"></i>Cancel</button></div></div>';errWrap.style.display='';return;}setErr(errEl,msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','We\'ve sent a confirmation link to '+e+'. Click the link in your email to activate your account — it will bring you straight to your profile.');}
+async function showReset(){const el=document.getElementById('acc-body');const prefillEmail=esc(user?.email||'');el.innerHTML=`<div style="margin-bottom:18px"><h3 style="font-family:var(--fd);font-size:1.3rem;margin-bottom:6px">Reset Password</h3><p style="font-size:.76rem;color:var(--t3);line-height:1.65">Enter your email and we'll send a reset link, or reset via phone OTP.</p></div><div class="fg"><label class="flbl">Email Address</label><input type="email" class="fi" id="rst-e" placeholder="your@email.com" maxlength="200" autocomplete="email" value="${prefillEmail}"></div><button class="btn btn-gold btn-full" id="rst-btn" onclick="doReset()"><i class="fas fa-paper-plane"></i>Send Reset Link</button><div style="margin:16px 0;text-align:center;font-size:.68rem;color:var(--t3);letter-spacing:.1em;text-transform:uppercase">— or —</div><button class="btn btn-outline btn-full" onclick="openPhoneReset()"><i class="fas fa-sms"></i>Reset via Phone OTP</button><p style="text-align:center;margin-top:14px"><a href="#" style="font-size:.72rem;color:var(--gold)" onclick="renderAuthForms(document.getElementById('acc-body'),'login');return false">← Back to Sign In</a></p>`;}
+async function doReset(){if(!sb){toast('Supabase not configured','er');return;}const e=document.getElementById('rst-e')?.value?.trim();if(!e||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){toast('Enter a valid email','er');return;}if(!rateLimit('reset',60000)){toast('Please wait before trying again','er');return;}const btn=document.getElementById('rst-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const resetUrl=(SITE&&SITE.startsWith('https://'))?SITE+'?reset=1':(window.location.origin+window.location.pathname+'?reset=1');const{error}=await sb.auth.resetPasswordForEmail(e,{redirectTo:resetUrl});btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Send Reset Link';if(error){toast(error.message,'er');return;}toast('Reset link sent! Check your email 📧','ok');}
 function openPhoneReset(){openSub('phonereset');}
 async function sendPhoneResetOTP(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('pr-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('pr-send-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('pr-send-wrap').style.display='none';document.getElementById('pr-verify-wrap').style.display='';toast('OTP sent to '+fullPhone,'ok');}
 async function verifyPhoneResetOTP(){if(!sb)return;const ph=document.getElementById('pr-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('protp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('pr-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify & Sign In';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}closeSub('phonereset');document.getElementById('reset-pw-overlay').classList.add('on');toast('Verified! Now set your new password.','ok');}
-async function doUpdatePassword(){if(!sb){toast('Not configured','er');return;}const p=document.getElementById('np-pw')?.value||'',p2=document.getElementById('np-pw2')?.value||'',errEl=document.getElementById('np-err'),btn=document.getElementById('np-btn');if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){setErr(errEl,'Passwords do not match');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';const{error}=await sb.auth.updateUser({password:p});btn.disabled=false;btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';if(error){setErr(errEl,error.message);return;}document.getElementById('reset-pw-overlay').classList.remove('on');history.replaceState(null,'',location.pathname);toast('Password updated! You are now signed in. 🔐','ok');renderAcc();}
+async function doUpdatePassword(){if(!sb){toast('Not configured','er');return;}const p=document.getElementById('np-pw')?.value||'',p2=document.getElementById('np-pw2')?.value||'',errEl=document.getElementById('np-err'),btn=document.getElementById('np-btn');if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){setErr(errEl,'Passwords do not match');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';const{error}=await sb.auth.updateUser({password:p});btn.disabled=false;btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';if(error){setErr(errEl,error.message);return;}document.getElementById('reset-pw-overlay').classList.remove('on');history.replaceState(null,'',location.pathname);toast('Password updated! You are now signed in. 🔐','ok');renderAcc();showTab('home');}
 async function renderLoggedIn(el){
   const name=user?.user_metadata?.full_name||user?.email?.split('@')[0]||'Member';
   const email=user?.email||user?.phone||'';
@@ -2781,7 +3017,7 @@ async function renderLoggedIn(el){
   el.innerHTML=`
     <div class="prof-card">
       <div style="position:relative;display:inline-block">
-        <div class="prof-avatar">${user?.user_metadata?.avatar_url?`<img src="${esc(user.user_metadata.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-user\\'></i>'">` : '<i class="fas fa-user"></i>'}</div>
+        <div class="prof-avatar" id="main-avatar">${user?.user_metadata?.avatar_url?`<img src="${esc(user.user_metadata.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-user\\'></i>'">` : '<i class="fas fa-user"></i>'}</div>
         ${isAdmin?'<div style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;color:#000"><i class="fas fa-shield-alt"></i></div>':''}
       </div>
       <div class="prof-name">${esc(name)}</div>
@@ -2889,62 +3125,177 @@ function setErr(el,msg){if(!el)return;el.textContent=msg;el.style.display='';}
 /* ════════ ADMIN ════════ */
 function openAdmin(){if(userRole!=='admin'){toast('Admin access required','er');showTab('acc');return;}document.getElementById('admin').classList.add('on');showOvl();admTab('overview');}
 function closeAdmin(){document.getElementById('admin')?.classList.remove('on');hideOvl();}
-function admTab(name){document.querySelectorAll('.adm-tab').forEach(t=>t.classList.remove('on'));document.querySelector(`.adm-tab[onclick="admTab('${name}')"]`)?.classList.add('on');const content=document.getElementById('adm-content');const sections={overview:renderAdmOverview,products:renderAdmProducts,orders:renderAdmOrders,users:renderAdmUsers,messages:renderAdmMessages,settings:renderAdmSettings};content.innerHTML='<div class="load-center"><div class="spin"></div></div>';(sections[name]||(() => {}))();}
+function admTab(name){document.querySelectorAll('.adm-tab').forEach(t=>t.classList.remove('on'));document.querySelector(`.adm-tab[onclick="admTab('${name}')"]`)?.classList.add('on');const content=document.getElementById('adm-content');const sections={overview:renderAdmOverview,products:renderAdmProducts,orders:renderAdmOrders,users:renderAdmUsers,messages:renderAdmMessages,broadcast:renderAdmBroadcast,settings:renderAdmSettings};content.innerHTML='<div class="load-center"><div class="spin"></div></div>';(sections[name]||(() => {}))();}
 async function renderAdmOverview(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const[{data:ords},{data:allProds},{data:msgs},{data:apps}]=await Promise.all([sb.from('orders').select('id,total,status,created_at,customer_name'),sb.from('products').select('id,name,stock'),sb.from('contact_messages').select('id'),sb.from('agent_applications').select('id')]);const rev=(ords||[]).filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.total||0),0);const recent=(ords||[]).slice(0,6);const low=(allProds||[]).filter(p=>p.stock<=LOW_STK).slice(0,6);el.innerHTML=`<div class="adm-stats-grid"><div class="stat-card highlight"><div class="stat-card-icon"><i class="fas fa-coins"></i></div><span class="stat-card-num">KES ${N(rev)}</span><span class="stat-card-lbl">Revenue</span></div><div class="stat-card"><div class="stat-card-icon"><i class="fas fa-receipt"></i></div><span class="stat-card-num">${(ords||[]).length}</span><span class="stat-card-lbl">Orders</span></div><div class="stat-card"><div class="stat-card-icon"><i class="fas fa-box-open"></i></div><span class="stat-card-num">${(allProds||[]).length}</span><span class="stat-card-lbl">Products</span></div><div class="stat-card"><div class="stat-card-icon"><i class="fas fa-exclamation-triangle"></i></div><span class="stat-card-num">${(allProds||[]).filter(p=>p.stock<=0).length}</span><span class="stat-card-lbl">Out of Stock</span></div><div class="stat-card"><div class="stat-card-icon"><i class="fas fa-envelope"></i></div><span class="stat-card-num">${(msgs||[]).length}</span><span class="stat-card-lbl">Messages</span></div><div class="stat-card"><div class="stat-card-icon"><i class="fas fa-handshake"></i></div><span class="stat-card-num">${(apps||[]).length}</span><span class="stat-card-lbl">Agent Apps</span></div></div><div class="adm-section"><h3>Recent Orders</h3>${recent.length?`<table><thead><tr><th>Customer</th><th>Total</th><th>Status</th></tr></thead><tbody>${recent.map(o=>`<tr><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><span class="badge ${o.status==='completed'?'badge-green':'badge-amber'}">${esc(o.status||'pending')}</span></td></tr>`).join('')}</tbody></table>`:'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>'}</div><div class="adm-section"><h3>Low Stock Alert</h3>${low.length?`<table><thead><tr><th>Product</th><th>Stock</th></tr></thead><tbody>${low.map(p=>`<tr><td class="td-name">${esc(p.name)}</td><td class="${p.stock<=0?'pcard-stk out':'pcard-stk low'}">${p.stock<=0?'Sold Out':p.stock+' left'}</td></tr>`).join('')}</tbody></table>`:'<p style="font-size:.76rem;color:var(--green)">✓ All products in stock.</p>'}</div>`;}
-async function renderAdmProducts(){const el=document.getElementById('adm-content');el.innerHTML=`<div class="adm-section"><h3>Add Product</h3><div class="fg"><label class="flbl">Name *</label><input type="text" class="fi" id="ap-n" placeholder="Product name" maxlength="200"></div><div class="form-row"><div class="fg"><label class="flbl">Category *</label><select class="fsel" id="ap-c"><option value="">Category…</option><option value="tote-bags">Tote Bags</option><option value="footwear">Footwear</option><option value="accessories">Accessories</option></select></div><div class="fg"><label class="flbl">Price (KES) *</label><input type="number" class="fi" id="ap-p" min="0"></div></div><div class="form-row"><div class="fg"><label class="flbl">Compare Price</label><input type="number" class="fi" id="ap-cp" min="0"></div><div class="fg"><label class="flbl">Stock *</label><input type="number" class="fi" id="ap-s" min="0" value="0"></div></div><div class="fg"><label class="flbl">Description</label><textarea class="fta" id="ap-d" maxlength="1000" style="min-height:70px"></textarea></div><div class="fg"><label class="flbl">Primary Image URL</label><input type="url" class="fi" id="ap-i" placeholder="https://…" maxlength="500"></div><div class="fg"><label class="flbl">Secondary Image URL</label><input type="url" class="fi" id="ap-i2" placeholder="https://…" maxlength="500"></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">${[['feat','Featured'],['trend','Trending'],['best','Best Seller'],['prem','Premium'],['new','New']].map(([k,l])=>`<label class="flag-btn" id="ap-${k}-btn" onclick="this.classList.toggle('on');document.getElementById('ap-${k}').checked=!document.getElementById('ap-${k}').checked"><input type="checkbox" id="ap-${k}" style="display:none"> ${l}</label>`).join('')}</div><button class="btn btn-gold btn-full" onclick="admAddProd()"><i class="fas fa-plus"></i>Add Product</button></div><div class="adm-section"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px"><h3 style="margin-bottom:0">All Products</h3><span id="adm-prod-count" style="font-size:.66rem;color:var(--t3)"></span></div><div id="adm-ptbl"><div class="load-center"><div class="spin"></div></div></div></div>`;loadAdmProducts();}
+async function renderAdmProducts(){const el=document.getElementById('adm-content');el.innerHTML=`<div class="adm-section"><h3>Add Product</h3><div class="fg"><label class="flbl">Name *</label><input type="text" class="fi" id="ap-n" placeholder="Product name" maxlength="200"></div><div class="form-row"><div class="fg"><label class="flbl">Category *</label><select class="fsel" id="ap-c"><option value="">Category…</option><option value="tote-bags">Tote Bags</option><option value="footwear">Footwear</option><option value="accessories">Accessories</option></select></div><div class="fg"><label class="flbl">Price (KES) *</label><input type="number" class="fi" id="ap-p" min="0"></div></div><div class="form-row"><div class="fg"><label class="flbl">Compare Price</label><input type="number" class="fi" id="ap-cp" min="0"></div><div class="fg"><label class="flbl">Stock *</label><input type="number" class="fi" id="ap-s" min="0" value="0"></div></div><div class="fg"><label class="flbl">Description</label><textarea class="fta" id="ap-d" maxlength="1000" style="min-height:70px"></textarea></div><div class="fg"><label class="flbl">Primary Image</label><div style="display:flex;gap:8px;align-items:center"><input type="url" class="fi" id="ap-i" placeholder="https://… or upload below" maxlength="500" style="flex:1"><label for="ap-i-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label></div><input type="file" id="ap-i-file" accept="image/*" style="display:none" onchange="admUploadProductImg(this,'ap-i')"><div id="ap-i-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div></div><div class="fg"><label class="flbl">Secondary Image</label><div style="display:flex;gap:8px;align-items:center"><input type="url" class="fi" id="ap-i2" placeholder="https://… or upload below" maxlength="500" style="flex:1"><label for="ap-i2-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label></div><input type="file" id="ap-i2-file" accept="image/*" style="display:none" onchange="admUploadProductImg(this,'ap-i2')"><div id="ap-i2-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">${[['feat','Featured'],['trend','Trending'],['best','Best Seller'],['prem','Premium'],['new','New']].map(([k,l])=>`<label class="flag-btn" id="ap-${k}-btn" onclick="this.classList.toggle('on');document.getElementById('ap-${k}').checked=!document.getElementById('ap-${k}').checked"><input type="checkbox" id="ap-${k}" style="display:none"> ${l}</label>`).join('')}</div><button class="btn btn-gold btn-full" onclick="admAddProd()"><i class="fas fa-plus"></i>Add Product</button></div><div class="adm-section"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px"><h3 style="margin-bottom:0">All Products</h3><span id="adm-prod-count" style="font-size:.66rem;color:var(--t3)"></span></div><div id="adm-ptbl"><div class="load-center"><div class="spin"></div></div></div></div>`;loadAdmProducts();}
 async function loadAdmProducts(){const el=document.getElementById('adm-ptbl');if(!el)return;let list=products;if(sb)try{const{data}=await sb.from('products').select('*').order('created_at',{ascending:false});list=data||products;}catch{}const cnt=document.getElementById('adm-prod-count');if(cnt)cnt.textContent=list.length+' products';if(!list.length){el.innerHTML='<p style="padding:12px;font-size:.76rem;color:var(--t3)">No products.</p>';return;}el.innerHTML=`<table><thead><tr><th>Name</th><th>Price</th><th>Stk</th><th></th></tr></thead><tbody>${list.map(p=>`<tr><td class="td-name">${esc(p.name)}</td><td class="td-gold">KES ${N(p.price)}</td><td class="${p.stock<=0?'pcard-stk out':p.stock<=LOW_STK?'pcard-stk low':'td-sm'}">${p.stock<=0?'Out':p.stock}</td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='openEditProd(${JSON.stringify(p)})'><i class="fas fa-edit"></i></button><button class="btn btn-red btn-xs" onclick="delProduct('${esc(p.id)}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table>`;}
-async function admAddProd(){if(userRole!=='admin'||!sb)return;const n=document.getElementById('ap-n')?.value?.trim(),cat=document.getElementById('ap-c')?.value,price=parseFloat(document.getElementById('ap-p')?.value),cp=parseFloat(document.getElementById('ap-cp')?.value)||null,stock=parseInt(document.getElementById('ap-s')?.value)||0,desc=document.getElementById('ap-d')?.value?.trim(),img=document.getElementById('ap-i')?.value?.trim(),img2=document.getElementById('ap-i2')?.value?.trim();if(!n||!cat||!price||isNaN(price)||price<0){toast('Fill required fields','er');return;}if(img&&!safeImgSrc(img)){toast('Primary image must be https:// URL','er');return;}const flags={is_featured:!!document.getElementById('ap-feat')?.checked,is_trending:!!document.getElementById('ap-trend')?.checked,is_bestseller:!!document.getElementById('ap-best')?.checked,is_premium:!!document.getElementById('ap-prem')?.checked,is_new:!!document.getElementById('ap-new')?.checked};const{error}=await sb.from('products').insert([{name:n,category:cat,price,compare_price:cp,stock,description:desc,image_url:img||null,image_url_2:img2||null,...flags}]);if(error){toast(error.message,'er');return;}toast('Product added!','ok');await loadProducts();['ap-n','ap-p','ap-cp','ap-s','ap-d','ap-i','ap-i2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});loadAdmProducts();}
+async function admUploadProductImg(input, targetId){
+  const file=input.files[0];if(!file||!sb)return;
+  if(file.size>5*1024*1024){toast('Image too large (max 5MB)','er');return;}
+  const ext=file.name.split('.').pop()||'jpg';
+  const path=`products/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const progressEl=document.getElementById(targetId+'-progress');
+  if(progressEl)progressEl.style.display='';
+  try{
+    const{error}=await sb.storage.from('products').upload(path,file,{upsert:true,contentType:file.type});
+    if(progressEl)progressEl.style.display='none';
+    if(error){toast('Upload failed: '+error.message,'er');return;}
+    const{data}=sb.storage.from('products').getPublicUrl(path);
+    const url=data?.publicUrl;
+    if(url){const inp=document.getElementById(targetId);if(inp)inp.value=url;toast('Image uploaded! ✓','ok');}
+  }catch(e){if(progressEl)progressEl.style.display='none';toast('Upload error','er');}
+}
+async function admAddProd(){if(userRole!=='admin'||!sb)return;const n=document.getElementById('ap-n')?.value?.trim(),cat=document.getElementById('ap-c')?.value,price=parseFloat(document.getElementById('ap-p')?.value),cp=parseFloat(document.getElementById('ap-cp')?.value)||null,stock=parseInt(document.getElementById('ap-s')?.value)||0,desc=document.getElementById('ap-d')?.value?.trim(),img=document.getElementById('ap-i')?.value?.trim(),img2=document.getElementById('ap-i2')?.value?.trim();if(!n||!cat||!price||isNaN(price)||price<0){toast('Fill required fields','er');return;}if(img&&!safeImgSrc(img)){toast('Primary image must be https:// URL','er');return;}const flags={is_featured:!!document.getElementById('ap-feat')?.checked,is_trending:!!document.getElementById('ap-trend')?.checked,is_bestseller:!!document.getElementById('ap-best')?.checked,is_premium:!!document.getElementById('ap-prem')?.checked,is_new:!!document.getElementById('ap-new')?.checked};const{error}=await sb.from('products').insert([{name:n,category:cat,price,compare_price:cp,stock,description:desc,image_url:img||null,image_url_2:img2||null,...flags}]);if(error){toast(error.message,'er');return;}toast('Product added!','ok');await loadProducts();try{const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');for(const a of(admins||[])){await pushDBNotif({type:'product',title:'Product Added',body:`New product "${n}" added to the catalogue at KES ${N(price)}.`,targetUserId:a.id}).catch(()=>{});}}catch{}['ap-n','ap-p','ap-cp','ap-s','ap-d','ap-i','ap-i2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});loadAdmProducts();}
 let editingProd=null;
 function openEditProd(p){editingProd=p;const body=document.getElementById('edit-prod-body');body.innerHTML=`<div class="fg"><label class="flbl">Name *</label><input type="text" class="fi" id="ep-n" value="${esc(p.name)}" maxlength="200"></div><div class="form-row"><div class="fg"><label class="flbl">Category</label><select class="fsel" id="ep-c"><option value="tote-bags" ${p.category==='tote-bags'?'selected':''}>Tote Bags</option><option value="footwear" ${p.category==='footwear'?'selected':''}>Footwear</option><option value="accessories" ${p.category==='accessories'?'selected':''}>Accessories</option></select></div><div class="fg"><label class="flbl">Price</label><input type="number" class="fi" id="ep-p" value="${p.price}" min="0"></div></div><div class="form-row"><div class="fg"><label class="flbl">Compare Price</label><input type="number" class="fi" id="ep-cp" value="${p.compare_price||''}" min="0"></div><div class="fg"><label class="flbl">Stock</label><input type="number" class="fi" id="ep-s" value="${p.stock||0}" min="0"></div></div><div class="fg"><label class="flbl">Description</label><textarea class="fta" id="ep-d" maxlength="1000" style="min-height:70px">${esc(p.description||'')}</textarea></div><div class="fg"><label class="flbl">Primary Image URL</label><input type="url" class="fi" id="ep-i" value="${esc(p.image_url||'')}" maxlength="500"></div><div class="fg"><label class="flbl">Secondary Image URL</label><input type="url" class="fi" id="ep-i2" value="${esc(p.image_url_2||'')}" maxlength="500"></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">${[['feat','Featured',p.is_featured],['trend','Trending',p.is_trending],['best','Best Seller',p.is_bestseller],['prem','Premium',p.is_premium],['new','New',p.is_new]].map(([k,l,v])=>`<label class="flag-btn${v?' on':''}" id="ep-${k}-btn" onclick="this.classList.toggle('on');document.getElementById('ep-${k}').checked=!document.getElementById('ep-${k}').checked"><input type="checkbox" id="ep-${k}" style="display:none" ${v?'checked':''}> ${l}</label>`).join('')}</div><button class="btn btn-gold btn-full" onclick="saveEditProd()"><i class="fas fa-save"></i>Save Changes</button>`;document.getElementById('edit-prod-modal').classList.add('on');showOvl();}
 function closeEditProd(){document.getElementById('edit-prod-modal')?.classList.remove('on');hideOvl();editingProd=null;}
 async function saveEditProd(){if(!editingProd||userRole!=='admin'||!sb)return;const n=document.getElementById('ep-n')?.value?.trim(),cat=document.getElementById('ep-c')?.value,pr=parseFloat(document.getElementById('ep-p')?.value),cp=parseFloat(document.getElementById('ep-cp')?.value)||null,stk=parseInt(document.getElementById('ep-s')?.value)||0,dsc=document.getElementById('ep-d')?.value?.trim(),img=document.getElementById('ep-i')?.value?.trim(),img2=document.getElementById('ep-i2')?.value?.trim();if(!n||isNaN(pr)||pr<0){toast('Fill required fields','er');return;}const flags={is_featured:!!document.getElementById('ep-feat')?.checked,is_trending:!!document.getElementById('ep-trend')?.checked,is_bestseller:!!document.getElementById('ep-best')?.checked,is_premium:!!document.getElementById('ep-prem')?.checked,is_new:!!document.getElementById('ep-new')?.checked};const{error}=await sb.from('products').update({name:n,category:cat,price:pr,compare_price:cp,stock:stk,description:dsc,image_url:img||null,image_url_2:img2||null,...flags}).eq('id',editingProd.id);if(error){toast(error.message,'er');return;}toast('Product updated!','ok');closeEditProd();await loadProducts();loadAdmProducts();}
 async function delProduct(id){if(userRole!=='admin'||!sb)return;const confirmed=await popupConfirm('Delete Product','Are you sure you want to permanently delete this product? This cannot be undone.','Delete','Cancel');if(!confirmed)return;await sb.from('products').delete().eq('id',id);await loadProducts();loadAdmProducts();toast('Product deleted','nf');}
 async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('*').order('created_at',{ascending:false});el.innerHTML=`<div class="adm-section"><h3>All Orders (${data?.length||0})</h3>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" onclick="window.open('https://wa.me/'+getWANum(),'_blank','noopener,noreferrer')" href="#"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
-async function updateOrderStatus(id,status){if(userRole!=='admin'||!sb)return;await sb.from('orders').update({status}).eq('id',id);toast('Status updated','ok');}
+async function updateOrderStatus(id,status){
+  if(userRole!=='admin'||!sb)return;
+  const{data:ord,error}=await sb.from('orders').update({status}).eq('id',id).select('user_id,customer_name,total').single();
+  if(error){toast(error.message,'er');return;}
+  toast('Status updated','ok');
+  // Notify the customer
+  if(ord?.user_id){
+    const msgs={confirmed:'Your order has been confirmed! We are preparing it.',processing:'Your order is being processed and packed.',shipped:'Your order is on the way! 🚚',completed:'Your order has been delivered. Thank you for shopping with us! 🎉',cancelled:'Your order has been cancelled. Contact us for more info.'};
+    if(msgs[status]){
+      await pushDBNotif({type:'order',title:`Order ${status.charAt(0).toUpperCase()+status.slice(1)}`,body:msgs[status],targetUserId:ord.user_id});
+    }
+  }
+}
 async function renderAdmUsers(){
   const el=document.getElementById('adm-content');
   if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
-  const{data}=await sb.from('profiles').select('*').order('created_at',{ascending:false});
+  const[{data},{data:contacts}]=await Promise.all([
+    sb.from('profiles').select('*').order('created_at',{ascending:false}),
+    sb.from('user_contacts').select('*')
+  ]);
+  const contactMap={};(contacts||[]).forEach(c=>contactMap[c.user_id]=c);
   const users=data||[];
   el.innerHTML=`
+  <div class="adm-section" style="display:flex;gap:8px;margin-bottom:0;padding-bottom:0">
+    <button class="btn btn-gold btn-sm" onclick="renderAdmUsers()" style="flex:1"><i class="fas fa-users"></i>Users</button>
+    <button class="btn btn-outline btn-sm" onclick="renderAdmContacts()" style="flex:1"><i class="fas fa-address-book"></i>Contacts</button>
+  </div>
   <div class="adm-section">
-    <h3>Admin Access List</h3>
-    <p style="font-size:.72rem;color:var(--t3);margin-bottom:10px;line-height:1.65">These emails are permanently hardcoded as admins. Edit <code style="background:var(--bg4);padding:1px 5px;border-radius:4px;font-size:.68rem">ADMIN_EMAILS</code> in the source file to add or remove them.</p>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:4px">
-      ${ADMIN_EMAILS.map(e=>`<div style="display:flex;align-items:center;gap:9px;padding:8px 11px;background:rgba(201,168,76,.06);border:1px solid var(--gold-a25);border-radius:var(--r)">
-        <i class="fas fa-shield-alt" style="color:var(--gold);font-size:.78rem"></i>
-        <span style="font-size:.78rem;color:var(--t1);flex:1">${esc(e)}</span>
-        <span class="badge badge-purple">Admin</span>
-      </div>`).join('')}
+    <h3>Create New User</h3>
+    <div class="form-row">
+      <div class="fg"><label class="flbl">Full Name *</label><input type="text" class="fi" id="nu-name" placeholder="Full name" maxlength="100"></div>
+      <div class="fg"><label class="flbl">Email *</label><input type="email" class="fi" id="nu-email" placeholder="user@email.com" maxlength="200"></div>
     </div>
+    <div class="form-row">
+      <div class="fg"><label class="flbl">Password *</label><input type="password" class="fi" id="nu-pw" placeholder="Min 8 chars" maxlength="128"></div>
+      <div class="fg"><label class="flbl">Role</label><select class="fsel" id="nu-role"><option value="customer">Customer</option><option value="admin">Admin</option></select></div>
+    </div>
+    <button class="btn btn-gold btn-full" id="nu-btn" onclick="admCreateUser()"><i class="fas fa-user-plus"></i>Create User</button>
   </div>
   <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
     <h3>All Users (${users.length})</h3>
+    <p style="font-size:.72rem;color:var(--t3);margin-bottom:10px;line-height:1.65">Use the role dropdown to promote/demote. Delete removes from profiles only — auth record stays.</p>
     ${!users.length?'<p style="font-size:.76rem;color:var(--t3)">No users yet.</p>':`
     <div style="overflow-x:auto">
-    <table><thead><tr><th>Name</th><th>Email / Phone</th><th>Role</th><th>Actions</th></tr></thead><tbody>
+    <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Visits</th><th>Last Seen</th><th>Phone</th><th>Actions</th></tr></thead><tbody>
     ${users.map(u=>{
-      const isHardAdmin=ADMIN_EMAILS.some(e=>e.toLowerCase()===(u.email||'').toLowerCase());
+      const isCurrentAdmin=u.role==='admin';
+      const isSelf=u.id===user?.id;
+      const lastSeen=u.last_visit?D(u.last_visit).split(',')[0]:'Never';
+      const visits=u.visit_count||0;
       return `<tr>
-        <td class="td-name">${esc(u.full_name||'—')}</td>
-        <td class="td-sm">${esc(u.email||u.phone||'—')}</td>
+        <td class="td-name">${esc(u.full_name||'—')}${isSelf?'<span class="badge badge-amber" style="margin-left:5px;font-size:.5rem">You</span>':''}</td>
+        <td class="td-sm" style="font-size:.62rem">${esc(u.email||u.phone||'—')}</td>
         <td>
-          ${isHardAdmin
-            ? `<span class="badge badge-purple"><i class="fas fa-lock" style="margin-right:3px;font-size:.5rem"></i>Admin</span>`
+          ${isSelf
+            ? `<span class="badge badge-purple"><i class="fas fa-shield-alt" style="margin-right:3px;font-size:.5rem"></i>Admin</span>`
             : `<select style="background:var(--bg3);border:1px solid var(--bd);border-radius:4px;font-size:.62rem;color:var(--t2);padding:3px 6px;cursor:pointer" onchange="setUserRole('${esc(u.id)}',this.value,this)">
                 <option value="customer" ${(u.role||'customer')==='customer'?'selected':''}>Customer</option>
-                <option value="admin"    ${u.role==='admin'?'selected':''}>Admin</option>
+                <option value="admin"    ${isCurrentAdmin?'selected':''}>Admin</option>
               </select>`
           }
         </td>
+        <td style="text-align:center;font-size:.72rem;color:var(--gold)">${visits}</td>
+        <td style="font-size:.62rem;color:var(--t3)">${lastSeen}</td>
+        <td style="font-size:.62rem;color:var(--t2)">${esc(contactMap[u.id]?.phone||u.phone||'—')}</td>
         <td style="display:flex;gap:4px;align-items:center">
           <button class="btn btn-ghost btn-xs" onclick='openEditUser(${JSON.stringify(u)})' title="Edit"><i class="fas fa-edit"></i></button>
           <button class="btn btn-outline btn-xs" onclick='openSendRecovery(${JSON.stringify({id:u.id,email:u.email,name:u.full_name})})' title="Recovery code"><i class="fas fa-key"></i></button>
+          ${isSelf?'':`<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="admDeleteUser('${esc(u.id)}','${esc(u.full_name||u.email||'')}','${esc(u.email||'')}')" title="Delete"><i class="fas fa-trash"></i></button>`}
         </td>
       </tr>`;
     }).join('')}
     </tbody></table></div>`}
   </div>`;
+}
+async function renderAdmContacts(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  const[{data:profiles},{data:contacts}]=await Promise.all([
+    sb.from('profiles').select('id,full_name,email,phone').order('created_at',{ascending:false}),
+    sb.from('user_contacts').select('*').order('updated_at',{ascending:false})
+  ]);
+  const profileMap={};(profiles||[]).forEach(p=>profileMap[p.id]=p);
+  el.innerHTML=`
+  <div class="adm-section">
+    <h3>User Contacts (${(contacts||[]).length})</h3>
+    <p style="font-size:.72rem;color:var(--t3);margin-bottom:12px;line-height:1.65">Saved contacts from checkout and profile. One entry per user (unique constraint).</p>
+    ${!(contacts||[]).length?'<p style="font-size:.76rem;color:var(--t3)">No saved contacts yet.</p>':`
+    <div style="overflow-x:auto">
+    <table><thead><tr><th>User</th><th>Phone</th><th>Delivery Address</th><th>Updated</th><th></th></tr></thead><tbody>
+    ${(contacts||[]).map(c=>{
+      const p=profileMap[c.user_id]||{};
+      return `<tr>
+        <td class="td-name">${esc(p.full_name||p.email||'—')}</td>
+        <td style="font-size:.72rem">${esc(c.phone||'—')}</td>
+        <td style="font-size:.66rem;color:var(--t3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.delivery_address||'—')}</td>
+        <td style="font-size:.6rem;color:var(--t3)">${D(c.updated_at).split(',')[0]}</td>
+        <td><button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="admDeleteContact('${esc(c.id)}')"><i class="fas fa-trash"></i></button></td>
+      </tr>`;
+    }).join('')}
+    </tbody></table></div>`}
+  </div>`;
+}
+async function admDeleteContact(id){
+  if(!sb||userRole!=='admin')return;
+  const ok=await popupConfirm('Delete Contact','Remove this saved contact from the database?','Delete','Cancel');
+  if(!ok)return;
+  await sb.from('user_contacts').delete().eq('id',id);
+  toast('Contact deleted','ok');
+  renderAdmContacts();
+}
+async function admCreateUser(){
+  if(userRole!=='admin'||!sb)return;
+  const name=document.getElementById('nu-name')?.value?.trim();
+  const email=document.getElementById('nu-email')?.value?.trim();
+  const pw=document.getElementById('nu-pw')?.value||'';
+  const role=document.getElementById('nu-role')?.value||'customer';
+  if(!name||!email||pw.length<8){toast('Fill all fields (password min 8 chars)','er');return;}
+  const btn=document.getElementById('nu-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating…';
+  try{
+    // Use Supabase admin signUp — creates auth + triggers profile
+    const{data,error}=await sb.auth.signUp({email,password:pw,options:{data:{full_name:name},emailRedirectTo:_shareUrl()||window.location.origin}});
+    btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create User';
+    if(error){toast(error.message,'er');return;}
+    // Set role in profile (trigger creates it automatically)
+    if(data?.user){
+      await new Promise(r=>setTimeout(r,1000)); // wait for trigger
+      await sb.from('profiles').update({role,full_name:name}).eq('id',data.user.id).catch(()=>{});
+      await pushDBNotif({type:'welcome',title:'Welcome to Tote & Tread!',body:`Hi ${name}, your account has been created. Start exploring our collection.`,targetUserId:data.user.id});
+    }
+    ['nu-name','nu-email','nu-pw'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+    toast('User created! Confirmation email sent.','ok');
+    renderAdmUsers();
+  }catch(e){btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create User';toast('Error: '+e.message,'er');}
+}
+async function admDeleteUser(userId,name,email){
+  if(userRole!=='admin'||!sb)return;
+  const ok=await popupConfirm('Delete User',`Remove ${name||email} from profiles? Their auth account stays (they can still sign in but profile data will be cleared).`,'Delete','Cancel');
+  if(!ok)return;
+  const{error}=await sb.from('profiles').delete().eq('id',userId);
+  if(error){toast(error.message,'er');return;}
+  toast('User profile removed','ok');
+  renderAdmUsers();
 }
 async function setUserRole(userId, newRole, selectEl){
   if(userRole!=='admin'||!sb)return;
@@ -2992,7 +3343,7 @@ async function renderAdmSettings(){
     <h3>Share URL</h3>
     <p style="font-size:.72rem;color:var(--t3);margin-bottom:12px;line-height:1.6">The link used when customers share your app with friends.</p>
     <div class="fg"><label class="flbl"><i class="fas fa-link" style="margin-right:6px;color:var(--gold)"></i>App Share URL</label>
-      <input type="url" class="fi" id="share-url-inp" value="${esc(rows.share_url||socialLinks.site||SITE)}" placeholder="https://yourapp.netlify.app" maxlength="300"></div>
+      <input type="url" class="fi" id="share-url-inp" value="${esc(rows.share_url||socialLinks.site||SITE)}" placeholder="https://tote-and-tread.vercel.app" maxlength="300"></div>
     <button class="btn btn-gold btn-full" onclick="saveShareUrl()"><i class="fas fa-save"></i>Save Share URL</button>
   </div>
   <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
@@ -3005,6 +3356,108 @@ async function renderAdmSettings(){
     <button class="btn btn-ghost btn-full btn-sm" onclick="openDevTools()"><i class="fas fa-code"></i>Open Dev Tools</button>
   </div>`;}
 
+async function renderAdmBroadcast(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  const[{data:users},{data:history}]=await Promise.all([
+    sb.from('profiles').select('id,full_name,email,role').order('full_name'),
+    sb.from('broadcast_emails').select('*').order('created_at',{ascending:false}).limit(20)
+  ]);
+  const allUsers=users||[];
+  el.innerHTML=`
+  <div class="adm-section">
+    <h3>Send Broadcast</h3>
+    <p style="font-size:.72rem;color:var(--t3);margin-bottom:14px;line-height:1.65">Send in-app notifications and email drafts to all or selected users. Uses Supabase notifications + opens your mail client.</p>
+    <div class="fg"><label class="flbl">Type</label>
+      <select class="fsel" id="bc-type">
+        <option value="promo">🎁 Promotional</option>
+        <option value="system">🔧 Maintenance</option>
+        <option value="warning">⚠️ Warning</option>
+        <option value="welcome">📢 Announcement</option>
+      </select>
+    </div>
+    <div class="fg"><label class="flbl">Subject *</label><input type="text" class="fi" id="bc-subject" placeholder="e.g. 20% OFF This Weekend Only!" maxlength="200"></div>
+    <div class="fg"><label class="flbl">Message *</label><textarea class="fta" id="bc-body" placeholder="Write your message here…" maxlength="2000" style="min-height:100px"></textarea></div>
+    <div class="fg">
+      <label class="flbl">Recipients</label>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="btn btn-ghost btn-xs" onclick="bcSelectAll(true)"><i class="fas fa-check-square"></i> All</button>
+        <button class="btn btn-ghost btn-xs" onclick="bcSelectAll(false)"><i class="fas fa-square"></i> None</button>
+        <span style="font-size:.66rem;color:var(--t3);line-height:1;align-self:center" id="bc-sel-count">${allUsers.length} selected</span>
+      </div>
+      <div style="max-height:180px;overflow-y:auto;border:1px solid var(--bd);border-radius:var(--r);padding:8px;background:var(--bg2)">
+        ${allUsers.map(u=>`<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;cursor:pointer;border-radius:4px">
+          <input type="checkbox" class="bc-user-chk" data-uid="${esc(u.id)}" data-email="${esc(u.email||'')}" checked style="accent-color:var(--gold)">
+          <span style="font-size:.74rem;color:var(--t1);flex:1">${esc(u.full_name||u.email||'—')}</span>
+          <span style="font-size:.6rem;color:var(--t3)">${esc(u.email||'')}</span>
+        </label>`).join('')}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-gold" style="flex:1" id="bc-notif-btn" onclick="bcSendNotifications()"><i class="fas fa-bell"></i>Send In-App</button>
+      <button class="btn btn-outline" style="flex:1" id="bc-email-btn" onclick="bcOpenEmail()"><i class="fas fa-envelope"></i>Draft Email</button>
+    </div>
+    <p style="font-size:.62rem;color:var(--t3);margin-top:8px;line-height:1.55">In-App sends to notification centre. Draft Email opens your mail client with BCC to all selected users.</p>
+  </div>
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
+    <h3>Broadcast History (${(history||[]).length})</h3>
+    ${!(history||[]).length?'<p style="font-size:.76rem;color:var(--t3)">No broadcasts sent yet.</p>':`
+    <div style="display:flex;flex-direction:column;gap:8px">
+    ${(history||[]).map(b=>`<div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:11px 13px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:.8rem;font-weight:600;color:var(--t1)">${esc(b.subject)}</span>
+        <span class="badge badge-${b.type==='promo'?'purple':b.type==='system'?'blue':b.type==='warning'?'amber':'green'}">${esc(b.type)}</span>
+      </div>
+      <p style="font-size:.74rem;color:var(--t2);line-height:1.55;margin-bottom:5px">${esc((b.body||'').slice(0,120))}${(b.body||'').length>120?'…':''}</p>
+      <div style="display:flex;justify-content:space-between;font-size:.62rem;color:var(--t3)">
+        <span><i class="fas fa-users" style="margin-right:4px"></i>${b.sent_count||0} recipients</span>
+        <span>${D(b.created_at).split(',')[0]}</span>
+      </div>
+    </div>`).join('')}
+    </div>`}
+  </div>`;
+  // Update selection count on change
+  document.querySelectorAll('.bc-user-chk').forEach(chk=>chk.addEventListener('change',()=>{
+    const cnt=document.querySelectorAll('.bc-user-chk:checked').length;
+    const el=document.getElementById('bc-sel-count');if(el)el.textContent=cnt+' selected';
+  }));
+}
+function bcSelectAll(val){
+  document.querySelectorAll('.bc-user-chk').forEach(c=>{c.checked=val;});
+  const cnt=val?document.querySelectorAll('.bc-user-chk').length:0;
+  const el=document.getElementById('bc-sel-count');if(el)el.textContent=cnt+' selected';
+}
+async function bcSendNotifications(){
+  if(userRole!=='admin'||!sb)return;
+  const subject=document.getElementById('bc-subject')?.value?.trim();
+  const body=document.getElementById('bc-body')?.value?.trim();
+  const type=document.getElementById('bc-type')?.value||'system';
+  if(!subject||!body){toast('Enter subject and message','er');return;}
+  const selected=[...document.querySelectorAll('.bc-user-chk:checked')].map(c=>c.dataset.uid).filter(Boolean);
+  if(!selected.length){toast('Select at least one recipient','er');return;}
+  const btn=document.getElementById('bc-notif-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';
+  let sent=0;
+  for(const uid of selected){
+    try{await sb.from('notifications').insert([{user_id:uid,type,title:subject,body,read:false}]);sent++;}catch{}
+  }
+  // Log broadcast
+  await sb.from('broadcast_emails').insert([{subject,body,type,recipient_ids:selected,sent_count:sent,sent_by:user.id}]).catch(()=>{});
+  btn.disabled=false;btn.innerHTML='<i class="fas fa-bell"></i>Send In-App';
+  toast(`Notification sent to ${sent} users! 🔔`,'ok');
+  renderAdmBroadcast();
+}
+function bcOpenEmail(){
+  const subject=document.getElementById('bc-subject')?.value?.trim();
+  const body=document.getElementById('bc-body')?.value?.trim();
+  if(!subject||!body){toast('Enter subject and message','er');return;}
+  const emails=[...document.querySelectorAll('.bc-user-chk:checked')].map(c=>c.dataset.email).filter(e=>e&&e.includes('@'));
+  if(!emails.length){toast('No email addresses found for selected users','er');return;}
+  const bcc=emails.join(',');
+  const mailto=`mailto:?bcc=${encodeURIComponent(bcc)}&subject=${encodeURIComponent('[Tote & Tread] '+subject)}&body=${encodeURIComponent(body+'\n\n— Tote & Tread Collection\n'+(_shareUrl()||SITE))}`;
+  window.open(mailto,'_blank');
+  toast('Mail client opened with BCC to '+emails.length+' addresses','ok');
+}
 async function saveAnn(){if(userRole!=='admin'||!sb)return;const txt=document.getElementById('ann-txt')?.value?.trim()||'';const{error}=await sb.from('app_settings').upsert({key:'announcement',value:txt,updated_at:new Date().toISOString()});if(error){toast(error.message,'er');return;}showAnnouncement(txt);toast('Announcement published! 📢','ok');}
 
 async function saveSocialLinks(){
@@ -3052,7 +3505,7 @@ function openAppConfig(){
 function openDevTools(){if(userRole!=='admin'){toast('Access denied','er');return;}const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};set('dev-sb-url',SB_URL!=='YOUR_SUPABASE_URL'?SB_URL:'⚠ Not configured');set('dev-uid',user?.id||'—');set('dev-role',userRole||'—');set('dev-prod-cnt',products.length);set('dev-cart-cnt',cart.length);document.getElementById('sub-devtools').classList.add('on');showOvl();}
 function devClearCache(){if(!confirm('Clear all local data?'))return;localStorage.clear();sessionStorage.clear();toast('Cache cleared. Reloading…','nf');setTimeout(()=>location.reload(),1200);}
 async function devReloadProducts(){const log=document.getElementById('dev-log');if(log){log.style.display='block';log.textContent+=`[${new Date().toLocaleTimeString()}] Reloading…\n`;}await loadProducts();if(log)log.textContent+=`[${new Date().toLocaleTimeString()}] Loaded ${products.length} products.\n`;toast('Products reloaded','ok');}
-function devShowLogs(){const log=document.getElementById('dev-log');if(!log)return;log.style.display='block';log.textContent=[`App: Tote & Tread v2.0.0`,`User: ${user?.email||user?.phone||'Guest'}`,`Role: ${userRole||'none'}`,`Products: ${products.length}`,`Cart: ${cart.length} items`,`Wishlist: ${wish.length} items`,`Notifs: ${getNotifs().length} (${getUnreadCount()} unread)`,`Supabase: ${SB_URL!=='YOUR_SUPABASE_URL'?'Configured ✓':'NOT configured ⚠'}`,`Theme: ${localStorage.getItem('tt_theme')||'dark'}`,`PWA: ${window.matchMedia('(display-mode: standalone)').matches?'Installed':'Browser'}`,`UA: ${navigator.userAgent.slice(0,80)}`].join('\n');}
+function devShowLogs(){const log=document.getElementById('dev-log');if(!log)return;log.style.display='block';log.textContent=[`App: Tote & Tread v2.0.0`,`User: ${user?.email||user?.phone||'Guest'}`,`Role: ${userRole||'none'}`,`Products: ${products.length}`,`Cart: ${cart.length} items`,`Wishlist: ${wish.length} items`,`Notifs: ${_notifCache.length} (${getUnreadCount()} unread)`,`Supabase: ${SB_URL!=='YOUR_SUPABASE_URL'?'Configured ✓':'NOT configured ⚠'}`,`Theme: ${localStorage.getItem('tt_theme')||'dark'}`,`PWA: ${window.matchMedia('(display-mode: standalone)').matches?'Installed':'Browser'}`,`UA: ${navigator.userAgent.slice(0,80)}`].join('\n');}
 
 /* ════════ CONTACT / AGENT ════════ */
 /* Safe WhatsApp number — always returns a full valid number */
@@ -3145,10 +3598,10 @@ function popupOk(title, msg) {
   return showPopup({ title, msg, type: 'ok', confirmLabel: 'OK' });
 }
 function popupConfirm(title, msg, confirmLabel = 'Confirm', cancelLabel = 'Cancel') {
-  return showPopup({ title, msg, type: 'er', confirmLabel, cancelLabel });
+  return showPopup({ title, msg, type: 'wa', confirmLabel, cancelLabel });
 }
 
-/* ════════ START ════════ */
+/* ════════ BOOT ════════ */
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
