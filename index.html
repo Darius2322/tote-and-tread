@@ -25,7 +25,7 @@
   CREATE TABLE public.profiles (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     full_name TEXT, email TEXT, phone TEXT,
-    role TEXT DEFAULT 'customer' CHECK (role IN ('customer','admin','developer')),
+    role TEXT DEFAULT 'customer' CHECK (role IN ('customer','admin','developer','agent','banned_agent')),
     avatar_url TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
   );
   CREATE TABLE public.products (
@@ -51,7 +51,10 @@
   CREATE TABLE public.contact_messages (id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, name TEXT NOT NULL, email TEXT, phone TEXT, subject TEXT, message TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());
   CREATE TABLE public.feedback (id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, rating INTEGER, comment TEXT, user_id UUID REFERENCES auth.users(id), created_at TIMESTAMPTZ DEFAULT NOW());
   CREATE TABLE public.suggestions (id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, suggestion TEXT NOT NULL, email TEXT, user_id UUID REFERENCES auth.users(id), created_at TIMESTAMPTZ DEFAULT NOW());
-  CREATE TABLE public.agent_applications (id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT NOT NULL, location TEXT NOT NULL, channel TEXT, bio TEXT, created_at TIMESTAMPTZ DEFAULT NOW());
+  CREATE TABLE public.agent_applications (id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT NOT NULL, location TEXT NOT NULL, channel TEXT, bio TEXT, status TEXT DEFAULT 'pending' CHECK (status IN ('pending','approved','denied')), user_id UUID REFERENCES auth.users(id), created_at TIMESTAMPTZ DEFAULT NOW());
+  CREATE POLICY "agent_apps_own" ON public.agent_applications FOR SELECT USING (auth.uid()=user_id);
+  CREATE POLICY "agent_apps_insert" ON public.agent_applications FOR INSERT WITH CHECK (true);
+  CREATE POLICY "agent_apps_admin" ON public.agent_applications FOR ALL USING (public.get_my_role()='admin');
   CREATE TABLE public.restock_notifications (id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, product_id TEXT, email TEXT NOT NULL, product_name TEXT, notified BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW());
   CREATE TABLE public.recovery_codes (id UUID DEFAULT uuid_generate_v4() PRIMARY KEY, user_id UUID REFERENCES auth.users(id), email TEXT NOT NULL, code TEXT NOT NULL, used BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW(), expires_at TIMESTAMPTZ DEFAULT (NOW()+INTERVAL '48 hours'));
 
@@ -179,6 +182,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/dexie@4/dist/dexie.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" defer></script>
 <style>
 /* ══ TOKENS ══ */
@@ -792,13 +796,34 @@ body:has(#splash:not(.gone)) #notif {
 .mi-arrow{margin-left:auto;font-size:.7rem;color:var(--t4)}
 
 /* MORE */
-.more-list{padding:0 14px;display:flex;flex-direction:column;gap:9px}
-.more-card{display:flex;align-items:center;gap:13px;padding:14px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);cursor:pointer;transition:all .2s}
-.more-card:hover{border-color:var(--bd2);box-shadow:var(--shg)}
-.more-ico{width:42px;height:42px;border-radius:50%;background:var(--gold-a8);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:.9rem;flex-shrink:0}
-.more-info h4{font-family:var(--fd);font-size:.98rem;color:var(--t1);margin-bottom:1px}
-.more-info p{font-size:.68rem;color:var(--t3)}
-.more-arrow{margin-left:auto;color:var(--t4);font-size:.72rem}
+.more-list{padding:0 14px;display:flex;flex-direction:column;gap:8px}
+.advert-carousel{position:relative;overflow:hidden;border-radius:var(--rxl);margin:0 14px}
+.advert-slide{position:relative;border-radius:var(--rxl);overflow:hidden;cursor:pointer}
+.advert-slide img{width:100%;height:180px;object-fit:cover;display:block}
+.advert-slide-ovl{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.72) 0%,transparent 60%);display:flex;flex-direction:column;justify-content:flex-end;padding:14px}
+.advert-slide-title{font-family:var(--fd);font-size:1.1rem;color:#fff;margin-bottom:3px}
+.advert-slide-sub{font-size:.7rem;color:rgba(255,255,255,.75)}
+.advert-dots{display:flex;justify-content:center;gap:5px;padding:8px 0 0}
+.advert-dot{width:6px;height:6px;border-radius:50%;background:var(--bd2);transition:all .25s;cursor:pointer}
+.advert-dot.on{width:18px;border-radius:3px;background:var(--gold)}
+.advert-single{border-radius:var(--rxl);overflow:hidden;position:relative;cursor:pointer}
+.advert-single img{width:100%;height:160px;object-fit:cover;display:block}
+.advert-close-btn{position:absolute;top:8px;right:8px;width:26px;height:26px;background:rgba(0,0,0,.6);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.6rem;cursor:pointer;border:none;backdrop-filter:blur(4px)}
+.more-section-label{font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;color:var(--t4);padding:0 2px;margin-top:8px;margin-bottom:2px}
+.more-card{display:flex;align-items:center;gap:14px;padding:13px 14px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);cursor:pointer;transition:all .22s var(--ease);position:relative;overflow:hidden}
+.more-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(201,168,76,.04),transparent);opacity:0;transition:opacity .2s}
+.more-card:active::before{opacity:1}
+.more-card:hover{border-color:var(--gold-a25);transform:translateX(2px)}
+.more-ico{width:44px;height:44px;border-radius:14px;background:var(--gold-a8);border:1px solid var(--gold-a25);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:.92rem;flex-shrink:0;transition:all .2s}
+.more-card:hover .more-ico{background:rgba(201,168,76,.14);border-color:var(--gold-a45)}
+.more-info h4{font-family:var(--fd);font-size:.95rem;color:var(--t1);margin-bottom:2px;line-height:1.2}
+.more-info p{font-size:.66rem;color:var(--t3);line-height:1.4}
+.more-arrow{margin-left:auto;color:var(--t4);font-size:.68rem;transition:transform .2s}
+.more-card:hover .more-arrow{transform:translateX(3px);color:var(--gold)}
+.more-badge{display:inline-block;font-size:.5rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#000;padding:2px 7px;border-radius:20px;margin-left:7px;vertical-align:middle}
+.more-hero{margin:0 14px 16px;padding:18px;background:linear-gradient(135deg,#0F0E08,#1a1600);border:1px solid var(--gold-a25);border-radius:var(--rxl);position:relative;overflow:hidden}
+.more-hero::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(201,168,76,.12) 0%,transparent 70%);pointer-events:none}
+.more-copyright{margin:16px 14px 0;padding:16px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rl);text-align:center}
 .share-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}
 .share-btn{display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px;border-radius:var(--rl);border:1px solid var(--bd);background:var(--bg3);cursor:pointer;transition:all .2s;text-align:center}
 .share-btn:hover{border-color:var(--bd2);background:var(--gold-a8)}
@@ -1130,6 +1155,8 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
       </div>
       <div class="sec-head rv"><span class="sec-eyebrow">What's Hot</span><h2 class="sec-title">Trending Now</h2></div>
       <div class="trend-strip rv" id="trend-strip"><div class="load-center"><div class="spin"></div></div></div>
+      <!-- ADVERT CAROUSEL -->
+      <div id="advert-banner-home" style="margin:0 0 0;display:none"></div>
       <div class="brand-strip rv" style="margin-top:18px">
         <div class="gold-rule" style="margin:0 auto 12px"></div>
         <h3>Where Elegance Meets<br>Every Step</h3>
@@ -1183,6 +1210,8 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
         <button class="fchip" onclick="setFilter('sale',this)">On Sale</button>
         <button class="fchip" onclick="setFilter('premium',this)">Premium</button>
       </div>
+      <!-- ADVERT BANNER SHOP -->
+      <div id="advert-banner-shop" style="margin:8px 14px 14px;display:none"></div>
       <div class="prod-grid" id="shop-grid">
         <div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>
         <div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>
@@ -1196,7 +1225,9 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
       <div class="sec-head"><span class="sec-eyebrow">Visual Stories</span><h2 class="sec-title">Gallery</h2>
         <p class="sec-sub">Each piece tells a story of Nairobi craftsmanship — tap any photo to explore details, materials &amp; artistry.</p>
       </div>
-      <div class="gal-grid">
+      <!-- ADVERT BANNER GALLERY -->
+      <div id="advert-banner-gallery" style="margin:0 10px 10px;display:none"></div>
+      <div class="gal-grid" id="gal-grid-dynamic">
         <div class="gi tall" data-gal="0" tabindex="0" role="button"><img src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80" alt="Savanna Leather Tote" loading="lazy"><div class="gi-ovl"><div class="gi-title">Savanna Leather Tote</div><div class="gi-sub">Full-grain leather · KES 7,500</div></div><div class="gi-expand"><i class="fas fa-expand-alt"></i></div></div>
         <div class="gi" data-gal="1" tabindex="0" role="button"><img src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&q=80" alt="Canvas Sling" loading="lazy"><div class="gi-ovl"><div class="gi-title">Canvas Sling Bag</div><div class="gi-sub">Waxed canvas · KES 3,200</div></div><div class="gi-expand"><i class="fas fa-expand-alt"></i></div></div>
         <div class="gi" data-gal="2" tabindex="0" role="button"><img src="https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=400&q=80" alt="Artisan Loafers" loading="lazy"><div class="gi-ovl"><div class="gi-title">Artisan Loafers</div><div class="gi-sub">Hand-stitched · KES 5,800</div></div><div class="gi-expand"><i class="fas fa-expand-alt"></i></div></div>
@@ -1218,24 +1249,106 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 
     <!-- MORE -->
     <div id="scr-more" class="scr">
-      <div class="sec-head"><span class="sec-eyebrow">Explore</span><h2 class="sec-title">More</h2></div>
-      <div class="more-list">
-        <div class="more-card" onclick="openSub('about')"><div class="more-ico"><i class="fas fa-leaf"></i></div><div class="more-info"><h4>About Us</h4><p>Our story, values &amp; the team</p></div><i class="fas fa-chevron-right more-arrow"></i></div>
-        <div class="more-card" onclick="openSub('agent')"><div class="more-ico"><i class="fas fa-handshake"></i></div><div class="more-info"><h4>Become an Agent</h4><p>Earn up to 15% commission</p></div><i class="fas fa-chevron-right more-arrow"></i></div>
-        <div class="more-card" onclick="openSub('share')"><div class="more-ico"><i class="fas fa-share-alt"></i></div><div class="more-info"><h4>Share the Love</h4><p>Spread the word about Tote &amp; Tread</p></div><i class="fas fa-chevron-right more-arrow"></i></div>
-        <div class="more-card" onclick="openSub('contact')"><div class="more-ico"><i class="fas fa-envelope"></i></div><div class="more-info"><h4>Contact Us</h4><p>Get in touch with the team</p></div><i class="fas fa-chevron-right more-arrow"></i></div>
-        <div class="more-card" onclick="openFB()"><div class="more-ico"><i class="fas fa-star"></i></div><div class="more-info"><h4>Rate the App</h4><p>Share your experience with us</p></div><i class="fas fa-chevron-right more-arrow"></i></div>
-        <div class="more-card" onclick="openSugg()"><div class="more-ico"><i class="fas fa-lightbulb"></i></div><div class="more-info"><h4>Suggestions</h4><p>Help us make the app better</p></div><i class="fas fa-chevron-right more-arrow"></i></div>
-        <div class="more-card" onclick="openSub('developer')"><div class="more-ico" style="background:rgba(80,140,255,.08);border-color:rgba(80,140,255,.3);color:#5080FF"><i class="fas fa-code"></i></div><div class="more-info"><h4>Developer</h4><p>Technical support &amp; inquiries</p></div><i class="fas fa-chevron-right more-arrow"></i></div>
-        <div class="more-card" onclick="openSub('terms')"><div class="more-ico"><i class="fas fa-file-alt"></i></div><div class="more-info"><h4>Terms &amp; Conditions</h4><p>Our policies &amp; privacy terms</p></div><i class="fas fa-chevron-right more-arrow"></i></div>
-      </div>
-      <div style="padding:20px 14px 8px">
-        <p style="font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--t3);margin-bottom:12px">Follow us</p>
-        <div class="social-icons" id="soc-more" style="justify-content:flex-start">
-          <a href="https://wa.me/254107545752" target="_blank" rel="noopener noreferrer" class="soc-btn wa"><i class="fab fa-whatsapp"></i></a>
+      <!-- Hero -->
+      <div class="more-hero" style="margin:14px 14px 6px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="width:52px;height:52px;background:linear-gradient(135deg,var(--gold-d),var(--gold));border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 16px rgba(201,168,76,.3)">
+            <svg width="26" height="26" viewBox="0 0 36 36" fill="none"><path d="M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z" stroke="#000" stroke-width="1.8" fill="none" stroke-linejoin="round"/><path d="M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11" stroke="#000" stroke-width="1.8" fill="none" stroke-linecap="round"/><line x1="11" y1="18" x2="25" y2="18" stroke="#000" stroke-width="1.3" opacity=".7"/><line x1="11" y1="22" x2="21" y2="22" stroke="#000" stroke-width="1.3" opacity=".7"/></svg>
+          </div>
+          <div>
+            <div style="font-family:var(--fd);font-size:1.1rem;color:var(--gold);margin-bottom:2px">Tote &amp; Tread</div>
+            <div style="font-size:.64rem;color:var(--t3);line-height:1.5">Premium handcrafted bags, footwear &amp; accessories<br>from the heart of Nairobi, Kenya 🇰🇪</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <div style="flex:1;background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:10px;padding:9px;text-align:center">
+            <div style="font-family:var(--fd);font-size:1.1rem;color:var(--gold)">500+</div>
+            <div style="font-size:.55rem;color:var(--t3);text-transform:uppercase;letter-spacing:.1em">Products</div>
+          </div>
+          <div style="flex:1;background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:10px;padding:9px;text-align:center">
+            <div style="font-family:var(--fd);font-size:1.1rem;color:var(--gold)">100%</div>
+            <div style="font-size:.55rem;color:var(--t3);text-transform:uppercase;letter-spacing:.1em">Authentic</div>
+          </div>
+          <div style="flex:1;background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:10px;padding:9px;text-align:center">
+            <div style="font-family:var(--fd);font-size:1.1rem;color:var(--gold)">NBO</div>
+            <div style="font-size:.55rem;color:var(--t3);text-transform:uppercase;letter-spacing:.1em">Based</div>
+          </div>
         </div>
       </div>
-      <div style="height:20px"></div>
+
+      <div class="more-list">
+        <!-- Discover -->
+        <div class="more-section-label">Discover</div>
+        <div class="more-card" onclick="openSub('about')">
+          <div class="more-ico"><i class="fas fa-leaf"></i></div>
+          <div class="more-info"><h4>About Us</h4><p>Our story, values &amp; the team</p></div>
+          <i class="fas fa-chevron-right more-arrow"></i>
+        </div>
+        <div class="more-card" onclick="openSub('agent')">
+          <div class="more-ico" style="background:rgba(50,200,100,.08);border-color:rgba(50,200,100,.25);color:#32C864"><i class="fas fa-handshake"></i></div>
+          <div class="more-info"><h4>Become an Agent<span class="more-badge">Earn 15%</span></h4><p>Join our reseller network</p></div>
+          <i class="fas fa-chevron-right more-arrow"></i>
+        </div>
+        <div class="more-card" onclick="openSub('share')">
+          <div class="more-ico" style="background:rgba(80,140,255,.08);border-color:rgba(80,140,255,.25);color:#5080FF"><i class="fas fa-share-alt"></i></div>
+          <div class="more-info"><h4>Share the Love</h4><p>Spread the word &amp; earn goodwill</p></div>
+          <i class="fas fa-chevron-right more-arrow"></i>
+        </div>
+
+        <!-- Support -->
+        <div class="more-section-label" style="margin-top:10px">Support</div>
+        <div class="more-card" onclick="openSub('contact')">
+          <div class="more-ico"><i class="fas fa-headset"></i></div>
+          <div class="more-info"><h4>Contact Us</h4><p>Get in touch with the team</p></div>
+          <i class="fas fa-chevron-right more-arrow"></i>
+        </div>
+        <div class="more-card" onclick="openFB()">
+          <div class="more-ico" style="background:rgba(255,200,50,.08);border-color:rgba(255,200,50,.25);color:#FFC832"><i class="fas fa-star"></i></div>
+          <div class="more-info"><h4>Rate the App</h4><p>Share your experience with us</p></div>
+          <i class="fas fa-chevron-right more-arrow"></i>
+        </div>
+        <div class="more-card" onclick="openSugg()">
+          <div class="more-ico" style="background:rgba(200,100,255,.08);border-color:rgba(200,100,255,.25);color:#C864FF"><i class="fas fa-lightbulb"></i></div>
+          <div class="more-info"><h4>Suggestions</h4><p>Help us improve the app</p></div>
+          <i class="fas fa-chevron-right more-arrow"></i>
+        </div>
+
+        <!-- Legal -->
+        <div class="more-section-label" style="margin-top:10px">Legal & Privacy</div>
+        <div class="more-card" onclick="openSub('terms')">
+          <div class="more-ico"><i class="fas fa-file-contract"></i></div>
+          <div class="more-info"><h4>Terms &amp; Conditions</h4><p>Usage policies &amp; agreements</p></div>
+          <i class="fas fa-chevron-right more-arrow"></i>
+        </div>
+        <div class="more-card" onclick="openSub('privacy')">
+          <div class="more-ico" style="background:rgba(50,180,255,.08);border-color:rgba(50,180,255,.25);color:#32B4FF"><i class="fas fa-shield-alt"></i></div>
+          <div class="more-info"><h4>Privacy Policy</h4><p>How we protect your data</p></div>
+          <i class="fas fa-chevron-right more-arrow"></i>
+        </div>
+
+        <!-- Dev -->
+        <div class="more-section-label" style="margin-top:10px">Technical</div>
+        <div class="more-card" onclick="openSub('developer')">
+          <div class="more-ico" style="background:rgba(80,140,255,.08);border-color:rgba(80,140,255,.3);color:#5080FF"><i class="fas fa-code"></i></div>
+          <div class="more-info"><h4>Developer</h4><p>Technical support &amp; inquiries</p></div>
+          <i class="fas fa-chevron-right more-arrow"></i>
+        </div>
+      </div>
+
+      <!-- Social -->
+      <div style="padding:18px 14px 8px">
+        <p style="font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;color:var(--t4);margin-bottom:10px">Follow us</p>
+        <div class="social-icons" id="soc-more" style="justify-content:flex-start"></div>
+      </div>
+
+      <!-- Copyright -->
+      <div class="more-copyright">
+        <div style="font-family:var(--fd);font-size:.78rem;color:var(--gold);margin-bottom:4px">Tote &amp; Tread Collection</div>
+        <div style="font-size:.62rem;color:var(--t3);margin-bottom:6px">Nairobi, Kenya · Premium Fashion</div>
+        <div style="font-size:.58rem;color:var(--t4)">© <span id="cr-year"></span> Tote &amp; Tread Collection. All rights reserved.</div>
+        <div style="font-size:.54rem;color:var(--t4);margin-top:4px">Handcrafted with ❤️ in Nairobi</div>
+      </div>
+      <div style="height:24px"></div>
     </div>
   </main>
 
@@ -1356,6 +1469,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
   <div class="fg"><label class="flbl">Location / County *</label><input type="text" class="fi" id="ag-loc" placeholder="e.g. Nairobi, Mombasa…" maxlength="100"></div>
   <div class="fg"><label class="flbl">Sales Channel</label><select class="fsel" id="ag-ch"><option value="">Select…</option><option>WhatsApp</option><option>Social Media</option><option>Physical Market</option><option>Online Shop</option><option>Other</option></select></div>
   <div class="fg"><label class="flbl">About You</label><textarea class="fta" id="ag-bio" placeholder="Tell us about yourself…" maxlength="500"></textarea></div>
+  <div id="ag-status-msg"></div>
   <button class="btn btn-gold btn-full" id="ag-btn" onclick="submitAgent()"><i class="fas fa-paper-plane"></i>Submit Application</button>
 </div></div>
 
@@ -1439,6 +1553,46 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
   <h3>Contact for Terms Queries</h3><p>Email: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="90e4ffe4f5f1fef4e4e2f5f1f4f3fffcfcf5f3e4f9fffed0f7fdf1f9fcbef3fffd">[email&#160;protected]</a><br>Phone: 0107 545 752<br>WhatsApp: <a href="https://wa.me/254107545752" style="color:var(--gold)">+254 107 545 752</a></p>
 </div></div></div>
 
+<div id="sub-agent-dashboard" class="sub">
+  <div class="sub-hdr"><button class="sub-back" onclick="closeSub('agent-dashboard')"><i class="fas fa-arrow-left"></i></button><h2>Agent Dashboard</h2></div>
+  <div class="sub-body" id="agent-dash-body" style="padding:14px">
+    <div class="load-center"><div class="spin"></div></div>
+  </div>
+</div>
+
+<div id="sub-privacy" class="sub">
+  <div class="sub-hdr"><button class="sub-back" onclick="closeSub('privacy')"><i class="fas fa-arrow-left"></i></button><h2>Privacy Policy</h2></div>
+  <div class="sub-body"><div class="terms-body">
+    <p style="font-size:.66rem;color:var(--t3);margin-bottom:16px">Last updated: March 2025. This policy explains how Tote &amp; Tread Collection collects, uses, and protects your personal information.</p>
+    <h3>1. Information We Collect</h3>
+    <p>When you use our app, we may collect: your full name, email address, phone number, and delivery address when you create an account or place an order. We also collect your profile picture if you choose to upload one.</p>
+    <h3>2. How We Use Your Information</h3>
+    <p>Your information is used solely to: process and fulfil your orders, send you order confirmations and updates, provide customer support, and improve our app experience. We do not use your data for advertising profiling or sell it to third parties.</p>
+    <h3>3. Data Storage &amp; Security</h3>
+    <p>All your data is stored securely on Supabase — a trusted, enterprise-grade database platform. We use Row Level Security (RLS) policies so that you can only access your own data. Passwords are hashed and never stored in plain text. All connections use HTTPS/TLS encryption.</p>
+    <h3>4. Profile Pictures</h3>
+    <p>If you upload a profile picture, it is stored in a secure Supabase Storage bucket with public read access (so your avatar can be displayed in the app). You can change or remove your profile picture at any time from your account settings.</p>
+    <h3>5. Contact &amp; Saved Addresses</h3>
+    <p>When you place an order and opt to save your contact details, your phone number and delivery address are stored to make future checkouts faster. This data is only visible to you and admins. You can request deletion at any time by contacting us.</p>
+    <h3>6. Notifications</h3>
+    <p>We send in-app notifications about your orders, promotions, and system updates. You can view and dismiss these at any time from the notification centre.</p>
+    <h3>7. Your Rights</h3>
+    <p>You have the right to: access the personal data we hold about you, request correction of inaccurate data, request deletion of your account and associated data, and withdraw consent for data processing. To exercise these rights, contact us at <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="1b6f746f7e7a757f6f697e7a7f787477777e786f7274755b7c767a727735787476">[email&#160;protected]</a>.</p>
+    <h3>8. Third-Party Services</h3>
+    <p>We use Supabase (database &amp; storage), Vercel (app hosting), and WhatsApp (order communication). Each of these has their own privacy policies. We share only the minimum data necessary with these services.</p>
+    <h3>9. Children's Privacy</h3>
+    <p>Our services are not directed at children under 13. We do not knowingly collect personal information from children.</p>
+    <h3>10. Changes to This Policy</h3>
+    <p>We may update this Privacy Policy occasionally. We will notify you of significant changes via in-app notification. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
+    <h3>Contact for Privacy Queries</h3>
+    <p>Email: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="92e6fde6f7f3fcf6e6e0f7f3f6f1fdfefef7f1e6fbfdfcd2f5fff3fbfebcf1fdff">[email&#160;protected]</a><br>Phone: 0107 545 752<br>WhatsApp: <a href="https://wa.me/254107545752" style="color:var(--gold)">+254 107 545 752</a></p>
+    <div style="margin-top:20px;padding:14px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);text-align:center">
+      <div style="font-size:.6rem;color:var(--t3);margin-bottom:4px">© <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>document.write(new Date().getFullYear())</script> Tote &amp; Tread Collection</div>
+      <div style="font-size:.56rem;color:var(--t4)">All rights reserved · Nairobi, Kenya</div>
+    </div>
+  </div></div>
+</div>
+
 <div id="sub-devtools" class="sub"><div class="sub-hdr"><button class="sub-back" onclick="closeSub('devtools')"><i class="fas fa-arrow-left"></i></button><h2>Dev Tools</h2></div>
 <div class="sub-body" style="padding:14px">
   <div class="card card-p" style="margin-bottom:12px;font-size:.76rem;color:var(--t2)">
@@ -1497,9 +1651,13 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
   <div class="adm-hdr"><i class="fas fa-shield-alt" style="color:var(--gold)"></i><h2>Admin Dashboard</h2><button onclick="closeAdmin()" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:.78rem;padding:6px;margin-left:auto"><i class="fas fa-times"></i></button></div>
   <div class="adm-tab-bar">
     <button class="adm-tab on" onclick="admTab('overview')">Overview</button>
+    <button class="adm-tab" onclick="admTab('notifications')">Notifications</button>
     <button class="adm-tab" onclick="admTab('products')">Products</button>
     <button class="adm-tab" onclick="admTab('orders')">Orders</button>
     <button class="adm-tab" onclick="admTab('users')">Users</button>
+    <button class="adm-tab" onclick="admTab('agents')">Agents</button>
+    <button class="adm-tab" onclick="admTab('gallery')">Gallery</button>
+    <button class="adm-tab" onclick="admTab('adverts')">Adverts</button>
     <button class="adm-tab" onclick="admTab('messages')">Messages</button>
     <button class="adm-tab" onclick="admTab('broadcast')">Broadcast</button>
     <button class="adm-tab" onclick="admTab('settings')">Settings</button>
@@ -1797,6 +1955,9 @@ async function init() {
   try { sb = supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } }); }
   catch { toast('Supabase error — using demo mode', 'nf'); products = MOCK_PRODUCTS; }
 
+  // Init offline IndexedDB store
+  initOfflineDB();
+
   // Render account immediately with whatever state we have (guest/empty)
   try { renderAcc(); } catch(e) { console.warn('renderAcc error:', e); }
   try { updBadges(); } catch(e) {}
@@ -1809,7 +1970,7 @@ async function init() {
       user = session?.user || null;
       if (user) {
         // Fetch role in background — don't block products
-        fetchRole().then(() => { updBadges(); renderAcc(); if(userRole==='admin') renderAcc(); });
+        fetchRole().then(() => { updBadges(); renderAcc(); });
       }
       updBadges();
       renderAcc();
@@ -1832,11 +1993,54 @@ async function init() {
 
   const settingsPromise = sb ? loadAppSettings() : Promise.resolve();
 
+  // Load gallery custom items from DB
+  if (sb) loadGalleryFromDB();
+
+  // Load and render adverts
+  if (sb) loadAndRenderAdverts();
+
   // Realtime (set up after client ready, non-blocking)
   if (sb) {
-    sb.channel('rt-products').on('postgres_changes',{event:'*',schema:'public',table:'products'},() => loadProducts()).subscribe();
+    sb.channel('rt-products').on('postgres_changes',{event:'*',schema:'public',table:'products'},() => { try{sessionStorage.removeItem('tt_products_cache');sessionStorage.removeItem('tt_products_time');}catch{} if(userRole==='admin')loadProducts(true); else loadProducts(); }).subscribe();
     sb.channel('rt-settings').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},async (payload) => {
       if (payload.new?.key === 'announcement') showAnnouncement(payload.new.value);
+    }).subscribe();
+    // Realtime notifications for logged-in user
+    sb.channel('rt-settings-gallery').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},async(payload)=>{
+      const k=payload.new?.key||payload.old?.key||'';
+      if(k.startsWith('gallery_'))loadGalleryFromDB();
+      if(k.startsWith('advert_'))loadAndRenderAdverts();
+    }).subscribe();
+    // Admin notifications realtime
+    sb.channel('rt-admin-notifs').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},async(payload)=>{
+      if(userRole==='admin'&&payload.new?.user_id===user?.id){
+        // Refresh notifications tab if open
+        const activeTab=document.querySelector('.adm-tab.on');
+        if(activeTab?.textContent?.trim()==='Notifications')renderAdmNotifications();
+        // Update overview unread count
+        if(activeTab?.textContent?.trim()==='Overview')renderAdmOverview();
+      }
+    }).subscribe();
+    sb.channel('rt-notifications').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},async (payload) => {
+      if (user && payload.new?.user_id === user.id) {
+        _notifCache.unshift(payload.new);
+        updNotifBadge();
+        // Show toast for new notification
+        toast(payload.new.title, 'nf');
+      }
+    }).subscribe();
+    // Realtime orders for admin
+    sb.channel('rt-orders').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},async () => {
+      if (userRole === 'admin') {
+        updBadges();
+        // Refresh admin orders if panel is open
+        const admEl = document.getElementById('admin');
+        if (admEl?.classList.contains('on')) {
+          const activeTab = document.querySelector('.adm-tab.on');
+          if (activeTab?.textContent?.trim() === 'Orders') renderAdmOrders();
+          if (activeTab?.textContent?.trim() === 'Overview') renderAdmOverview();
+        }
+      }
     }).subscribe();
   }
 
@@ -1970,25 +2174,86 @@ function registerManifest() {
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   const sw = `
-const CACHE='tt-v4';
+const CACHE='tt-v5';
 const ASSETS=[
   'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdn.jsdelivr.net/npm/dexie@4/dist/dexie.min.js'
 ];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS).catch(()=>{})).then(()=>self.skipWaiting()));});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
+self.addEventListener('install',e=>{
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c=>c.addAll(ASSETS).catch(()=>{}))
+      .then(()=>self.skipWaiting())
+  );
+});
+self.addEventListener('activate',e=>{
+  e.waitUntil(
+    caches.keys()
+      .then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))
+      .then(()=>self.clients.claim())
+  );
+});
 self.addEventListener('fetch',e=>{
   const u=e.request.url;
-  if(u.includes('supabase.co')||u.includes('/auth/')){e.respondWith(fetch(e.request));return;}
-  if(u.includes('cdnjs')||u.includes('fonts.google')||u.includes('jsdelivr')||u.includes('gstatic')){
-    e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const c=res.clone();caches.open(CACHE).then(ca=>ca.put(e.request,c));return res;})));return;
+  const method=e.request.method;
+  // Never intercept Supabase API or auth calls — always network
+  if(u.includes('supabase.co')||u.includes('/auth/')||method!=='GET'){
+    e.respondWith(fetch(e.request));return;
   }
-  e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
+  // Cache-first for CDN assets (fonts, icons, libs)
+  if(u.includes('cdnjs')||u.includes('fonts.google')||u.includes('jsdelivr')||u.includes('gstatic')||u.includes('dexie')){
+    e.respondWith(
+      caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{
+        const c=res.clone();
+        caches.open(CACHE).then(ca=>ca.put(e.request,c));
+        return res;
+      }))
+    );return;
+  }
+  // Network-first for app shell — fallback to cache when offline
+  e.respondWith(
+    fetch(e.request)
+      .then(res=>{
+        if(res.ok){const c=res.clone();caches.open(CACHE).then(ca=>ca.put(e.request,c));}
+        return res;
+      })
+      .catch(()=>caches.match(e.request).then(r=>r||new Response('<div style="font-family:sans-serif;text-align:center;padding:40px"><h2>You are offline</h2><p>Please check your internet connection.</p></div>',{headers:{'Content-Type':'text/html'}})))
+  );
 });`;
   const blob = new Blob([sw], { type: 'text/javascript' });
   navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+}
+
+/* ════════ INDEXEDDB OFFLINE STORE (Dexie.js) ════════ */
+let _db = null;
+async function initOfflineDB() {
+  try {
+    // Dexie loaded from CDN — graceful if unavailable
+    if (typeof Dexie === 'undefined') return;
+    _db = new Dexie('ToteAndTreadDB');
+    _db.version(1).stores({
+      products: 'id,category,is_featured,is_trending,is_new,is_premium,created_at',
+      cart:     'id,added_at',
+      wishlist:  'id,added_at',
+      orders:   'id,created_at,status'
+    });
+    // Sync products to IndexedDB after each fresh fetch
+    console.log('[IDB] Offline store ready');
+  } catch(e) { console.warn('[IDB] Init failed:', e); _db = null; }
+}
+async function idbSaveProducts(list) {
+  if (!_db) return;
+  try { await _db.products.bulkPut(list); } catch {}
+}
+async function idbLoadProducts() {
+  if (!_db) return null;
+  try {
+    const data = await _db.products.orderBy('created_at').reverse().limit(80).toArray();
+    return data.length ? data : null;
+  } catch { return null; }
 }
 
 function initPWA() {
@@ -2005,10 +2270,13 @@ function initPWA() {
     toast('Tote & Tread installed! 🎉', 'ok');
   });
 
-  // Show popup every visit after preloader clears (2s preloader + 0.5s grace)
-  setTimeout(() => {
-    document.getElementById('pwa-popup')?.classList.add('on');
-  }, 2800);
+  // Only show popup if NOT already installed
+  const isInstalled = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (!isInstalled) {
+    setTimeout(() => {
+      document.getElementById('pwa-popup')?.classList.add('on');
+    }, 2800);
+  }
 }
 
 function pwaDoInstall() {
@@ -2044,7 +2312,7 @@ async function openOrders(){
   body.innerHTML='<div class="load-center"><div class="spin"></div><span style="font-size:.76rem;color:var(--t3);margin-left:10px">Loading orders…</span></div>';
   if(!sb){body.innerHTML='<div class="empty-state"><i class="fas fa-box-open"></i>Connect Supabase to view orders</div>';return;}
 
-  const{data:orders,error}=await sb.from('orders').select('*').eq('user_id',user.id).order('created_at',{ascending:false});
+  const{data:orders,error}=await sb.from('orders').select('id,customer_name,customer_phone,delivery_address,items,total,status,notes,created_at').eq('user_id',user.id).order('created_at',{ascending:false}).limit(50);
 
   if(error){body.innerHTML=`<div class="empty-state"><i class="fas fa-exclamation-circle" style="color:var(--red)"></i>Could not load orders<p style="font-size:.72rem;margin-top:8px">${esc(error.message)}</p></div>`;return;}
   if(!orders?.length){body.innerHTML='<div class="empty-state"><i class="fas fa-box-open"></i>No orders yet<p style="margin-top:8px;font-size:.72rem">Your orders will appear here once you place one.</p></div>';return;}
@@ -2156,7 +2424,7 @@ function openHistory(){
   if(!h.length){body.innerHTML='<div class="empty-state"><i class="fas fa-clock"></i>No browse history yet<p style="margin-top:8px;font-size:.72rem">Products you view will appear here.</p></div>';return;}
   body.innerHTML=`<div style="padding:14px 14px 0;font-size:.62rem;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">${h.length} Viewed</div>`+h.map(p=>{
     const img=safeImgSrc(p.image_url);
-    return `<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--bd);cursor:pointer" onclick='openPD(${JSON.stringify(p)});closeSub("history")'>
+    return `<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="openPD('${esc(p.id)}');closeSub('history')">
       ${img?`<img src="${img}" style="width:52px;height:58px;object-fit:cover;border-radius:8px;background:var(--bg2)" loading="lazy" onerror="this.style.display='none'">`:`<div style="width:52px;height:58px;border-radius:8px;background:var(--bg2);display:flex;align-items:center;justify-content:center;color:var(--bd2)"><i class="fas fa-image"></i></div>`}
       <div style="flex:1;min-width:0">
         <div style="font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">${esc(fmtCat(p.category))}</div>
@@ -2306,33 +2574,48 @@ const ADMIN_EMAILS = [
   'dariusmomanyi678@gmail.com',
 ];
 
+// Guaranteed agent emails — works even if DB/RLS has issues
+const AGENT_EMAILS = [
+  'salvatorederry7@gmail.com',
+];
+
 async function fetchRole() {
   if (!user || !sb) return;
 
-  // 1. Instant check — email-based guarantee (works even if DB/RLS has issues)
   const emailLower = (user.email || '').toLowerCase();
+
+  // 1. Instant admin check — email-based guarantee
   if (ADMIN_EMAILS.some(a => a.toLowerCase() === emailLower)) {
     userRole = 'admin';
     toast('Welcome back, Admin 🛡', 'ok');
-    // Still try to sync role to DB and track visit in background
     sb.from('profiles').update({ role: 'admin', visit_count: 1, last_visit: new Date().toISOString() })
       .eq('id', user.id).catch(() => {});
     loadNotifications();
     return;
   }
 
-  // 2. DB check for all other users
+  // 2. Instant agent check — email-based guarantee
+  if (AGENT_EMAILS.some(a => a.toLowerCase() === emailLower)) {
+    userRole = 'agent';
+    toast('Welcome back, Agent 🤝', 'ok');
+    sb.from('profiles').update({ role: 'agent', visit_count: 1, last_visit: new Date().toISOString() })
+      .eq('id', user.id).catch(() => {});
+    loadNotifications();
+    return;
+  }
+
+  // 3. DB check for all other users
   try {
     const { data, error } = await sb.from('profiles').select('role,visit_count').eq('id', user.id).maybeSingle();
     if (error) { console.warn('fetchRole error:', error.message); userRole = 'customer'; return; }
     userRole = data?.role || 'customer';
     if (userRole === 'admin') toast('Welcome back, Admin 🛡', 'ok');
+    if (userRole === 'agent') toast('Welcome back, Agent 🤝', 'ok');
     // Track visit
     sb.from('profiles').update({
       visit_count: (data?.visit_count || 0) + 1,
       last_visit: new Date().toISOString()
     }).eq('id', user.id).catch(() => {});
-    // Load notifications from DB
     loadNotifications();
   } catch(e) { console.warn('fetchRole catch:', e); userRole = 'customer'; }
 }
@@ -2366,19 +2649,56 @@ function goShop(filter) {
 
 /* ════════ PRODUCTS ════════ */
 function skelCards(n=4){return Array(n).fill(`<div class="skel-card"><div class="skel-img"></div><div class="skel-line"></div><div class="skel-line short"></div></div>`).join('');}
-async function loadProducts() {
-  // Show skeletons immediately so the page looks alive
+const PRODUCTS_COLS = 'id,name,category,price,compare_price,stock,image_url,image_url_2,is_featured,is_trending,is_bestseller,is_premium,is_new,created_at';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function loadProducts(forceRefresh = false) {
+  // Show skeletons immediately
   const fg = document.getElementById('feat-grid');
   const sg = document.getElementById('shop-grid');
-  const ts = document.getElementById('trend-strip');
   if (fg && !products.length) fg.innerHTML = `<div style="display:contents">${skelCards(4)}</div>`;
   if (sg && !products.length) sg.innerHTML = `<div style="grid-column:1/-1">${skelCards(4)}</div>`;
 
   if (!sb) { products = MOCK_PRODUCTS; renderFeatured(); renderTrending(); renderShop(); return; }
+
+  // 1. Check sessionStorage cache (fastest — same session)
+  if (!forceRefresh) {
+    try {
+      const cached = sessionStorage.getItem('tt_products_cache');
+      const cacheTime = sessionStorage.getItem('tt_products_time');
+      if (cached && cacheTime && (Date.now() - parseInt(cacheTime)) < CACHE_TTL) {
+        products = JSON.parse(cached);
+        renderFeatured(); renderTrending(); renderShop();
+        return;
+      }
+    } catch {}
+
+    // 2. Check IndexedDB (offline-capable persistent cache)
+    const idbData = await idbLoadProducts();
+    if (idbData) {
+      products = idbData;
+      renderFeatured(); renderTrending(); renderShop();
+      // Still fetch in background to refresh
+    }
+  }
+
   try {
-    const { data } = await sb.from('products').select('*').order('created_at', { ascending: false });
-    products = data?.length ? data : MOCK_PRODUCTS;
-  } catch { products = products.length ? products : MOCK_PRODUCTS; }
+    const { data } = await sb.from('products')
+      .select(PRODUCTS_COLS)
+      .order('created_at', { ascending: false })
+      .limit(80);
+    if (data?.length) {
+      products = data;
+      // Save to both caches
+      try {
+        sessionStorage.setItem('tt_products_cache', JSON.stringify(products));
+        sessionStorage.setItem('tt_products_time', Date.now().toString());
+      } catch {}
+      idbSaveProducts(products); // IndexedDB — async, non-blocking
+    } else if (!products.length) {
+      products = MOCK_PRODUCTS;
+    }
+  } catch { if (!products.length) products = MOCK_PRODUCTS; }
   renderFeatured(); renderTrending(); renderShop();
 }
 function sortProducts(list) {
@@ -2411,7 +2731,7 @@ function renderTrending() {
   const el = document.getElementById('trend-strip'); if (!el) return;
   const list = products.filter(p => p.is_trending).slice(0, 8);
   el.innerHTML = (list.length ? list : MOCK_PRODUCTS.filter(p=>p.is_trending)).map(p => `
-    <div class="tcard" onclick='openPD(${JSON.stringify(p)})'>
+    <div class="tcard" onclick="openPD('${esc(p.id)}')">
       ${p.image_url ? `<img class="tcard-img" src="${safeImgSrc(p.image_url) || ''}" alt="${esc(p.name)}" loading="lazy" onerror="this.style.display='none'">` : `<div class="tcard-img" style="display:flex;align-items:center;justify-content:center;color:var(--bd2);font-size:2rem"><i class="fas fa-image"></i></div>`}
       <div class="tcard-body">
         <div class="tcard-name">${esc(p.name)}</div>
@@ -2435,12 +2755,14 @@ function prodCard(p) {
   if (p.is_premium) tags.push(`<span class="tag tag-prem">Premium</span>`);
   if (p.compare_price && p.compare_price > p.price) tags.push(`<span class="tag tag-sale">Sale</span>`);
   const stk = p.stock <= 0 ? `<div class="pcard-stk out">Sold Out</div>` : p.stock <= LOW_STK ? `<div class="pcard-stk low">Only ${p.stock} left</div>` : '';
-  const img = safeImgSrc(p.image_url);
-  return `<div class="pcard" onclick='openPD(${JSON.stringify(p)})'>
+  const rawImg = safeImgSrc(p.image_url);
+  // Downscale Unsplash thumbnails — cards are ~180px wide, no need for 900px images
+  const img = rawImg ? rawImg.replace(/[?&]w=\d+/,'?w=400').replace(/[?&]q=\d+/,'&q=70') : null;
+  return `<div class="pcard" onclick="openPD('${esc(p.id)}')">
     <div class="pcard-img">
       ${img ? `<img src="${img}" alt="${esc(p.name)}" loading="lazy" onerror="this.style.display='none'">` : `<div class="pcard-img-ph"><i class="fas fa-image"></i></div>`}
       <div class="pcard-tags">${tags.slice(0,2).join('')}</div>
-      <button class="pcard-wish${isWished(p.id)?' on':''}" onclick="event.stopPropagation();toggleWish(event,${JSON.stringify(p)})" aria-label="Add to wishlist"><i class="fas fa-heart"></i></button>
+      <button class="pcard-wish${isWished(p.id)?' on':''}" onclick="event.stopPropagation();toggleWishById('${esc(p.id)}')" aria-label="Add to wishlist"><i class="fas fa-heart"></i></button>
     </div>
     <div class="pcard-body">
       <div class="pcard-cat">${esc(fmtCat(p.category))}</div>
@@ -2449,6 +2771,16 @@ function prodCard(p) {
       <div class="pcard-prices"><span class="pcard-price">KES ${N(p.price)}</span>${p.compare_price && p.compare_price > p.price ? `<span class="pcard-was">KES ${N(p.compare_price)}</span>` : ''}</div>
     </div>
   </div>`;
+}
+
+/* ════════ WISHLIST HELPERS ════════ */
+function toggleWishById(id) {
+  const p = products.find(x => x.id === id);
+  if (p) toggleWish(null, p);
+}
+function addToCartById(id) {
+  const p = products.find(x => x.id === id);
+  if (p) addToCartAndClose(p);
 }
 
 /* ════════ LIVE SEARCH ════════ */
@@ -2468,7 +2800,7 @@ function showLiveResults(q) {
   if (!hits.length) { el.innerHTML = `<div class="lr-empty"><i class="fas fa-search" style="display:block;font-size:1.4rem;margin-bottom:6px;color:var(--bd2)"></i>No products found for "<strong>${esc(q)}</strong>"</div>`; el.classList.add('on'); return; }
   el.innerHTML = hits.map(p => {
     const img = safeImgSrc(p.image_url);
-    return `<div class="lr-item" onclick='openPD(${JSON.stringify(p)})' role="option">
+    return `<div class="lr-item" onclick="openPD('${esc(p.id)}')" role="option">
       ${img ? `<img class="lr-img" src="${img}" alt="${esc(p.name)}" loading="lazy" onerror="this.style.display='none'">` : `<div class="lr-img" style="display:flex;align-items:center;justify-content:center;color:var(--bd2)"><i class="fas fa-image"></i></div>`}
       <div style="flex:1;min-width:0"><div class="lr-name">${esc(p.name)}</div><div class="lr-cat">${esc(fmtCat(p.category))}</div></div>
       <div class="lr-price">KES ${N(p.price)}</div>
@@ -2485,7 +2817,14 @@ function clearShopSearch() {
 }
 
 /* ════════ PRODUCT DETAIL ════════ */
-function openPD(p) {
+function openPD(pOrId) {
+  // Accept either a product ID string or a product object (legacy)
+  let p = (typeof pOrId === 'string') ? products.find(x => x.id === pOrId) : pOrId;
+  if (!p) { toast('Product not found', 'er'); return; }
+  // legacy call shape kept below
+  _openPDInner(p);
+}
+function _openPDInner(p) {
   addToHistory(p);
   const el = document.getElementById('pd-body'); if (!el) return;
   const img1 = safeImgSrc(p.image_url), img2 = safeImgSrc(p.image_url_2);
@@ -2508,8 +2847,8 @@ function openPD(p) {
       ${p.description ? `<p class="pd-desc">${esc(p.description)}</p>` : ''}
       ${stk}
       <div class="pd-actions">
-        ${p.stock > 0 ? `<button class="btn btn-gold" onclick='addToCartAndClose(${JSON.stringify(p)})'><i class="fas fa-shopping-bag"></i>Add to Bag</button>` : `<button class="btn btn-outline" onclick="openNotify('${esc(p.id)}')"><i class="fas fa-bell"></i>Notify Me</button>`}
-        <button class="btn btn-ghost" onclick='toggleWish(null,${JSON.stringify(p)})'><i class="fas fa-heart${isWished(p.id)?' solid':' regular'}"></i>${isWished(p.id) ? 'Wishlisted' : 'Wishlist'}</button>
+        ${p.stock > 0 ? `<button class="btn btn-gold" onclick="addToCartById('${esc(p.id)}')"><i class="fas fa-shopping-bag"></i>Add to Bag</button>` : `<button class="btn btn-outline" onclick="openNotify('${esc(p.id)}')"><i class="fas fa-bell"></i>Notify Me</button>`}
+        <button class="btn btn-ghost" onclick="toggleWishById('${esc(p.id)}')"><i class="fas fa-heart${isWished(p.id)?' solid':' regular'}"></i>${isWished(p.id) ? 'Wishlisted' : 'Wishlist'}</button>
         <a class="btn btn-ghost btn-sm" href="#" onclick="window.open('https://wa.me/'+getWANum()+'?text='+encodeURIComponent('Hi! I\'m interested in: '+p.name+' (KES '+p.price+')'), '_blank', 'noopener,noreferrer'); return false" rel="noopener noreferrer"><i class="fab fa-whatsapp" style="color:#25D366"></i>Enquire</a>
       </div>
     </div>`;
@@ -2545,7 +2884,7 @@ function closeLB() {
   lb.removeEventListener('touchend', _lbTouchEnd);
   document.removeEventListener('keydown', _lbKey);
 }
-function lbNav(d) { lbIdx = (lbIdx + d + GAL_DATA.length) % GAL_DATA.length; renderLB(); }
+function lbNav(d) { const src=window._activeLBData||GAL_DATA; lbIdx = (lbIdx + d + src.length) % src.length; if(window._activeLBData)renderLBDynamic(); else renderLB(); }
 function renderLB() {
   const g = GAL_DATA[lbIdx]; if (!g) return;
   const img = document.getElementById('lb-img');
@@ -2948,7 +3287,7 @@ async function notifyOrderPlaced(orderId,total){
 function showOvl(){document.getElementById('ovl').classList.add('on');}
 function hideOvl(){document.getElementById('ovl').classList.remove('on');}
 function closeAll(){document.querySelectorAll('.sheet.on,.modal.on').forEach(el=>el.classList.remove('on'));document.querySelectorAll('.sub.on').forEach(el=>el.classList.remove('on'));const lb=document.getElementById('lightbox');if(lb?.classList.contains('on')){lb.classList.remove('on');document.body.style.overflow='';}document.getElementById('admin')?.classList.remove('on');hideOvl();}
-function openSub(name){document.getElementById('sub-'+name)?.classList.add('on');showOvl();if(name==='about')setTimeout(runAboutCounters,300);}
+function openSub(name){document.getElementById('sub-'+name)?.classList.add('on');showOvl();if(name==='about')setTimeout(runAboutCounters,300);if(name==='agent')setTimeout(checkAgentStatus,300);}
 function closeSub(name){document.getElementById('sub-'+name)?.classList.remove('on');hideOvl();}
 
 /* ════════ ACCOUNT ════════ */
@@ -2991,44 +3330,82 @@ function renderAuthForms(el,tab){
 }
 function switchLoginMethod(m){const ef=document.getElementById('login-email-form'),pf=document.getElementById('login-phone-form'),et=document.getElementById('lm-email-tab'),pt=document.getElementById('lm-phone-tab');if(m==='email'){if(ef)ef.style.display='';if(pf)pf.style.display='none';et?.classList.add('on');pt?.classList.remove('on');}else{if(ef)ef.style.display='none';if(pf)pf.style.display='';pt?.classList.add('on');et?.classList.remove('on');}}
 function otpNext(el,nextId){el.value=el.value.replace(/\D/g,'');if(el.value&&nextId)document.getElementById(nextId)?.focus();}
-async function doLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const e=document.getElementById('li-e')?.value?.trim(),p=document.getElementById('li-pw')?.value||'',errEl=document.getElementById('li-err'),btn=document.getElementById('li-btn');if(!e||!p){setErr(errEl,'Please enter email and password');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Please enter a valid email address');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Signing in…';const{error}=await sb.auth.signInWithPassword({email:e,password:p});btn.disabled=false;btn.innerHTML='<i class="fas fa-sign-in-alt"></i>Sign In';if(error){errEl.style.display='none';const msg=error.message.includes('Invalid login credentials')||error.message.includes('invalid_credentials')?'Wrong email or password. Please check your details and try again.':error.message.includes('Email not confirmed')?'Please check your inbox and confirm your email address before signing in.':error.message.includes('too many')?'Too many sign-in attempts. Please wait a few minutes and try again.':error.message;popupErr('Sign In Failed',msg);return;}errEl.style.display='none';toast('Welcome back! 👋','ok');}
+async function doLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const e=document.getElementById('li-e')?.value?.trim(),p=document.getElementById('li-pw')?.value||'',errEl=document.getElementById('li-err'),btn=document.getElementById('li-btn');if(!e||!p){setErr(errEl,'Please enter email and password');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Please enter a valid email address');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Signing in…';const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});btn.disabled=false;btn.innerHTML='<i class="fas fa-sign-in-alt"></i>Sign In';if(error){errEl.style.display='none';const msg=error.message.includes('Invalid login credentials')||error.message.includes('invalid_credentials')?'Wrong email or password. Please check your details and try again.':error.message.includes('Email not confirmed')?'Please check your inbox and confirm your email address before signing in.':error.message.includes('too many')?'Too many sign-in attempts. Please wait a few minutes and try again.':error.message;popupErr('Sign In Failed',msg);return;}errEl.style.display='none';
+  user = data?.user || null;
+  // Render account immediately — don't block on fetchRole
+  updBadges();
+  renderAcc(); // shows profile instantly with current role (may still be null)
+  toast('Welcome back! 👋','ok');
+  // Fetch role in background — re-render once role is known
+  await fetchRole();
+  updBadges();
+  renderAcc(); // re-render with correct role (admin badge, agent badge, etc.)
+}
 async function doPhoneLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('li-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('li-ph-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('li-otp-wrap').style.display='';document.getElementById('li-otp-send-wrap').style.display='none';toast('OTP sent to '+fullPhone,'ok');}
 async function doPhoneVerify(){if(!sb)return;const ph=document.getElementById('li-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('otp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('otp-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify OTP';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}toast('Signed in successfully! 👋','ok');}
-async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const redirectUrl=(SITE&&SITE.startsWith('https://'))?SITE+'?tab=acc':(window.location.origin+window.location.pathname+'?tab=acc');const{error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:redirectUrl}});if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?null:error.message;if(!msg){const errWrap=document.getElementById('su-err');errWrap.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px;margin-bottom:4px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">' + esc(e) + '</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');document.getElementById(\'li-e\')&&(document.getElementById(\'li-e\').value=\'' + e.replace(/'/g,"\\'")+'\')"><i class="fas fa-sign-in-alt"></i>Sign In</button><button class="btn btn-ghost" style="flex:1;font-size:.72rem" onclick="this.closest(\'[id=su-err]\').style.display=\'none\';"><i class="fas fa-times"></i>Cancel</button></div></div>';errWrap.style.display='';return;}setErr(errEl,msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','We\'ve sent a confirmation link to '+e+'. Click the link in your email to activate your account — it will bring you straight to your profile.');}
+async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const redirectUrl=(SITE&&SITE.startsWith('https://'))?SITE+'?tab=acc':(window.location.origin+window.location.pathname+'?tab=acc');const{error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:redirectUrl}});if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?null:error.message;if(!msg){const errWrap=document.getElementById('su-err');errWrap.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px;margin-bottom:4px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">' + esc(e) + '</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');document.getElementById(\'li-e\')&&(document.getElementById(\'li-e\').value=\'' + e.replace(/'/g,"\\'")+'\')"><i class="fas fa-sign-in-alt"></i>Sign In</button><button class="btn btn-ghost" style="flex:1;font-size:.72rem" onclick="this.closest(\'[id=su-err]\').style.display=\'none\';"><i class="fas fa-times"></i>Cancel</button></div></div>';errWrap.style.display='';return;}setErr(errEl,msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','We\'ve sent a confirmation link to '+e+'. Click the link in your email to activate your account — it will bring you straight to your profile.');notifyAllAdmins({type:'user',title:'New User Registered',body:`${esc(n)} (${esc(e)}) just created an account.`}).catch(()=>{});}
 async function showReset(){const el=document.getElementById('acc-body');const prefillEmail=esc(user?.email||'');el.innerHTML=`<div style="margin-bottom:18px"><h3 style="font-family:var(--fd);font-size:1.3rem;margin-bottom:6px">Reset Password</h3><p style="font-size:.76rem;color:var(--t3);line-height:1.65">Enter your email and we'll send a reset link, or reset via phone OTP.</p></div><div class="fg"><label class="flbl">Email Address</label><input type="email" class="fi" id="rst-e" placeholder="your@email.com" maxlength="200" autocomplete="email" value="${prefillEmail}"></div><button class="btn btn-gold btn-full" id="rst-btn" onclick="doReset()"><i class="fas fa-paper-plane"></i>Send Reset Link</button><div style="margin:16px 0;text-align:center;font-size:.68rem;color:var(--t3);letter-spacing:.1em;text-transform:uppercase">— or —</div><button class="btn btn-outline btn-full" onclick="openPhoneReset()"><i class="fas fa-sms"></i>Reset via Phone OTP</button><p style="text-align:center;margin-top:14px"><a href="#" style="font-size:.72rem;color:var(--gold)" onclick="renderAuthForms(document.getElementById('acc-body'),'login');return false">← Back to Sign In</a></p>`;}
 async function doReset(){if(!sb){toast('Supabase not configured','er');return;}const e=document.getElementById('rst-e')?.value?.trim();if(!e||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){toast('Enter a valid email','er');return;}if(!rateLimit('reset',60000)){toast('Please wait before trying again','er');return;}const btn=document.getElementById('rst-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const resetUrl=(SITE&&SITE.startsWith('https://'))?SITE+'?reset=1':(window.location.origin+window.location.pathname+'?reset=1');const{error}=await sb.auth.resetPasswordForEmail(e,{redirectTo:resetUrl});btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Send Reset Link';if(error){toast(error.message,'er');return;}toast('Reset link sent! Check your email 📧','ok');}
 function openPhoneReset(){openSub('phonereset');}
 async function sendPhoneResetOTP(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('pr-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('pr-send-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('pr-send-wrap').style.display='none';document.getElementById('pr-verify-wrap').style.display='';toast('OTP sent to '+fullPhone,'ok');}
 async function verifyPhoneResetOTP(){if(!sb)return;const ph=document.getElementById('pr-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('protp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('pr-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify & Sign In';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}closeSub('phonereset');document.getElementById('reset-pw-overlay').classList.add('on');toast('Verified! Now set your new password.','ok');}
-async function doUpdatePassword(){if(!sb){toast('Not configured','er');return;}const p=document.getElementById('np-pw')?.value||'',p2=document.getElementById('np-pw2')?.value||'',errEl=document.getElementById('np-err'),btn=document.getElementById('np-btn');if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){setErr(errEl,'Passwords do not match');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';const{error}=await sb.auth.updateUser({password:p});btn.disabled=false;btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';if(error){setErr(errEl,error.message);return;}document.getElementById('reset-pw-overlay').classList.remove('on');history.replaceState(null,'',location.pathname);toast('Password updated! You are now signed in. 🔐','ok');renderAcc();showTab('home');}
+async function doUpdatePassword(){
+  if(!sb){toast('Not configured','er');return;}
+  const p=document.getElementById('np-pw')?.value||'',
+        p2=document.getElementById('np-pw2')?.value||'',
+        errEl=document.getElementById('np-err'),
+        btn=document.getElementById('np-btn');
+  if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}
+  if(p!==p2){setErr(errEl,'Passwords do not match');return;}
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';
+  const{data,error}=await sb.auth.updateUser({password:p});
+  if(error){btn.disabled=false;btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';setErr(errEl,error.message);return;}
+  // Auto-login: session is already active after updateUser — just set state
+  const {data:{session}}=await sb.auth.getSession();
+  user=session?.user||data?.user||null;
+  document.getElementById('reset-pw-overlay').classList.remove('on');
+  history.replaceState(null,'',location.pathname);
+  if(user){
+    await fetchRole();
+    updBadges();
+    renderAcc();
+    toast('Password saved! You are now signed in 🔐','ok');
+    showTab('home');
+  } else {
+    toast('Password updated! Please sign in.','ok');
+    showTab('acc');
+  }
+  btn.disabled=false;btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';
+}
 async function renderLoggedIn(el){
   const name=user?.user_metadata?.full_name||user?.email?.split('@')[0]||'Member';
   const email=user?.email||user?.phone||'';
   const isAdmin=userRole==='admin';
+  const isAgent=userRole==='agent';
+  const isBanned=userRole==='banned_agent';
   const joined=user?.created_at?D(user.created_at):'—';
   const lastSeen=user?.last_sign_in_at?D(user.last_sign_in_at):'—';
   const provider=(user?.app_metadata?.provider||'email');
   const providerLabel=provider==='google'?'<i class="fab fa-google" style="color:#4285F4;margin-right:4px"></i>Google':provider==='phone'?'<i class="fas fa-phone" style="color:var(--gold);margin-right:4px"></i>Phone':'<i class="fas fa-envelope" style="color:var(--gold);margin-right:4px"></i>Email';
 
-  // Fetch order count and profile extra data
-  let orderCount=0;
-  if(sb&&user){try{const{count}=await sb.from('orders').select('*',{count:'exact',head:true}).eq('user_id',user.id);orderCount=count||0;}catch{}}
+  // Paint the UI immediately — fetch order count in background (no blocking)
+  const orderCount = 0; // placeholder, updated below
 
   el.innerHTML=`
     <div class="prof-card">
       <div style="position:relative;display:inline-block">
         <div class="prof-avatar" id="main-avatar">${user?.user_metadata?.avatar_url?`<img src="${esc(user.user_metadata.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-user\\'></i>'">` : '<i class="fas fa-user"></i>'}</div>
-        ${isAdmin?'<div style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;color:#000"><i class="fas fa-shield-alt"></i></div>':''}
+        ${isAdmin?'<div style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;color:#000"><i class="fas fa-shield-alt"></i></div>':isAgent?'<div style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;background:#32C864;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;color:#000"><i class="fas fa-handshake"></i></div>':''}
       </div>
       <div class="prof-name">${esc(name)}</div>
       <div class="prof-email">${esc(email)}</div>
       <div style="display:inline-flex;align-items:center;gap:4px;font-size:.62rem;color:var(--t3);margin-top:4px">${providerLabel} sign-in</div>
-      ${isAdmin?'<div class="admin-badge" style="margin-top:8px"><i class="fas fa-shield-alt"></i> Admin</div>':''}
+      ${isAdmin?'<div class="admin-badge" style="margin-top:8px"><i class="fas fa-shield-alt"></i> Admin</div>':isAgent?'<div class="admin-badge" style="margin-top:8px;background:linear-gradient(135deg,#1a4a2a,#32C864);color:#fff"><i class="fas fa-handshake"></i> Agent</div>':isBanned?'<div class="admin-badge" style="margin-top:8px;background:rgba(224,80,80,.15);color:var(--red);border:1px solid rgba(224,80,80,.3)"><i class="fas fa-ban"></i> Suspended Agent</div>':''}
 
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:16px;width:100%">
         <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:10px;text-align:center">
           <div style="font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Orders</div>
-          <div style="font-family:var(--fd);font-size:1.4rem;color:var(--gold)">${orderCount}</div>
+          <div style="font-family:var(--fd);font-size:1.4rem;color:var(--gold)" id="prof-order-count">—</div>
         </div>
         <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:10px;text-align:center">
           <div style="font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Wishlist</div>
@@ -3061,9 +3438,13 @@ async function renderLoggedIn(el){
       <button class="menu-item" onclick="openEditProfile()"><i class="fas fa-user-edit mi-icon"></i>Edit Profile<i class="fas fa-chevron-right mi-arrow"></i></button>
       <button class="menu-item" onclick="openSub('contact')"><i class="fas fa-headset mi-icon"></i>Customer Support<i class="fas fa-chevron-right mi-arrow"></i></button>
       ${isAdmin?`<button class="menu-item" style="color:var(--gold)" onclick="openAdmin()"><i class="fas fa-shield-alt mi-icon"></i>Admin Dashboard<i class="fas fa-chevron-right mi-arrow"></i></button>`:''}
+      ${isAgent?`<button class="menu-item" style="color:#32C864" onclick="openAgentDashboard()"><i class="fas fa-handshake mi-icon" style="color:#32C864"></i>Agent Dashboard<i class="fas fa-chevron-right mi-arrow"></i></button>`:''}
+      ${isBanned?`<div style="margin:8px 0;padding:12px 14px;background:rgba(224,80,80,.08);border:1px solid rgba(224,80,80,.2);border-radius:var(--r);font-size:.74rem;color:var(--red)"><i class="fas fa-ban" style="margin-right:8px"></i>Your agent account has been suspended. Contact support for assistance.</div>`:''}
       <button class="menu-item" onclick="toggleTheme()"><i class="fas fa-adjust mi-icon"></i>Toggle Theme<i class="fas fa-chevron-right mi-arrow"></i></button>
       <button class="menu-item danger" id="signout-btn" onclick="doLogout()"><i class="fas fa-sign-out-alt mi-icon" style="color:var(--red)"></i><span style="color:var(--red)">Sign Out</span></button>
     </div>`;
+  // Fetch order count after UI is painted — non-blocking
+  if(sb&&user){sb.from('orders').select('id',{count:'exact',head:true}).eq('user_id',user.id).then(({count})=>{const el2=document.getElementById('prof-order-count');if(el2)el2.textContent=count||0;}).catch(()=>{});}
 }
 async function doLogout(){
   // Show signing-out state on the button immediately
@@ -3125,15 +3506,219 @@ function setErr(el,msg){if(!el)return;el.textContent=msg;el.style.display='';}
 /* ════════ ADMIN ════════ */
 function openAdmin(){if(userRole!=='admin'){toast('Admin access required','er');showTab('acc');return;}document.getElementById('admin').classList.add('on');showOvl();admTab('overview');}
 function closeAdmin(){document.getElementById('admin')?.classList.remove('on');hideOvl();}
-function admTab(name){document.querySelectorAll('.adm-tab').forEach(t=>t.classList.remove('on'));document.querySelector(`.adm-tab[onclick="admTab('${name}')"]`)?.classList.add('on');const content=document.getElementById('adm-content');const sections={overview:renderAdmOverview,products:renderAdmProducts,orders:renderAdmOrders,users:renderAdmUsers,messages:renderAdmMessages,broadcast:renderAdmBroadcast,settings:renderAdmSettings};content.innerHTML='<div class="load-center"><div class="spin"></div></div>';(sections[name]||(() => {}))();}
-async function renderAdmOverview(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const[{data:ords},{data:allProds},{data:msgs},{data:apps}]=await Promise.all([sb.from('orders').select('id,total,status,created_at,customer_name'),sb.from('products').select('id,name,stock'),sb.from('contact_messages').select('id'),sb.from('agent_applications').select('id')]);const rev=(ords||[]).filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.total||0),0);const recent=(ords||[]).slice(0,6);const low=(allProds||[]).filter(p=>p.stock<=LOW_STK).slice(0,6);el.innerHTML=`<div class="adm-stats-grid"><div class="stat-card highlight"><div class="stat-card-icon"><i class="fas fa-coins"></i></div><span class="stat-card-num">KES ${N(rev)}</span><span class="stat-card-lbl">Revenue</span></div><div class="stat-card"><div class="stat-card-icon"><i class="fas fa-receipt"></i></div><span class="stat-card-num">${(ords||[]).length}</span><span class="stat-card-lbl">Orders</span></div><div class="stat-card"><div class="stat-card-icon"><i class="fas fa-box-open"></i></div><span class="stat-card-num">${(allProds||[]).length}</span><span class="stat-card-lbl">Products</span></div><div class="stat-card"><div class="stat-card-icon"><i class="fas fa-exclamation-triangle"></i></div><span class="stat-card-num">${(allProds||[]).filter(p=>p.stock<=0).length}</span><span class="stat-card-lbl">Out of Stock</span></div><div class="stat-card"><div class="stat-card-icon"><i class="fas fa-envelope"></i></div><span class="stat-card-num">${(msgs||[]).length}</span><span class="stat-card-lbl">Messages</span></div><div class="stat-card"><div class="stat-card-icon"><i class="fas fa-handshake"></i></div><span class="stat-card-num">${(apps||[]).length}</span><span class="stat-card-lbl">Agent Apps</span></div></div><div class="adm-section"><h3>Recent Orders</h3>${recent.length?`<table><thead><tr><th>Customer</th><th>Total</th><th>Status</th></tr></thead><tbody>${recent.map(o=>`<tr><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><span class="badge ${o.status==='completed'?'badge-green':'badge-amber'}">${esc(o.status||'pending')}</span></td></tr>`).join('')}</tbody></table>`:'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>'}</div><div class="adm-section"><h3>Low Stock Alert</h3>${low.length?`<table><thead><tr><th>Product</th><th>Stock</th></tr></thead><tbody>${low.map(p=>`<tr><td class="td-name">${esc(p.name)}</td><td class="${p.stock<=0?'pcard-stk out':'pcard-stk low'}">${p.stock<=0?'Sold Out':p.stock+' left'}</td></tr>`).join('')}</tbody></table>`:'<p style="font-size:.76rem;color:var(--green)">✓ All products in stock.</p>'}</div>`;}
+function admTab(name){document.querySelectorAll('.adm-tab').forEach(t=>t.classList.remove('on'));document.querySelector(`.adm-tab[onclick="admTab('${name}')"]`)?.classList.add('on');const content=document.getElementById('adm-content');const sections={overview:renderAdmOverview,notifications:renderAdmNotifications,products:renderAdmProducts,orders:renderAdmOrders,users:renderAdmUsers,agents:renderAdmAgents,gallery:renderAdmGallery,adverts:renderAdmAdverts,messages:renderAdmMessages,broadcast:renderAdmBroadcast,settings:renderAdmSettings};content.innerHTML='<div class="load-center"><div class="spin"></div></div>';(sections[name]||(() => {}))();}
+async function renderAdmOverview(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+
+  const now=new Date();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate()).toISOString();
+  const thisMonth=new Date(now.getFullYear(),now.getMonth(),1).toISOString();
+
+  const[
+    {data:ords},{data:allProds},{data:msgs},{data:apps},
+    {data:allUsers},{data:agents},{data:notifs},{data:contacts}
+  ]=await Promise.all([
+    sb.from('orders').select('id,total,status,created_at,customer_name').order('created_at',{ascending:false}),
+    sb.from('products').select('id,name,stock,category,price'),
+    sb.from('contact_messages').select('id,created_at'),
+    sb.from('agent_applications').select('id,status,name,created_at').order('created_at',{ascending:false}),
+    sb.from('profiles').select('id,role,created_at,last_visit'),
+    sb.from('profiles').select('id,full_name,email,role').in('role',['agent','banned_agent']),
+    sb.from('notifications').select('id,read,created_at').order('created_at',{ascending:false}).limit(100),
+    sb.from('user_contacts').select('id')
+  ]);
+
+  const orders=ords||[];
+  const products=allProds||[];
+  const users=allUsers||[];
+
+  // Revenue calculations
+  const totalRev=orders.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.total||0),0);
+  const todayRev=orders.filter(o=>o.status!=='cancelled'&&o.created_at>=today).reduce((s,o)=>s+(o.total||0),0);
+  const monthRev=orders.filter(o=>o.status!=='cancelled'&&o.created_at>=thisMonth).reduce((s,o)=>s+(o.total||0),0);
+
+  // Order stats
+  const pendingOrders=orders.filter(o=>o.status==='pending').length;
+  const completedOrders=orders.filter(o=>o.status==='completed').length;
+  const todayOrders=orders.filter(o=>o.created_at>=today).length;
+  const cancelledOrders=orders.filter(o=>o.status==='cancelled').length;
+
+  // User stats
+  const customers=users.filter(u=>u.role==='customer').length;
+  const adminCount=users.filter(u=>u.role==='admin').length;
+  const agentCount=(agents||[]).filter(a=>a.role==='agent').length;
+  const bannedAgents=(agents||[]).filter(a=>a.role==='banned_agent').length;
+  const newUsersToday=users.filter(u=>u.created_at>=today).length;
+  const activeToday=users.filter(u=>u.last_visit&&u.last_visit>=today).length;
+
+  // Product stats
+  const outOfStock=products.filter(p=>p.stock<=0).length;
+  const lowStock=products.filter(p=>p.stock>0&&p.stock<=LOW_STK).length;
+  const categories=[...new Set(products.map(p=>p.category))].length;
+  const totalValue=products.reduce((s,p)=>s+(p.price||0)*(p.stock||0),0);
+
+  // Agent stats
+  const pendingApps=(apps||[]).filter(a=>a.status==='pending').length;
+  const approvedApps=(apps||[]).filter(a=>a.status==='approved').length;
+
+  // Notification stats
+  const unreadNotifs=(notifs||[]).filter(n=>!n.read).length;
+
+  const recent=orders.slice(0,8);
+  const low=products.filter(p=>p.stock<=LOW_STK).slice(0,6);
+  const recentApps=(apps||[]).filter(a=>a.status==='pending').slice(0,4);
+
+  el.innerHTML=`
+
+  <!-- Revenue Banner -->
+  <div style="margin:0;padding:16px;background:linear-gradient(135deg,#0F0E08,#1a1600);border-bottom:1px solid var(--gold-a25)">
+    <div style="font-size:.54rem;letter-spacing:.18em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Total Revenue</div>
+    <div style="font-family:var(--fd);font-size:2rem;color:var(--gold);line-height:1;margin-bottom:8px">KES ${N(totalRev)}</div>
+    <div style="display:flex;gap:16px;font-size:.68rem;color:var(--t3)">
+      <span><i class="fas fa-sun" style="color:var(--gold);margin-right:4px"></i>Today: <strong style="color:var(--t2)">KES ${N(todayRev)}</strong></span>
+      <span><i class="fas fa-calendar" style="color:var(--gold);margin-right:4px"></i>This month: <strong style="color:var(--t2)">KES ${N(monthRev)}</strong></span>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="adm-stats-grid">
+    <div class="stat-card highlight" onclick="admTab('orders')" style="cursor:pointer">
+      <div class="stat-card-icon"><i class="fas fa-receipt"></i></div>
+      <span class="stat-card-num">${orders.length}</span>
+      <span class="stat-card-lbl">Total Orders</span>
+      <div style="font-size:.6rem;color:var(--green);margin-top:4px">+${todayOrders} today</div>
+    </div>
+    <div class="stat-card" style="border-color:rgba(255,160,50,.3)">
+      <div class="stat-card-icon" style="color:#FFA032"><i class="fas fa-clock"></i></div>
+      <span class="stat-card-num" style="color:#FFA032">${pendingOrders}</span>
+      <span class="stat-card-lbl">Pending Orders</span>
+      <div style="font-size:.6rem;color:var(--t3);margin-top:4px">${completedOrders} completed</div>
+    </div>
+    <div class="stat-card" onclick="admTab('products')" style="cursor:pointer">
+      <div class="stat-card-icon"><i class="fas fa-box-open"></i></div>
+      <span class="stat-card-num">${products.length}</span>
+      <span class="stat-card-lbl">Products</span>
+      <div style="font-size:.6rem;color:var(--t3);margin-top:4px">${categories} categories</div>
+    </div>
+    <div class="stat-card" style="border-color:${outOfStock>0?'rgba(224,80,80,.3)':'var(--bd)'}">
+      <div class="stat-card-icon" style="color:${outOfStock>0?'var(--red)':'var(--green)'}"><i class="fas fa-exclamation-triangle"></i></div>
+      <span class="stat-card-num" style="color:${outOfStock>0?'var(--red)':'var(--green)'}">${outOfStock}</span>
+      <span class="stat-card-lbl">Out of Stock</span>
+      <div style="font-size:.6rem;color:#FFA032;margin-top:4px">${lowStock} low stock</div>
+    </div>
+    <div class="stat-card" onclick="admTab('users')" style="cursor:pointer">
+      <div class="stat-card-icon"><i class="fas fa-users"></i></div>
+      <span class="stat-card-num">${customers}</span>
+      <span class="stat-card-lbl">Customers</span>
+      <div style="font-size:.6rem;color:var(--green);margin-top:4px">+${newUsersToday} today · ${activeToday} active</div>
+    </div>
+    <div class="stat-card" onclick="admTab('agents')" style="cursor:pointer" style="border-color:${pendingApps>0?'rgba(201,168,76,.4)':'var(--bd)'}">
+      <div class="stat-card-icon" style="color:#32C864"><i class="fas fa-handshake"></i></div>
+      <span class="stat-card-num" style="color:#32C864">${agentCount}</span>
+      <span class="stat-card-lbl">Active Agents</span>
+      <div style="font-size:.6rem;color:${pendingApps>0?'var(--gold)':'var(--t3)'};margin-top:4px">${pendingApps>0?`⚠ ${pendingApps} pending approval`:`${bannedAgents} suspended`}</div>
+    </div>
+    <div class="stat-card" onclick="admTab('messages')" style="cursor:pointer">
+      <div class="stat-card-icon"><i class="fas fa-envelope"></i></div>
+      <span class="stat-card-num">${(msgs||[]).length}</span>
+      <span class="stat-card-lbl">Messages</span>
+      <div style="font-size:.6rem;color:var(--t3);margin-top:4px">${(contacts||[]).length} saved contacts</div>
+    </div>
+    <div class="stat-card" onclick="admTab('notifications')" style="cursor:pointer;border-color:${unreadNotifs>0?'rgba(201,168,76,.3)':'var(--bd)'}">
+      <div class="stat-card-icon" style="color:${unreadNotifs>0?'var(--gold)':'var(--t3)'}"><i class="fas fa-bell"></i></div>
+      <span class="stat-card-num" style="color:${unreadNotifs>0?'var(--gold)':'var(--t2)'}">${unreadNotifs}</span>
+      <span class="stat-card-lbl">Unread Notifs</span>
+      <div style="font-size:.6rem;color:var(--t3);margin-top:4px">${(notifs||[]).length} total</div>
+    </div>
+  </div>
+
+  <!-- Inventory Value + Admin count -->
+  <div style="display:flex;gap:8px;padding:0 12px 12px">
+    <div style="flex:1;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:11px 13px">
+      <div style="font-size:.54rem;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Inventory Value</div>
+      <div style="font-family:var(--fd);font-size:1.2rem;color:var(--gold)">KES ${N(totalValue)}</div>
+    </div>
+    <div style="flex:1;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:11px 13px">
+      <div style="font-size:.54rem;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Cancelled Orders</div>
+      <div style="font-family:var(--fd);font-size:1.2rem;color:var(--red)">${cancelledOrders}</div>
+    </div>
+    <div style="flex:1;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:11px 13px">
+      <div style="font-size:.54rem;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Admins</div>
+      <div style="font-family:var(--fd);font-size:1.2rem;color:var(--gold)">${adminCount}</div>
+    </div>
+  </div>
+
+  <!-- Pending Agent Applications Alert -->
+  ${pendingApps>0?`
+  <div style="margin:0 12px 12px;padding:12px 14px;background:rgba(201,168,76,.07);border:1px solid var(--gold-a25);border-radius:var(--rl);cursor:pointer" onclick="admTab('agents')">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;background:var(--gold-a8);border:1px solid var(--gold-a25);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--gold)"><i class="fas fa-user-clock"></i></div>
+      <div style="flex:1">
+        <div style="font-size:.8rem;font-weight:600;color:var(--t1)">${pendingApps} Agent Application${pendingApps>1?'s':''} Awaiting Review</div>
+        <div style="font-size:.66rem;color:var(--t3);margin-top:2px">Tap to review and approve or deny</div>
+      </div>
+      <i class="fas fa-chevron-right" style="color:var(--gold);font-size:.72rem"></i>
+    </div>
+  </div>`:''}
+
+  <!-- Recent Orders -->
+  <div class="adm-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h3 style="margin:0">Recent Orders</h3>
+      <button class="btn btn-ghost btn-xs" onclick="admTab('orders')">View All →</button>
+    </div>
+    ${recent.length?`<table><thead><tr><th>Customer</th><th>Total</th><th>Status</th><th>Time</th></tr></thead><tbody>
+    ${recent.map(o=>`<tr>
+      <td class="td-name">${esc(o.customer_name||'—')}</td>
+      <td class="td-gold">KES ${N(o.total||0)}</td>
+      <td><span class="badge ${o.status==='completed'?'badge-green':o.status==='cancelled'?'badge-red':'badge-amber'}">${esc(o.status||'pending')}</span></td>
+      <td style="font-size:.6rem;color:var(--t3)">${D(o.created_at).split(',')[0]}</td>
+    </tr>`).join('')}
+    </tbody></table>`:'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>'}
+  </div>
+
+  <!-- Low Stock Alert -->
+  <div class="adm-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h3 style="margin:0">Stock Alerts</h3>
+      <button class="btn btn-ghost btn-xs" onclick="admTab('products')">Manage →</button>
+    </div>
+    ${low.length?`<table><thead><tr><th>Product</th><th>Category</th><th>Stock</th></tr></thead><tbody>
+    ${low.map(p=>`<tr>
+      <td class="td-name">${esc(p.name)}</td>
+      <td style="font-size:.62rem;color:var(--t3)">${esc(p.category||'')}</td>
+      <td class="${p.stock<=0?'pcard-stk out':'pcard-stk low'}">${p.stock<=0?'Sold Out':p.stock+' left'}</td>
+    </tr>`).join('')}
+    </tbody></table>`:'<p style="font-size:.76rem;color:var(--green)">✓ All products well stocked.</p>'}
+  </div>
+
+  <!-- Recent Agent Applications -->
+  ${recentApps.length?`
+  <div class="adm-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h3 style="margin:0">New Agent Requests</h3>
+      <button class="btn btn-ghost btn-xs" onclick="admTab('agents')">Review All →</button>
+    </div>
+    ${recentApps.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px">
+      <div style="width:32px;height:32px;background:rgba(50,200,100,.1);border:1px solid rgba(50,200,100,.2);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#32C864;font-size:.8rem;flex-shrink:0"><i class="fas fa-user-plus"></i></div>
+      <div style="flex:1"><div style="font-size:.78rem;color:var(--t1)">${esc(a.name||'—')}</div><div style="font-size:.62rem;color:var(--t3)">${D(a.created_at).split(',')[0]}</div></div>
+      <div style="display:flex;gap:5px">
+        <button class="btn btn-green btn-xs" onclick="admApproveAgent('${esc(a.id)}','','${esc(a.name)}','')"><i class="fas fa-check"></i></button>
+        <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="admDenyAgent('${esc(a.id)}','${esc(a.name)}')"><i class="fas fa-times"></i></button>
+      </div>
+    </div>`).join('')}
+  </div>`:''}
+  `;
+}
 async function renderAdmProducts(){const el=document.getElementById('adm-content');el.innerHTML=`<div class="adm-section"><h3>Add Product</h3><div class="fg"><label class="flbl">Name *</label><input type="text" class="fi" id="ap-n" placeholder="Product name" maxlength="200"></div><div class="form-row"><div class="fg"><label class="flbl">Category *</label><select class="fsel" id="ap-c"><option value="">Category…</option><option value="tote-bags">Tote Bags</option><option value="footwear">Footwear</option><option value="accessories">Accessories</option></select></div><div class="fg"><label class="flbl">Price (KES) *</label><input type="number" class="fi" id="ap-p" min="0"></div></div><div class="form-row"><div class="fg"><label class="flbl">Compare Price</label><input type="number" class="fi" id="ap-cp" min="0"></div><div class="fg"><label class="flbl">Stock *</label><input type="number" class="fi" id="ap-s" min="0" value="0"></div></div><div class="fg"><label class="flbl">Description</label><textarea class="fta" id="ap-d" maxlength="1000" style="min-height:70px"></textarea></div><div class="fg"><label class="flbl">Primary Image</label><div style="display:flex;gap:8px;align-items:center"><input type="url" class="fi" id="ap-i" placeholder="https://… or upload below" maxlength="500" style="flex:1"><label for="ap-i-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label></div><input type="file" id="ap-i-file" accept="image/*" style="display:none" onchange="admUploadProductImg(this,'ap-i')"><div id="ap-i-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div></div><div class="fg"><label class="flbl">Secondary Image</label><div style="display:flex;gap:8px;align-items:center"><input type="url" class="fi" id="ap-i2" placeholder="https://… or upload below" maxlength="500" style="flex:1"><label for="ap-i2-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label></div><input type="file" id="ap-i2-file" accept="image/*" style="display:none" onchange="admUploadProductImg(this,'ap-i2')"><div id="ap-i2-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">${[['feat','Featured'],['trend','Trending'],['best','Best Seller'],['prem','Premium'],['new','New']].map(([k,l])=>`<label class="flag-btn" id="ap-${k}-btn" onclick="this.classList.toggle('on');document.getElementById('ap-${k}').checked=!document.getElementById('ap-${k}').checked"><input type="checkbox" id="ap-${k}" style="display:none"> ${l}</label>`).join('')}</div><button class="btn btn-gold btn-full" onclick="admAddProd()"><i class="fas fa-plus"></i>Add Product</button></div><div class="adm-section"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px"><h3 style="margin-bottom:0">All Products</h3><span id="adm-prod-count" style="font-size:.66rem;color:var(--t3)"></span></div><div id="adm-ptbl"><div class="load-center"><div class="spin"></div></div></div></div>`;loadAdmProducts();}
-async function loadAdmProducts(){const el=document.getElementById('adm-ptbl');if(!el)return;let list=products;if(sb)try{const{data}=await sb.from('products').select('*').order('created_at',{ascending:false});list=data||products;}catch{}const cnt=document.getElementById('adm-prod-count');if(cnt)cnt.textContent=list.length+' products';if(!list.length){el.innerHTML='<p style="padding:12px;font-size:.76rem;color:var(--t3)">No products.</p>';return;}el.innerHTML=`<table><thead><tr><th>Name</th><th>Price</th><th>Stk</th><th></th></tr></thead><tbody>${list.map(p=>`<tr><td class="td-name">${esc(p.name)}</td><td class="td-gold">KES ${N(p.price)}</td><td class="${p.stock<=0?'pcard-stk out':p.stock<=LOW_STK?'pcard-stk low':'td-sm'}">${p.stock<=0?'Out':p.stock}</td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='openEditProd(${JSON.stringify(p)})'><i class="fas fa-edit"></i></button><button class="btn btn-red btn-xs" onclick="delProduct('${esc(p.id)}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table>`;}
+async function loadAdmProducts(){const el=document.getElementById('adm-ptbl');if(!el)return;let list=products;if(sb)try{const{data}=await sb.from('products').select(PRODUCTS_COLS+',description').order('created_at',{ascending:false});list=data||products;}catch{}const cnt=document.getElementById('adm-prod-count');if(cnt)cnt.textContent=list.length+' products';if(!list.length){el.innerHTML='<p style="padding:12px;font-size:.76rem;color:var(--t3)">No products.</p>';return;}el.innerHTML=`<table><thead><tr><th>Name</th><th>Price</th><th>Stk</th><th></th></tr></thead><tbody>${list.map(p=>`<tr><td class="td-name">${esc(p.name)}</td><td class="td-gold">KES ${N(p.price)}</td><td class="${p.stock<=0?'pcard-stk out':p.stock<=LOW_STK?'pcard-stk low':'td-sm'}">${p.stock<=0?'Out':p.stock}</td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='openEditProd(${JSON.stringify(p)})'><i class="fas fa-edit"></i></button><button class="btn btn-red btn-xs" onclick="delProduct('${esc(p.id)}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table>`;}
 async function admUploadProductImg(input, targetId){
   const file=input.files[0];if(!file||!sb)return;
   if(file.size>5*1024*1024){toast('Image too large (max 5MB)','er');return;}
   const ext=file.name.split('.').pop()||'jpg';
-  const path=`products/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const path=`products/${Date.now()}_${Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b=>b.toString(16).padStart(2,'0')).join('')}.${ext}`;
   const progressEl=document.getElementById(targetId+'-progress');
   if(progressEl)progressEl.style.display='';
   try{
@@ -3151,7 +3736,71 @@ function openEditProd(p){editingProd=p;const body=document.getElementById('edit-
 function closeEditProd(){document.getElementById('edit-prod-modal')?.classList.remove('on');hideOvl();editingProd=null;}
 async function saveEditProd(){if(!editingProd||userRole!=='admin'||!sb)return;const n=document.getElementById('ep-n')?.value?.trim(),cat=document.getElementById('ep-c')?.value,pr=parseFloat(document.getElementById('ep-p')?.value),cp=parseFloat(document.getElementById('ep-cp')?.value)||null,stk=parseInt(document.getElementById('ep-s')?.value)||0,dsc=document.getElementById('ep-d')?.value?.trim(),img=document.getElementById('ep-i')?.value?.trim(),img2=document.getElementById('ep-i2')?.value?.trim();if(!n||isNaN(pr)||pr<0){toast('Fill required fields','er');return;}const flags={is_featured:!!document.getElementById('ep-feat')?.checked,is_trending:!!document.getElementById('ep-trend')?.checked,is_bestseller:!!document.getElementById('ep-best')?.checked,is_premium:!!document.getElementById('ep-prem')?.checked,is_new:!!document.getElementById('ep-new')?.checked};const{error}=await sb.from('products').update({name:n,category:cat,price:pr,compare_price:cp,stock:stk,description:dsc,image_url:img||null,image_url_2:img2||null,...flags}).eq('id',editingProd.id);if(error){toast(error.message,'er');return;}toast('Product updated!','ok');closeEditProd();await loadProducts();loadAdmProducts();}
 async function delProduct(id){if(userRole!=='admin'||!sb)return;const confirmed=await popupConfirm('Delete Product','Are you sure you want to permanently delete this product? This cannot be undone.','Delete','Cancel');if(!confirmed)return;await sb.from('products').delete().eq('id',id);await loadProducts();loadAdmProducts();toast('Product deleted','nf');}
-async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('*').order('created_at',{ascending:false});el.innerHTML=`<div class="adm-section"><h3>All Orders (${data?.length||0})</h3>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" onclick="window.open('https://wa.me/'+getWANum(),'_blank','noopener,noreferrer')" href="#"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
+/* ════════ ADMIN NOTIFICATIONS ════════ */
+async function renderAdmNotifications(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  // Fetch all admin notifications (user_id = current admin)
+  const{data:myNotifs}=await sb.from('notifications')
+    .select('*').eq('user_id',user.id)
+    .order('created_at',{ascending:false}).limit(100);
+  const notifs=myNotifs||[];
+  const unread=notifs.filter(n=>!n.read).length;
+
+  el.innerHTML=`
+  <div class="adm-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <h3 style="margin:0">Admin Notifications</h3>
+        <div style="font-size:.66rem;color:var(--t3);margin-top:2px">${unread} unread · ${notifs.length} total</div>
+      </div>
+      ${unread>0?`<button class="btn btn-ghost btn-xs" onclick="admMarkAllNotifsRead()"><i class="fas fa-check-double"></i> Mark all read</button>`:''}
+    </div>
+    ${!notifs.length?'<div class="empty-state"><i class="fas fa-bell-slash"></i><p style="margin-top:8px;font-size:.74rem">No notifications yet</p></div>':
+    notifs.map(n=>{
+      const icons={order:'fa-receipt',user:'fa-user-plus',welcome:'fa-gift',warning:'fa-exclamation-triangle',product:'fa-box',admin:'fa-shield-alt',system:'fa-info-circle',promo:'fa-tag'};
+      const colors={order:'badge-gold',user:'badge-green',welcome:'badge-green',warning:'badge-red',product:'badge-amber',admin:'badge-purple',system:'badge-blue',promo:'badge-purple'};
+      return `<div style="display:flex;gap:10px;padding:11px 12px;background:${n.read?'var(--bg3)':'rgba(201,168,76,.04)'};border:1px solid ${n.read?'var(--bd)':'var(--gold-a25)'};border-radius:var(--rl);margin-bottom:7px;cursor:pointer" onclick="admReadNotif('${esc(n.id)}',this)">
+        <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.78rem" class="${colors[n.type]||'badge-blue'}"><i class="fas ${icons[n.type]||'fa-info-circle'}"></i></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:${n.read?'400':'600'};color:${n.read?'var(--t2)':'var(--t1)'};margin-bottom:2px">${esc(n.title)}</div>
+          <div style="font-size:.7rem;color:var(--t3);line-height:1.5">${esc(n.body)}</div>
+          <div style="font-size:.6rem;color:var(--t4);margin-top:4px">${D(n.created_at)}</div>
+        </div>
+        ${!n.read?'<div style="width:8px;height:8px;background:var(--gold);border-radius:50%;flex-shrink:0;margin-top:4px"></div>':''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+async function admReadNotif(id, rowEl){
+  if(!sb)return;
+  if(rowEl){
+    rowEl.style.background='var(--bg3)';
+    rowEl.style.border='1px solid var(--bd)';
+    const dot=rowEl.querySelector('[style*="background:var(--gold)"]');
+    if(dot)dot.remove();
+  }
+  await sb.from('notifications').update({read:true}).eq('id',id).catch(()=>{});
+}
+async function admMarkAllNotifsRead(){
+  if(!sb||!user)return;
+  await sb.from('notifications').update({read:true}).eq('user_id',user.id).catch(()=>{});
+  toast('All notifications marked as read','ok');
+  renderAdmNotifications();
+}
+
+/* ── Push notification to ALL admins ── */
+async function notifyAllAdmins({type='system',title,body}){
+  if(!sb)return;
+  try{
+    const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');
+    for(const a of(admins||[])){
+      await sb.from('notifications').insert([{user_id:a.id,type,title,body,read:false}]).catch(()=>{});
+    }
+  }catch{}
+}
+
+async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('id,customer_name,customer_phone,delivery_address,items,total,status,notes,user_id,created_at').order('created_at',{ascending:false}).limit(200);el.innerHTML=`<div class="adm-section"><h3>All Orders (${data?.length||0})</h3>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" onclick="window.open('https://wa.me/'+getWANum(),'_blank','noopener,noreferrer')" href="#"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
 async function updateOrderStatus(id,status){
   if(userRole!=='admin'||!sb)return;
   const{data:ord,error}=await sb.from('orders').update({status}).eq('id',id).select('user_id,customer_name,total').single();
@@ -3187,7 +3836,7 @@ async function renderAdmUsers(){
     </div>
     <div class="form-row">
       <div class="fg"><label class="flbl">Password *</label><input type="password" class="fi" id="nu-pw" placeholder="Min 8 chars" maxlength="128"></div>
-      <div class="fg"><label class="flbl">Role</label><select class="fsel" id="nu-role"><option value="customer">Customer</option><option value="admin">Admin</option></select></div>
+      <div class="fg"><label class="flbl">Role</label><select class="fsel" id="nu-role"><option value="customer">Customer</option><option value="agent">Agent</option><option value="admin">Admin</option></select></div>
     </div>
     <button class="btn btn-gold btn-full" id="nu-btn" onclick="admCreateUser()"><i class="fas fa-user-plus"></i>Create User</button>
   </div>
@@ -3199,18 +3848,21 @@ async function renderAdmUsers(){
     <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Visits</th><th>Last Seen</th><th>Phone</th><th>Actions</th></tr></thead><tbody>
     ${users.map(u=>{
       const isCurrentAdmin=u.role==='admin';
+      const isCurrentAgent=u.role==='agent'||u.role==='banned_agent';
       const isSelf=u.id===user?.id;
       const lastSeen=u.last_visit?D(u.last_visit).split(',')[0]:'Never';
       const visits=u.visit_count||0;
       return `<tr>
-        <td class="td-name">${esc(u.full_name||'—')}${isSelf?'<span class="badge badge-amber" style="margin-left:5px;font-size:.5rem">You</span>':''}</td>
+        <td class="td-name">${esc(u.full_name||'—')}${isSelf?'<span class="badge badge-amber" style="margin-left:5px;font-size:.5rem">You</span>':''}${u.role==='agent'?'<span class="badge badge-green" style="margin-left:5px;font-size:.5rem">Agent</span>':u.role==='banned_agent'?'<span class="badge badge-red" style="margin-left:5px;font-size:.5rem">Banned</span>':''}</td>
         <td class="td-sm" style="font-size:.62rem">${esc(u.email||u.phone||'—')}</td>
         <td>
           ${isSelf
             ? `<span class="badge badge-purple"><i class="fas fa-shield-alt" style="margin-right:3px;font-size:.5rem"></i>Admin</span>`
             : `<select style="background:var(--bg3);border:1px solid var(--bd);border-radius:4px;font-size:.62rem;color:var(--t2);padding:3px 6px;cursor:pointer" onchange="setUserRole('${esc(u.id)}',this.value,this)">
-                <option value="customer" ${(u.role||'customer')==='customer'?'selected':''}>Customer</option>
-                <option value="admin"    ${isCurrentAdmin?'selected':''}>Admin</option>
+                <option value="customer"      ${(u.role||'customer')==='customer'?'selected':''}>Customer</option>
+                <option value="agent"         ${u.role==='agent'?'selected':''}>Agent</option>
+                <option value="banned_agent"  ${u.role==='banned_agent'?'selected':''}>Suspended Agent</option>
+                <option value="admin"         ${isCurrentAdmin?'selected':''}>Admin</option>
               </select>`
           }
         </td>
@@ -3284,7 +3936,15 @@ async function admCreateUser(){
       await pushDBNotif({type:'welcome',title:'Welcome to Tote & Tread!',body:`Hi ${name}, your account has been created. Start exploring our collection.`,targetUserId:data.user.id});
     }
     ['nu-name','nu-email','nu-pw'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-    toast('User created! Confirmation email sent.','ok');
+    toast('User created! Confirmation email sent.','ok');notifyAllAdmins({type:'user',title:'User Created by Admin',body:`Admin created account for ${name} (${email}) with role: ${role}.`}).catch(()=>{});
+    // If created as agent, auto-create approved application record
+    if(role==='agent'&&data?.user){
+      await new Promise(r=>setTimeout(r,1500));
+      await sb.from('agent_applications').insert([{
+        user_id:data.user.id,name,email,phone:'',location:'Kenya',status:'approved'
+      }]).catch(()=>{});
+      await pushDBNotif({type:'welcome',title:'Agent Account Created! 🎉',body:'Your account has been set up with agent access. Open your Agent Dashboard in the Account tab.',targetUserId:data.user.id}).catch(()=>{});
+    }
     renderAdmUsers();
   }catch(e){btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create User';toast('Error: '+e.message,'er');}
 }
@@ -3300,14 +3960,35 @@ async function admDeleteUser(userId,name,email){
 async function setUserRole(userId, newRole, selectEl){
   if(userRole!=='admin'||!sb)return;
   const{error}=await sb.from('profiles').update({role:newRole}).eq('id',userId);
-  if(error){toast(error.message,'er');if(selectEl)selectEl.value=newRole==='admin'?'customer':'admin';return;}
-  toast(`Role updated to ${newRole} ✓`,'ok');
+  if(error){toast(error.message,'er');if(selectEl)selectEl.value='customer';return;}
+  toast(`Role updated to ${newRole} ✓`,'ok');notifyAllAdmins({type:'admin',title:'User Role Changed',body:`A user's role was updated to ${newRole}.`}).catch(()=>{});
+  // If upgrading to agent, auto-create/approve their agent application
+  if(newRole==='agent'){
+    // Check if they already have an application
+    const{data:existingApp}=await sb.from('agent_applications').select('id,status').eq('user_id',userId).maybeSingle();
+    if(existingApp){
+      // Update existing to approved
+      await sb.from('agent_applications').update({status:'approved'}).eq('user_id',userId).catch(()=>{});
+    } else {
+      // Get their profile info to create an application record
+      const{data:prof}=await sb.from('profiles').select('full_name,email,phone').eq('id',userId).single().catch(()=>({data:null}));
+      await sb.from('agent_applications').insert([{
+        user_id:userId, name:prof?.full_name||'Agent', email:prof?.email||'',
+        phone:prof?.phone||'', location:'Kenya', status:'approved'
+      }]).catch(()=>{});
+    }
+    // Notify the user
+    await pushDBNotif({type:'welcome',title:'You are now an Agent! 🎉',body:'Your account has been upgraded to Agent. Open your Agent Dashboard in the Account tab to get started.',targetUserId:userId}).catch(()=>{});
+  }
+  if(newRole==='banned_agent'){
+    await pushDBNotif({type:'warning',title:'Agent Account Suspended',body:'Your agent account has been suspended. Contact support if you believe this is an error.',targetUserId:userId}).catch(()=>{});
+  }
 }
 let editingUser=null;
-function openEditUser(u){editingUser=u;const body=document.getElementById('edit-user-body');body.innerHTML=`<div class="fg"><label class="flbl">Full Name</label><input type="text" class="fi" id="eu-name" value="${esc(u.full_name||'')}" maxlength="100"></div><div class="fg"><label class="flbl">Email</label><input type="email" class="fi" id="eu-email" value="${esc(u.email||'')}" maxlength="200" disabled style="opacity:.5"></div><div class="fg"><label class="flbl">Phone</label><input type="tel" class="fi" id="eu-phone" value="${esc(u.phone||'')}" maxlength="20"></div><div class="fg"><label class="flbl">Role</label><select class="fsel" id="eu-role"><option value="customer" ${u.role==='customer'?'selected':''}>Customer</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select></div><button class="btn btn-gold btn-full" onclick="saveEditUser()"><i class="fas fa-save"></i>Save Changes</button>`;document.getElementById('edit-user-modal').classList.add('on');showOvl();}
+function openEditUser(u){editingUser=u;const body=document.getElementById('edit-user-body');body.innerHTML=`<div class="fg"><label class="flbl">Full Name</label><input type="text" class="fi" id="eu-name" value="${esc(u.full_name||'')}" maxlength="100"></div><div class="fg"><label class="flbl">Email</label><input type="email" class="fi" id="eu-email" value="${esc(u.email||'')}" maxlength="200" disabled style="opacity:.5"></div><div class="fg"><label class="flbl">Phone</label><input type="tel" class="fi" id="eu-phone" value="${esc(u.phone||'')}" maxlength="20"></div><div class="fg"><label class="flbl">Role</label><select class="fsel" id="eu-role"><option value="customer" ${u.role==='customer'?'selected':''}>Customer</option><option value="agent" ${u.role==='agent'?'selected':''}>Agent</option><option value="banned_agent" ${u.role==='banned_agent'?'selected':''}>Suspended Agent</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select></div><button class="btn btn-gold btn-full" onclick="saveEditUser()"><i class="fas fa-save"></i>Save Changes</button>`;document.getElementById('edit-user-modal').classList.add('on');showOvl();}
 function closeEditUser(){document.getElementById('edit-user-modal')?.classList.remove('on');hideOvl();editingUser=null;}
 async function saveEditUser(){if(!editingUser||userRole!=='admin'||!sb)return;const name=document.getElementById('eu-name')?.value?.trim(),phone=document.getElementById('eu-phone')?.value?.trim(),role=document.getElementById('eu-role')?.value;const{error}=await sb.from('profiles').update({full_name:name,phone:phone||null,role}).eq('id',editingUser.id);if(error){toast(error.message,'er');return;}toast('User updated!','ok');closeEditUser();renderAdmUsers();}
-function openSendRecovery(u){const body=document.getElementById('recovery-body');const code=Math.random().toString(36).slice(2,8).toUpperCase();body.innerHTML=`<p style="font-size:.78rem;color:var(--t3);margin-bottom:14px;line-height:1.65">Generate a temporary recovery code for <strong style="color:var(--t1)">${esc(u.name||u.email||'this user')}</strong>.</p><div class="card card-p" style="margin-bottom:14px;text-align:center"><span class="sec-eyebrow">Recovery Code</span><div style="font-family:var(--fd);font-size:2rem;color:var(--gold);letter-spacing:.18em;margin:10px 0">${code}</div><p style="font-size:.66rem;color:var(--t3)">Expires in 48 hours</p></div><button class="btn btn-gold btn-full" onclick="sendRecoveryCode('${esc(u.id)}','${esc(u.email)}','${code}')"><i class="fas fa-paper-plane"></i>Store &amp; Copy Code</button><button class="btn btn-ghost btn-full btn-sm" onclick="copyText('${code}')" style="margin-top:8px"><i class="fas fa-copy"></i>Copy Code</button>`;document.getElementById('recovery-modal').classList.add('on');showOvl();}
+function openSendRecovery(u){const body=document.getElementById('recovery-body');const code=Array.from(crypto.getRandomValues(new Uint8Array(6))).map(b=>(b%36).toString(36)).join('').toUpperCase().slice(0,8);body.innerHTML=`<p style="font-size:.78rem;color:var(--t3);margin-bottom:14px;line-height:1.65">Generate a temporary recovery code for <strong style="color:var(--t1)">${esc(u.name||u.email||'this user')}</strong>.</p><div class="card card-p" style="margin-bottom:14px;text-align:center"><span class="sec-eyebrow">Recovery Code</span><div style="font-family:var(--fd);font-size:2rem;color:var(--gold);letter-spacing:.18em;margin:10px 0">${code}</div><p style="font-size:.66rem;color:var(--t3)">Expires in 48 hours</p></div><button class="btn btn-gold btn-full" onclick="sendRecoveryCode('${esc(u.id)}','${esc(u.email)}','${code}')"><i class="fas fa-paper-plane"></i>Store &amp; Copy Code</button><button class="btn btn-ghost btn-full btn-sm" onclick="copyText('${code}')" style="margin-top:8px"><i class="fas fa-copy"></i>Copy Code</button>`;document.getElementById('recovery-modal').classList.add('on');showOvl();}
 function closeRecovery(){document.getElementById('recovery-modal')?.classList.remove('on');hideOvl();}
 async function sendRecoveryCode(userId,email,code){if(userRole!=='admin')return;if(sb)await sb.from('recovery_codes').insert([{user_id:userId,email,code}]).catch(()=>{});copyText(code);closeRecovery();toast('Code stored & copied to clipboard!','ok');}
 async function renderAdmMessages(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const[{data:msgs},{data:fb},{data:sugg}]=await Promise.all([sb.from('contact_messages').select('*').order('created_at',{ascending:false}),sb.from('feedback').select('*').order('created_at',{ascending:false}),sb.from('suggestions').select('*').order('created_at',{ascending:false})]);el.innerHTML=`<div class="adm-section"><h3>Contact (${(msgs||[]).length})</h3>${(msgs||[]).length?msgs.map(m=>`<div class="card card-p" style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(m.name||'—')}</span><span style="font-size:.6rem;color:var(--t3)">${D(m.created_at)}</span></div><div style="font-size:.7rem;color:var(--t3);margin-bottom:4px">${esc(m.email||'')}${m.phone?' · '+esc(m.phone):''}</div>${m.subject?`<div style="font-size:.72rem;font-weight:500;color:var(--gold);margin-bottom:4px">${esc(m.subject)}</div>`:''}<p style="font-size:.76rem;color:var(--t2);line-height:1.6">${esc(m.message)}</p><a href="mailto:${esc(m.email||'')}" class="btn btn-ghost btn-xs" style="margin-top:8px">Reply</a></div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No messages.</p>'}</div><div class="adm-section"><h3>Feedback (${(fb||[]).length})</h3>${(fb||[]).length?fb.map(f=>`<div style="display:flex;align-items:center;gap:10px;padding:9px;border-bottom:1px solid var(--bd)"><span style="color:var(--gold)">${'★'.repeat(f.rating||0)}${'☆'.repeat(5-(f.rating||0))}</span><span style="font-size:.76rem;color:var(--t2);flex:1">${esc(f.comment||'')}</span><span style="font-size:.6rem;color:var(--t3)">${D(f.created_at).split(',')[0]}</span></div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No feedback.</p>'}</div><div class="adm-section"><h3>Suggestions (${(sugg||[]).length})</h3>${(sugg||[]).length?sugg.map(s=>`<div class="card card-p" style="margin-bottom:9px"><p style="font-size:.78rem;color:var(--t2);line-height:1.65;margin-bottom:4px">${esc(s.suggestion)}</p>${s.email?`<div style="font-size:.66rem;color:var(--t3)">${esc(s.email)}</div>`:''}</div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No suggestions.</p>'}</div>`;}
@@ -3458,6 +4139,755 @@ function bcOpenEmail(){
   window.open(mailto,'_blank');
   toast('Mail client opened with BCC to '+emails.length+' addresses','ok');
 }
+/* ════════ ADMIN AGENTS ════════ */
+async function renderAdmAgents(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  const[{data:apps},{data:agentProfiles}]=await Promise.all([
+    sb.from('agent_applications').select('*').order('created_at',{ascending:false}),
+    sb.from('profiles').select('id,full_name,email,phone,role,visit_count,last_visit').in('role',['agent','banned_agent'])
+  ]);
+  const allApps=apps||[];
+  const pending=allApps.filter(a=>a.status==='pending');
+  const approved=allApps.filter(a=>a.status==='approved');
+  const denied=allApps.filter(a=>a.status==='denied');
+  const agents=agentProfiles||[];
+  el.innerHTML=`
+  <!-- Pending Applications -->
+  <div class="adm-section">
+    <h3>Pending Applications (${pending.length})</h3>
+    ${!pending.length?'<p style="font-size:.76rem;color:var(--t3)">No pending applications.</p>':
+    pending.map(app=>`<div style="background:var(--bg3);border:1px solid var(--gold-a25);border-radius:var(--rl);padding:13px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-size:.88rem;font-weight:600;color:var(--t1)">${esc(app.name)}</div>
+          <div style="font-size:.66rem;color:var(--t3);margin-top:2px">${esc(app.email)} · ${esc(app.phone||'')}</div>
+          <div style="font-size:.66rem;color:var(--t3)">${esc(app.location||'')} · ${esc(app.channel||'')} · ${D(app.created_at).split(',')[0]}</div>
+        </div>
+        <span class="badge badge-amber">Pending</span>
+      </div>
+      ${app.bio?`<p style="font-size:.74rem;color:var(--t2);line-height:1.55;margin-bottom:10px">${esc(app.bio)}</p>`:''}
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green btn-sm" style="flex:1" onclick="admApproveAgent('${esc(app.id)}','${esc(app.user_id||'')}','${esc(app.name)}','${esc(app.email)}')"><i class="fas fa-check"></i>Approve</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1;color:var(--red)" onclick="admDenyAgent('${esc(app.id)}','${esc(app.name)}')"><i class="fas fa-times"></i>Deny</button>
+      </div>
+    </div>`).join('')}
+  </div>
+
+  <!-- Active Agents -->
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
+    <h3>Active Agents (${agents.filter(a=>a.role==='agent').length})</h3>
+    ${!agents.filter(a=>a.role==='agent').length?'<p style="font-size:.76rem;color:var(--t3)">No active agents yet.</p>':
+    `<table><thead><tr><th>Name</th><th>Email</th><th>Visits</th><th>Last Seen</th><th>Actions</th></tr></thead><tbody>
+    ${agents.filter(a=>a.role==='agent').map(a=>`<tr>
+      <td class="td-name">${esc(a.full_name||'—')}</td>
+      <td style="font-size:.62rem">${esc(a.email||'—')}</td>
+      <td style="text-align:center;color:var(--gold)">${a.visit_count||0}</td>
+      <td style="font-size:.6rem;color:var(--t3)">${a.last_visit?D(a.last_visit).split(',')[0]:'Never'}</td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="admBanAgent('${esc(a.id)}','${esc(a.full_name||a.email||'')}')"><i class="fas fa-ban"></i></button>
+        <button class="btn btn-ghost btn-xs" onclick="admSendAgentNotif('${esc(a.id)}','${esc(a.full_name||'')}')"><i class="fas fa-bell"></i></button>
+      </td>
+    </tr>`).join('')}
+    </tbody></table>`}
+  </div>
+
+  <!-- Banned Agents -->
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
+    <h3>Suspended Agents (${agents.filter(a=>a.role==='banned_agent').length})</h3>
+    ${!agents.filter(a=>a.role==='banned_agent').length?'<p style="font-size:.76rem;color:var(--t3)">No suspended agents.</p>':
+    `<table><thead><tr><th>Name</th><th>Email</th><th>Actions</th></tr></thead><tbody>
+    ${agents.filter(a=>a.role==='banned_agent').map(a=>`<tr>
+      <td class="td-name">${esc(a.full_name||'—')}</td>
+      <td style="font-size:.62rem">${esc(a.email||'—')}</td>
+      <td><button class="btn btn-green btn-xs" onclick="admUnbanAgent('${esc(a.id)}','${esc(a.full_name||'')}')"><i class="fas fa-undo"></i> Reinstate</button></td>
+    </tr>`).join('')}
+    </tbody></table>`}
+  </div>
+
+  <!-- Denied / History -->
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
+    <h3>Denied Applications (${denied.length})</h3>
+    ${!denied.length?'<p style="font-size:.76rem;color:var(--t3)">None.</p>':
+    denied.map(app=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px">
+      <div style="flex:1"><div style="font-size:.78rem;color:var(--t2)">${esc(app.name)}</div><div style="font-size:.62rem;color:var(--t3)">${esc(app.email)}</div></div>
+      <span class="badge badge-red">Denied</span>
+      <button class="btn btn-ghost btn-xs" onclick="admApproveAgent('${esc(app.id)}','${esc(app.user_id||'')}','${esc(app.name)}','${esc(app.email)}')"><i class="fas fa-redo"></i></button>
+    </div>`).join('')}
+  </div>`;
+}
+
+async function admApproveAgent(appId, userId, name, email){
+  if(!sb||userRole!=='admin')return;
+  const ok=await popupConfirm('Approve Agent',`Approve ${name} as an agent? They will get agent access and be notified.`,'Approve','Cancel');
+  if(!ok)return;
+  // Update application status
+  await sb.from('agent_applications').update({status:'approved'}).eq('id',appId);
+  // Set role in profiles if user has an account
+  if(userId){
+    await sb.from('profiles').update({role:'agent'}).eq('id',userId);
+    // Notify the agent
+    await pushDBNotif({type:'welcome',title:'Agent Application Approved! 🎉',body:'Congratulations! Your agent application has been approved. You now have access to your Agent Dashboard.',targetUserId:userId}).catch(()=>{});
+  }
+  toast(`${name} approved as agent ✓`,'ok');notifyAllAdmins({type:'user',title:'Agent Approved',body:`${name} has been approved as an agent.`}).catch(()=>{});
+  renderAdmAgents();
+}
+
+async function admDenyAgent(appId, name){
+  if(!sb||userRole!=='admin')return;
+  const ok=await popupConfirm('Deny Application',`Deny ${name}'s agent application?`,'Deny','Cancel');
+  if(!ok)return;
+  await sb.from('agent_applications').update({status:'denied'}).eq('id',appId);
+  toast(`${name}'s application denied`,'nf');notifyAllAdmins({type:'warning',title:'Agent Application Denied',body:`${name}'s agent application was denied.`}).catch(()=>{});
+  renderAdmAgents();
+}
+
+async function admBanAgent(userId, name){
+  if(!sb||userRole!=='admin')return;
+  const ok=await popupConfirm('Suspend Agent',`Suspend ${name}'s agent access? They will see a suspension notice in their account.`,'Suspend','Cancel');
+  if(!ok)return;
+  await sb.from('profiles').update({role:'banned_agent'}).eq('id',userId);
+  await pushDBNotif({type:'warning',title:'Agent Account Suspended',body:'Your agent account has been suspended. Please contact support if you believe this is an error.',targetUserId:userId}).catch(()=>{});
+  toast(`${name} suspended`,'ok');notifyAllAdmins({type:'warning',title:'Agent Suspended',body:`${name} has been suspended from agent access.`}).catch(()=>{});
+  renderAdmAgents();
+}
+
+async function admUnbanAgent(userId, name){
+  if(!sb||userRole!=='admin')return;
+  await sb.from('profiles').update({role:'agent'}).eq('id',userId);
+  await pushDBNotif({type:'welcome',title:'Agent Account Reinstated',body:'Your agent account has been reinstated. Welcome back!',targetUserId:userId}).catch(()=>{});
+  toast(`${name} reinstated`,'ok');
+  renderAdmAgents();
+}
+
+async function admSendAgentNotif(userId, name){
+  const msg=prompt(`Send a notification to ${name}:`);
+  if(!msg||!msg.trim())return;
+  await pushDBNotif({type:'admin',title:'Message from Tote & Tread',body:msg.trim(),targetUserId:userId}).catch(()=>{});
+  toast('Message sent','ok');
+}
+
+/* ════════ AGENT DASHBOARD (user-facing) ════════ */
+async function openAgentDashboard(){
+  if(userRole!=='agent'){toast('Agent access required','er');return;}
+  openSub('agent-dashboard');
+  await renderAgentDashboard();
+}
+
+async function renderAgentDashboard(){
+  const el=document.getElementById('agent-dash-body');
+  if(!el||!sb)return;
+  el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+  const[{data:app},{data:myAdverts},{data:myGallery}]=await Promise.all([
+    sb.from('agent_applications').select('*').eq('user_id',user.id).maybeSingle(),
+    sb.from('app_settings').select('key,value').like('key','advert_%'),
+    sb.from('app_settings').select('key,value').like('key','gallery_%')
+  ]);
+  const agentAdverts=(myAdverts||[]).map(r=>{try{const v=JSON.parse(r.value);return v.agent_id===user.id?{...v,_key:r.key}:null;}catch{return null;}}).filter(Boolean);
+  const agentGallery=(myGallery||[]).map(r=>{try{const v=JSON.parse(r.value);return v.agent_id===user.id?{...v,_key:r.key}:null;}catch{return null;}}).filter(Boolean);
+
+  el.innerHTML=`
+    <!-- Status Card -->
+    <div style="background:linear-gradient(135deg,#0a1a0a,#142014);border:1px solid rgba(50,200,100,.25);border-radius:var(--rxl);padding:16px;margin-bottom:14px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:radial-gradient(circle,rgba(50,200,100,.1) 0%,transparent 70%);pointer-events:none"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="width:44px;height:44px;background:rgba(50,200,100,.15);border:1px solid rgba(50,200,100,.3);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#32C864;font-size:1.1rem;flex-shrink:0"><i class="fas fa-handshake"></i></div>
+        <div style="flex:1">
+          <div style="font-family:var(--fd);font-size:1rem;color:#32C864;margin-bottom:2px">Agent Account</div>
+          <div style="font-size:.64rem;color:var(--t3)">Active · Earn 15% commission per sale</div>
+        </div>
+        <span style="font-size:.56rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:rgba(50,200,100,.15);border:1px solid rgba(50,200,100,.3);color:#32C864;padding:3px 9px;border-radius:20px">Active</span>
+      </div>
+      ${app?`<div style="display:flex;flex-wrap:wrap;gap:10px;font-size:.66rem;color:var(--t3)">
+        <span><i class="fas fa-map-marker-alt" style="color:#32C864;margin-right:4px"></i>${esc(app.location||'—')}</span>
+        <span><i class="fas fa-store" style="color:#32C864;margin-right:4px"></i>${esc(app.channel||'—')}</span>
+      </div>`:''}
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:10px;text-align:center">
+        <div style="font-family:var(--fd);font-size:1.4rem;color:var(--gold)">${agentAdverts.length}</div>
+        <div style="font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-top:2px">Adverts</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:10px;text-align:center">
+        <div style="font-family:var(--fd);font-size:1.4rem;color:var(--gold)">${agentGallery.length}</div>
+        <div style="font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-top:2px">Gallery</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:10px;text-align:center">
+        <div style="font-family:var(--fd);font-size:1rem;color:#32C864;margin-top:4px">Live</div>
+        <div style="font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-top:2px">Status</div>
+      </div>
+    </div>
+
+    <!-- Tab bar -->
+    <div style="display:flex;gap:4px;margin-bottom:14px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:4px">
+      <button id="ag-tab-adv" style="flex:1;padding:7px;font-size:.66rem;font-family:var(--fb);border:none;border-radius:6px;cursor:pointer;background:rgba(50,200,100,.15);color:#32C864;font-weight:600;transition:all .2s" onclick="agSwitchTab('adv')">📢 Adverts</button>
+      <button id="ag-tab-gal" style="flex:1;padding:7px;font-size:.66rem;font-family:var(--fb);border:none;border-radius:6px;cursor:pointer;background:transparent;color:var(--t3);transition:all .2s" onclick="agSwitchTab('gal')">🖼️ Gallery</button>
+    </div>
+
+    <!-- ADVERTS panel -->
+    <div id="ag-panel-adv">
+      <!-- Single button opens unified modal -->
+      <button class="btn btn-green btn-full" style="margin-bottom:14px" onclick="agOpenAdvertModal()"><i class="fas fa-plus"></i> New Advert</button>
+
+      <!-- Adverts list -->
+      <div style="font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;color:var(--t4);margin-bottom:8px">My Active Adverts (${agentAdverts.length})</div>
+      ${!agentAdverts.length?'<p style="font-size:.74rem;color:var(--t3);padding:8px 0">No adverts yet. Create one to promote products!</p>':
+      agentAdverts.map(av=>`<div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;margin-bottom:8px">
+        ${av.img?`<img src="${esc(av.img)}" style="width:100%;height:90px;object-fit:cover;display:block" loading="lazy">`:''}
+        <div style="padding:10px 12px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:2px">${esc(av.title||'')}</div>
+              <div style="font-size:.64rem;color:var(--t3)">${esc(av.subtitle||'')}</div>
+              <div style="display:flex;gap:8px;margin-top:5px;font-size:.6rem;color:var(--t3)">
+                <span><i class="fas fa-map-marker-alt" style="color:var(--gold);margin-right:3px"></i>${esc(av.placement||'home')}</span>
+                <span><i class="fas fa-clock" style="margin-right:3px"></i>${av.expires_at?'Expires '+D(av.expires_at).split(',')[0]:'Manual removal'}</span>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-xs" style="color:var(--red);flex-shrink:0" onclick="agentRemoveAdvert('${esc(av._key)}')"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <!-- GALLERY panel (hidden by default) -->
+    <div id="ag-panel-gal" style="display:none">
+      <!-- Single button opens unified modal -->
+      <button class="btn btn-green btn-full" style="margin-bottom:14px" onclick="agOpenGalleryModal()"><i class="fas fa-plus"></i> New Gallery Item</button>
+
+      <!-- Gallery list -->
+      <div style="font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;color:var(--t4);margin-bottom:8px">My Gallery Items (${agentGallery.length})</div>
+      ${!agentGallery.length?'<p style="font-size:.74rem;color:var(--t3);padding:8px 0">No gallery items yet.</p>':
+      agentGallery.map(it=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:8px">
+        ${it.img?`<img src="${esc(it.img)}" style="width:48px;height:48px;object-fit:cover;border-radius:9px;flex-shrink:0" loading="lazy">`:'<div style="width:48px;height:48px;background:var(--bg4);border-radius:9px;flex-shrink:0"></div>'}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(it.title||'')}</div>
+          <div style="font-size:.64rem;color:var(--t3);margin-top:2px">${esc(it.desc||'')}</div>
+        </div>
+        <button class="btn btn-ghost btn-xs" style="color:var(--red);flex-shrink:0" onclick="agentRemoveGallery('${esc(it._key)}')"><i class="fas fa-trash"></i></button>
+      </div>`).join('')}
+    </div>
+
+    <!-- WhatsApp Support -->
+    <div style="margin-top:16px;padding:13px 14px;background:rgba(37,211,102,.07);border:1px solid rgba(37,211,102,.2);border-radius:var(--r);text-align:center">
+      <div style="font-size:.72rem;color:var(--t2);margin-bottom:8px">Need help or want to report a sale?</div>
+      <a class="btn btn-green btn-sm" href="https://wa.me/254107545752" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp"></i> Contact Support</a>
+    </div>
+    <div style="height:16px"></div>`;
+}
+
+/* ═══ AGENT MODAL FUNCTIONS ═══ */
+function agOpenAdvertModal(){
+  // Reset form
+  document.getElementById('ag-av-img-url').value='';
+  document.getElementById('ag-av-title').value='';
+  document.getElementById('ag-av-sub').value='';
+  document.getElementById('ag-av-link').value='';
+  document.getElementById('ag-av-placement').value='home';
+  document.getElementById('ag-av-duration').value='0';
+  document.getElementById('ag-av-err').style.display='none';
+  document.getElementById('ag-av-preview-img').style.display='none';
+  document.getElementById('ag-av-preview-img').src='';
+  document.getElementById('ag-av-preview-placeholder').style.display='';
+  document.getElementById('ag-av-uploading').style.display='none';
+  const btn=document.getElementById('ag-av-publish-btn');
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
+  document.getElementById('ag-advert-modal').classList.add('on');
+  showOvl();
+}
+function agCloseAdvertModal(){
+  document.getElementById('ag-advert-modal')?.classList.remove('on');
+  hideOvl();
+}
+async function agHandleAdvertImg(input){
+  const file=input.files[0];
+  if(!file)return;
+  if(file.size>5*1024*1024){toast('Image too large (max 5MB)','er');return;}
+  // Show local preview instantly
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=document.getElementById('ag-av-preview-img');
+    const ph=document.getElementById('ag-av-preview-placeholder');
+    if(img){img.src=e.target.result;img.style.display='block';}
+    if(ph)ph.style.display='none';
+  };
+  reader.readAsDataURL(file);
+  // Disable publish button while upload is in progress
+  const publishBtn=document.getElementById('ag-av-publish-btn');
+  if(publishBtn){publishBtn.disabled=true;publishBtn.innerHTML='<span class="spin" style="display:inline-block;width:12px;height:12px;border:2px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span>Uploading image…';}
+  // Upload to Supabase
+  if(!sb){
+    if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
+    toast('Storage not configured','er');return;
+  }
+  const uploading=document.getElementById('ag-av-uploading');
+  if(uploading)uploading.style.display='flex';
+  const ext=file.name.split('.').pop()||'jpg';
+  const path=`agent/${user.id}/advert_${Date.now()}.${ext}`;
+  try{
+    const{error}=await sb.storage.from('products').upload(path,file,{upsert:true,contentType:file.type});
+    if(uploading)uploading.style.display='none';
+    if(error){
+      if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
+      toast('Upload failed: '+error.message,'er');return;
+    }
+    const{data}=sb.storage.from('products').getPublicUrl(path);
+    if(data?.publicUrl){
+      document.getElementById('ag-av-img-url').value=data.publicUrl;
+      // Re-enable publish button now that upload is done
+      if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
+      toast('Image ready ✓','ok');
+    }
+  }catch(e){
+    if(uploading)uploading.style.display='none';
+    if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
+    toast('Upload error','er');
+  }
+}
+async function agSubmitAdvertModal(){
+  if(userRole!=='agent'){toast('Agent access required','er');return;}
+  const title=document.getElementById('ag-av-title')?.value?.trim();
+  const subtitle=document.getElementById('ag-av-sub')?.value?.trim()||'';
+  const imgUrl=document.getElementById('ag-av-img-url')?.value?.trim();
+  const link=document.getElementById('ag-av-link')?.value?.trim()||'';
+  const placement=document.getElementById('ag-av-placement')?.value||'home';
+  const duration=parseInt(document.getElementById('ag-av-duration')?.value||'0');
+  const errEl=document.getElementById('ag-av-err');
+  if(!title){errEl.textContent='Please enter a title';errEl.style.display='';return;}
+  if(!imgUrl){errEl.textContent='Image is still uploading — please wait a moment then tap Publish again';errEl.style.display='';return;}
+  errEl.style.display='none';
+  const btn=document.getElementById('ag-av-publish-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span>Publishing…';}
+  const id=Date.now();
+  const expires_at=duration>0?new Date(Date.now()+duration*1000).toISOString():null;
+  const advert={id,title,subtitle,img:imgUrl,link,placement,expires_at,created_at:new Date().toISOString(),agent_id:user.id,agent_name:user?.user_metadata?.full_name||user?.email||'Agent'};
+  if(sb){
+    const{error}=await sb.from('app_settings').upsert({key:`advert_${id}`,value:JSON.stringify(advert),updated_at:new Date().toISOString()});
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
+    if(error){errEl.textContent=error.message;errEl.style.display='';return;}
+  }
+  agCloseAdvertModal();
+  toast('Advert published! 🎯','ok');
+  await loadAndRenderAdverts();
+  await renderAgentDashboard();
+}
+
+function agOpenGalleryModal(){
+  document.getElementById('ag-gl-img-url').value='';
+  document.getElementById('ag-gl-title').value='';
+  document.getElementById('ag-gl-sub').value='';
+  document.getElementById('ag-gl-err').style.display='none';
+  document.getElementById('ag-gl-preview-img').style.display='none';
+  document.getElementById('ag-gl-preview-img').src='';
+  document.getElementById('ag-gl-preview-placeholder').style.display='';
+  document.getElementById('ag-gl-uploading').style.display='none';
+  const btn=document.getElementById('ag-gl-publish-btn');
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
+  document.getElementById('ag-gallery-modal').classList.add('on');
+  showOvl();
+}
+function agCloseGalleryModal(){
+  document.getElementById('ag-gallery-modal')?.classList.remove('on');
+  hideOvl();
+}
+async function agHandleGalleryImg(input){
+  const file=input.files[0];
+  if(!file)return;
+  if(file.size>5*1024*1024){toast('Image too large (max 5MB)','er');return;}
+  // Instant preview
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=document.getElementById('ag-gl-preview-img');
+    const ph=document.getElementById('ag-gl-preview-placeholder');
+    if(img){img.src=e.target.result;img.style.display='block';}
+    if(ph)ph.style.display='none';
+  };
+  reader.readAsDataURL(file);
+  // Disable publish button while uploading
+  const publishBtn=document.getElementById('ag-gl-publish-btn');
+  if(publishBtn){publishBtn.disabled=true;publishBtn.innerHTML='<span class="spin" style="display:inline-block;width:12px;height:12px;border:2px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span>Uploading image…';}
+  // Upload to Supabase
+  if(!sb){
+    if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
+    toast('Storage not configured','er');return;
+  }
+  const uploading=document.getElementById('ag-gl-uploading');
+  if(uploading)uploading.style.display='flex';
+  const ext=file.name.split('.').pop()||'jpg';
+  const path=`agent/${user.id}/gallery_${Date.now()}.${ext}`;
+  try{
+    const{error}=await sb.storage.from('products').upload(path,file,{upsert:true,contentType:file.type});
+    if(uploading)uploading.style.display='none';
+    if(error){
+      if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
+      toast('Upload failed: '+error.message,'er');return;
+    }
+    const{data}=sb.storage.from('products').getPublicUrl(path);
+    if(data?.publicUrl){
+      document.getElementById('ag-gl-img-url').value=data.publicUrl;
+      if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
+      toast('Image ready ✓','ok');
+    }
+  }catch(e){
+    if(uploading)uploading.style.display='none';
+    if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
+    toast('Upload error','er');
+  }
+}
+async function agSubmitGalleryModal(){
+  if(userRole!=='agent'){toast('Agent access required','er');return;}
+  const title=document.getElementById('ag-gl-title')?.value?.trim();
+  const desc=document.getElementById('ag-gl-sub')?.value?.trim()||'';
+  const imgUrl=document.getElementById('ag-gl-img-url')?.value?.trim();
+  const errEl=document.getElementById('ag-gl-err');
+  if(!title){errEl.textContent='Please enter a title';errEl.style.display='';return;}
+  if(!imgUrl){errEl.textContent='Image is still uploading — please wait a moment then tap Publish again';errEl.style.display='';return;}
+  errEl.style.display='none';
+  const btn=document.getElementById('ag-gl-publish-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span>Adding…';}
+  const id=Date.now();
+  const item={id,title,desc,img:imgUrl,tall:false,price:'',agent_id:user.id,agent_name:user?.user_metadata?.full_name||user?.email||'Agent'};
+  if(sb){
+    const{error}=await sb.from('app_settings').upsert({key:`gallery_${id}`,value:JSON.stringify(item),updated_at:new Date().toISOString()});
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
+    if(error){errEl.textContent=error.message;errEl.style.display='';return;}
+  }
+  agCloseGalleryModal();
+  toast('Gallery item added! ✓','ok');
+  await loadGalleryFromDB();
+  await renderAgentDashboard();
+}
+
+/* Agent dashboard helpers */
+function agSwitchTab(tab){
+  document.getElementById('ag-panel-adv').style.display=tab==='adv'?'':'none';
+  document.getElementById('ag-panel-gal').style.display=tab==='gal'?'':'none';
+  const a=document.getElementById('ag-tab-adv'),g=document.getElementById('ag-tab-gal');
+  if(a){a.style.background=tab==='adv'?'rgba(50,200,100,.15)':'transparent';a.style.color=tab==='adv'?'#32C864':'var(--t3)';a.style.fontWeight=tab==='adv'?'600':'400';}
+  if(g){g.style.background=tab==='gal'?'rgba(50,200,100,.15)':'transparent';g.style.color=tab==='gal'?'#32C864':'var(--t3)';g.style.fontWeight=tab==='gal'?'600':'400';}
+}
+function agToggleForm(id){
+  const fid='ag-'+id;
+  const f=document.getElementById(fid);
+  if(!f)return;
+  const show=f.style.display==='none';
+  // Hide both forms first
+  ['ag-adv-form','ag-gal-form'].forEach(x=>{const e=document.getElementById(x);if(e)e.style.display='none';});
+  if(show)f.style.display='';
+}
+
+
+async function agentRemoveAdvert(key){
+  const ok=await popupConfirm('Remove Advert','Remove your advert from the site?','Remove','Cancel');
+  if(!ok)return;
+  if(sb)await sb.from('app_settings').delete().eq('key',key);
+  await loadAndRenderAdverts();
+  await renderAgentDashboard();
+  toast('Advert removed','ok');
+}
+
+async function agentRemoveGallery(key){
+  const ok=await popupConfirm('Remove Gallery Item','Remove this item from the gallery?','Remove','Cancel');
+  if(!ok)return;
+  if(sb)await sb.from('app_settings').delete().eq('key',key);
+  await loadGalleryFromDB();
+  await renderAgentDashboard();
+  toast('Gallery item removed','ok');
+}
+
+/* ════════ ADMIN GALLERY ════════ */
+async function renderAdmGallery(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  // Load gallery from DB
+  const{data:rows}=await sb.from('app_settings').select('key,value').like('key','gallery_%');
+  const items=(rows||[]).map(r=>{try{return JSON.parse(r.value);}catch{return null;}}).filter(Boolean);
+  // Merge with GAL_DATA for display
+  el.innerHTML=`
+  <div class="adm-section">
+    <h3>Add Gallery Item</h3>
+    <div class="fg"><label class="flbl">Title *</label><input type="text" class="fi" id="gl-title" placeholder="e.g. Savanna Leather Tote" maxlength="100"></div>
+    <div class="fg"><label class="flbl">Subtitle</label><input type="text" class="fi" id="gl-sub" placeholder="e.g. Full-grain leather · KES 7,500" maxlength="150"></div>
+    <div class="fg"><label class="flbl">Image</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="url" class="fi" id="gl-img" placeholder="https://… or upload" maxlength="500" style="flex:1">
+        <label for="gl-img-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label>
+      </div>
+      <input type="file" id="gl-img-file" accept="image/*" style="display:none" onchange="admUploadGalleryImg(this)">
+      <div id="gl-img-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div class="fg" style="flex:1"><label class="flbl">Tall? (spans 2 rows)</label><select class="fsel" id="gl-tall"><option value="0">Normal</option><option value="1">Tall</option></select></div>
+    </div>
+    <button class="btn btn-gold btn-full" id="gl-add-btn" onclick="admAddGalleryItem()"><i class="fas fa-plus"></i>Add to Gallery</button>
+  </div>
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
+    <h3>Current Gallery (${items.length} custom + ${GAL_DATA.length} default)</h3>
+    <p style="font-size:.72rem;color:var(--t3);margin-bottom:10px">Custom items appear first. Default items are always shown.</p>
+    ${items.length?`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+    ${items.map((it,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl)">
+      <div style="width:48px;height:48px;border-radius:8px;overflow:hidden;flex-shrink:0;background:var(--bg4)">${it.img?`<img src="${esc(it.img)}" style="width:100%;height:100%;object-fit:cover">`:''}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(it.title||'')}</div><div style="font-size:.64rem;color:var(--t3)">${esc(it.desc||'')}</div>
+        ${it.agent_id?`<div style="font-size:.58rem;color:#32C864;margin-top:3px"><i class="fas fa-handshake" style="margin-right:3px"></i>Agent: ${esc(it.agent_name||it.agent_id)}</div>`:'<div style="font-size:.58rem;color:var(--gold);margin-top:3px"><i class="fas fa-shield-alt" style="margin-right:3px"></i>Admin</div>'}
+      </div>
+      <button class="btn btn-ghost btn-xs" style="color:var(--red);flex-shrink:0" onclick="admRemoveGalleryItem(${i})"><i class="fas fa-trash"></i></button>
+    </div>`).join('')}
+    </div>`:'<p style="font-size:.76rem;color:var(--t3);margin-bottom:12px">No custom gallery items yet.</p>'}
+    <h4 style="font-family:var(--fd);font-size:.88rem;color:var(--t2);margin-bottom:8px">Default Items</h4>
+    <div style="display:flex;flex-direction:column;gap:6px">
+    ${GAL_DATA.map((it,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);opacity:.7">
+      <div style="width:36px;height:36px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--bg4)"><img src="${esc(it.img)}" style="width:100%;height:100%;object-fit:cover" loading="lazy"></div>
+      <div style="flex:1;min-width:0"><div style="font-size:.76rem;color:var(--t2)">${esc(it.title||'')}</div></div>
+      <span style="font-size:.58rem;color:var(--t4)">default</span>
+    </div>`).join('')}
+    </div>
+  </div>`;
+}
+async function admUploadGalleryImg(input){
+  if(!input.files[0]||!sb)return;
+  const file=input.files[0];
+  if(file.size>5*1024*1024){toast('Image too large (max 5MB)','er');return;}
+  const ext=file.name.split('.').pop()||'jpg';
+  const path=`gallery/${Date.now()}_${Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b=>b.toString(16).padStart(2,'0')).join('')}.${ext}`;
+  document.getElementById('gl-img-progress').style.display='';
+  try{
+    const{error}=await sb.storage.from('products').upload(path,file,{upsert:true,contentType:file.type});
+    document.getElementById('gl-img-progress').style.display='none';
+    if(error){toast('Upload failed: '+error.message,'er');return;}
+    const{data}=sb.storage.from('products').getPublicUrl(path);
+    if(data?.publicUrl){const inp=document.getElementById('gl-img');if(inp)inp.value=data.publicUrl;toast('Image uploaded! ✓','ok');}
+  }catch(e){document.getElementById('gl-img-progress').style.display='none';toast('Upload error','er');}
+}
+async function admAddGalleryItem(){
+  if(!sb||userRole!=='admin')return;
+  const title=document.getElementById('gl-title')?.value?.trim();
+  const sub=document.getElementById('gl-sub')?.value?.trim();
+  const img=document.getElementById('gl-img')?.value?.trim();
+  const tall=document.getElementById('gl-tall')?.value==='1';
+  if(!title||!img){toast('Title and image are required','er');return;}
+  // Load existing items first
+  const{data:rows}=await sb.from('app_settings').select('key,value').like('key','gallery_%');
+  const items=(rows||[]).map(r=>{try{return JSON.parse(r.value);}catch{return null;}}).filter(Boolean);
+  const newItem={id:Date.now(),title,desc:sub||'',img,tall,price:''};
+  items.push(newItem);
+  // Save as individual key
+  const key=`gallery_${newItem.id}`;
+  const{error}=await sb.from('app_settings').upsert({key,value:JSON.stringify(newItem),updated_at:new Date().toISOString()});
+  if(error){toast(error.message,'er');return;}
+  toast('Gallery item added! ✓','ok');
+  ['gl-title','gl-sub','gl-img'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  await loadGalleryFromDB();
+  renderAdmGallery();
+}
+async function admRemoveGalleryItem(idx){
+  if(!sb||userRole!=='admin')return;
+  const ok=await popupConfirm('Remove Item','Remove this item from the gallery?','Remove','Cancel');
+  if(!ok)return;
+  const{data:rows}=await sb.from('app_settings').select('key,value').like('key','gallery_%');
+  if(!rows||!rows[idx])return;
+  await sb.from('app_settings').delete().eq('key',rows[idx].key);
+  toast('Gallery item removed','ok');
+  await loadGalleryFromDB();
+  renderAdmGallery();
+}
+async function loadGalleryFromDB(){
+  if(!sb)return;
+  try{
+    const{data}=await sb.from('app_settings').select('key,value').like('key','gallery_%');
+    const customItems=(data||[]).map(r=>{try{return JSON.parse(r.value);}catch{return null;}}).filter(Boolean);
+    // Merge: custom items first, then defaults
+    window._GALLERY_DATA=[...customItems,...GAL_DATA];
+    // Rebuild gallery HTML
+    const grid=document.getElementById('gal-grid-dynamic');
+    if(grid)renderGalleryGrid(grid,window._GALLERY_DATA);
+  }catch{}
+}
+function renderGalleryGrid(el,data){
+  el.innerHTML=data.map((it,i)=>`<div class="${it.tall?'gi tall':'gi'}" data-gal="${i}" tabindex="0" role="button"><img src="${esc(it.img)}" alt="${esc(it.title||'')}" loading="lazy"><div class="gi-ovl"><div class="gi-title">${esc(it.title||'')}</div><div class="gi-sub">${esc(it.desc||'')}</div></div><div class="gi-expand"><i class="fas fa-expand-alt"></i></div></div>`).join('');
+  el.querySelectorAll('.gi').forEach(gi=>{
+    gi.addEventListener('click',()=>openLBDynamic(parseInt(gi.dataset.gal),data));
+    gi.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openLBDynamic(parseInt(gi.dataset.gal),data);}});
+  });
+}
+function openLBDynamic(idx,data){
+  const src=data||window._GALLERY_DATA||GAL_DATA;
+  lbIdx=idx;
+  window._activeLBData=src;
+  const lb=document.getElementById('lightbox');if(!lb)return;
+  lb.classList.add('on');document.body.style.overflow='hidden';
+  renderLBDynamic();
+}
+function renderLBDynamic(){
+  const src=window._activeLBData||GAL_DATA;
+  const g=src[lbIdx];if(!g)return;
+  const img=document.getElementById('lb-img');const name=document.getElementById('lb-name');const desc=document.getElementById('lb-desc');const price=document.getElementById('lb-price');
+  if(img){img.src=esc(g.img||'');img.alt=esc(g.title||'');}
+  if(name)name.textContent=g.title||'';
+  if(desc)desc.textContent=g.desc||'';
+  if(price)price.textContent=g.price||'';
+  const dots=document.getElementById('lb-dots');
+  if(dots)dots.innerHTML=src.map((_,i)=>`<div class="lb-dot${i===lbIdx?' on':''}" onclick="lbIdx=${i};renderLBDynamic()"></div>`).join('');
+}
+
+/* ════════ ADMIN ADVERTS ════════ */
+let _advertTimers=[];
+async function renderAdmAdverts(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  const{data:rows}=await sb.from('app_settings').select('key,value').like('key','advert_%');
+  const adverts=(rows||[]).map(r=>{try{return{...JSON.parse(r.value),_key:r.key};}catch{return null;}}).filter(Boolean);
+  el.innerHTML=`
+  <div class="adm-section">
+    <h3>Create Advert</h3>
+    <div class="fg"><label class="flbl">Title *</label><input type="text" class="fi" id="av-title" placeholder="e.g. Weekend Sale — 20% Off!" maxlength="100"></div>
+    <div class="fg"><label class="flbl">Subtitle</label><input type="text" class="fi" id="av-sub" placeholder="e.g. Valid this weekend only" maxlength="150"></div>
+    <div class="fg"><label class="flbl">Image *</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="url" class="fi" id="av-img" placeholder="https://… or upload" maxlength="500" style="flex:1">
+        <label for="av-img-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i></label>
+      </div>
+      <input type="file" id="av-img-file" accept="image/*" style="display:none" onchange="admUploadAdvertImg(this)">
+      <div id="av-img-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div>
+    </div>
+    <div class="fg"><label class="flbl">Link (optional)</label><input type="url" class="fi" id="av-link" placeholder="https://… or leave empty" maxlength="300"></div>
+    <div class="form-row">
+      <div class="fg"><label class="flbl">Show On</label><select class="fsel" id="av-placement"><option value="home">Home</option><option value="shop">Shop</option><option value="gallery">Gallery</option><option value="all">All Pages</option></select></div>
+      <div class="fg"><label class="flbl">Auto-remove After</label><select class="fsel" id="av-duration"><option value="0">Manual only</option><option value="3600">1 hour</option><option value="21600">6 hours</option><option value="86400">1 day</option><option value="259200">3 days</option><option value="604800">1 week</option></select></div>
+    </div>
+    <button class="btn btn-gold btn-full" id="av-add-btn" onclick="admAddAdvert()"><i class="fas fa-plus"></i>Publish Advert</button>
+  </div>
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
+    <h3>Active Adverts (${adverts.length})</h3>
+    ${!adverts.length?'<p style="font-size:.76rem;color:var(--t3)">No active adverts. Create one above.</p>':`
+    <div style="display:flex;flex-direction:column;gap:10px">
+    ${adverts.map((av,i)=>{
+      const exp=av.expires_at?new Date(av.expires_at):null;
+      const expired=exp&&exp<new Date();
+      const timeLeft=exp&&!expired?`Expires ${D(av.expires_at).split(',')[0]}`:'Manual removal';
+      return `<div style="background:var(--bg3);border:1px solid ${expired?'var(--red)':'var(--bd)'};border-radius:var(--rl);overflow:hidden">
+        ${av.img?`<img src="${esc(av.img)}" style="width:100%;height:100px;object-fit:cover" loading="lazy">`:''}
+        <div style="padding:10px 12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+            <span style="font-size:.82rem;font-weight:600;color:var(--t1)">${esc(av.title||'')}</span>
+            <span class="badge ${expired?'badge-red':'badge-green'}">${expired?'Expired':'Live'}</span>
+          </div>
+          <div style="font-size:.64rem;color:var(--t3);margin-bottom:4px">${esc(av.subtitle||'')} </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:.62rem;color:var(--t3);margin-bottom:4px">
+            <span><i class="fas fa-map-marker-alt" style="margin-right:4px;color:var(--gold)"></i>${esc(av.placement||'home')}</span>
+            <span><i class="fas fa-clock" style="margin-right:4px"></i>${timeLeft}</span>
+          </div>
+          ${av.agent_id?`<div style="font-size:.6rem;color:var(--t3);padding:4px 8px;background:rgba(50,200,100,.07);border:1px solid rgba(50,200,100,.15);border-radius:6px;margin-bottom:6px"><i class="fas fa-handshake" style="color:#32C864;margin-right:4px"></i>Posted by Agent: <strong style="color:#32C864">${esc(av.agent_name||av.agent_id)}</strong></div>`:'<div style="font-size:.6rem;color:var(--t3);padding:4px 8px;background:var(--bg4);border-radius:6px;margin-bottom:6px"><i class="fas fa-shield-alt" style="color:var(--gold);margin-right:4px"></i>Posted by Admin</div>'}
+          <button class="btn btn-ghost btn-xs" style="color:var(--red);margin-top:4px;width:100%" onclick="admRemoveAdvert('${esc(av._key)}')"><i class="fas fa-trash"></i> Remove Advert</button>
+        </div>
+      </div>`;
+    }).join('')}
+    </div>`}
+  </div>`;
+}
+async function admUploadAdvertImg(input){
+  if(!input.files[0]||!sb)return;
+  const file=input.files[0];
+  if(file.size>5*1024*1024){toast('Image too large (max 5MB)','er');return;}
+  const ext=file.name.split('.').pop()||'jpg';
+  const path=`adverts/${Date.now()}_${Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b=>b.toString(16).padStart(2,'0')).join('')}.${ext}`;
+  document.getElementById('av-img-progress').style.display='';
+  try{
+    const{error}=await sb.storage.from('products').upload(path,file,{upsert:true,contentType:file.type});
+    document.getElementById('av-img-progress').style.display='none';
+    if(error){toast('Upload failed: '+error.message,'er');return;}
+    const{data}=sb.storage.from('products').getPublicUrl(path);
+    if(data?.publicUrl){const inp=document.getElementById('av-img');if(inp)inp.value=data.publicUrl;toast('Image uploaded! ✓','ok');}
+  }catch(e){document.getElementById('av-img-progress').style.display='none';toast('Upload error','er');}
+}
+async function admAddAdvert(){
+  if(!sb||userRole!=='admin')return;
+  const title=document.getElementById('av-title')?.value?.trim();
+  const subtitle=document.getElementById('av-sub')?.value?.trim();
+  const img=document.getElementById('av-img')?.value?.trim();
+  const link=document.getElementById('av-link')?.value?.trim();
+  const placement=document.getElementById('av-placement')?.value||'home';
+  const duration=parseInt(document.getElementById('av-duration')?.value||'0');
+  if(!title||!img){toast('Title and image are required','er');return;}
+  const id=Date.now();
+  const expires_at=duration>0?new Date(Date.now()+duration*1000).toISOString():null;
+  const advert={id,title,subtitle:subtitle||'',img,link:link||'',placement,expires_at,created_at:new Date().toISOString()};
+  const key=`advert_${id}`;
+  const{error}=await sb.from('app_settings').upsert({key,value:JSON.stringify(advert),updated_at:new Date().toISOString()});
+  if(error){toast(error.message,'er');return;}
+  toast('Advert published! 🎯','ok');
+  ['av-title','av-sub','av-img','av-link'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  await loadAndRenderAdverts();
+  renderAdmAdverts();
+}
+async function admRemoveAdvert(key){
+  if(!sb||userRole!=='admin')return;
+  const ok=await popupConfirm('Remove Advert','Remove this advert from the site?','Remove','Cancel');
+  if(!ok)return;
+  await sb.from('app_settings').delete().eq('key',key);
+  toast('Advert removed','ok');
+  await loadAndRenderAdverts();
+  renderAdmAdverts();
+}
+async function loadAndRenderAdverts(){
+  if(!sb)return;
+  try{
+    const{data}=await sb.from('app_settings').select('key,value').like('key','advert_%');
+    const now=new Date();
+    const active=(data||[]).map(r=>{try{return{...JSON.parse(r.value),_key:r.key};}catch{return null;}})
+      .filter(av=>av&&(!av.expires_at||new Date(av.expires_at)>now));
+    // Auto-clean expired
+    const expired=(data||[]).map(r=>{try{return{...JSON.parse(r.value),_key:r.key};}catch{return null;}})
+      .filter(av=>av&&av.expires_at&&new Date(av.expires_at)<=now);
+    expired.forEach(av=>sb.from('app_settings').delete().eq('key',av._key).catch(()=>{}));
+    // Render in each slot
+    renderAdvertSlot('advert-banner-home',   active.filter(av=>av.placement==='home'||av.placement==='all'));
+    renderAdvertSlot('advert-banner-shop',   active.filter(av=>av.placement==='shop'||av.placement==='all'));
+    renderAdvertSlot('advert-banner-gallery',active.filter(av=>av.placement==='gallery'||av.placement==='all'));
+  }catch{}
+}
+function renderAdvertSlot(slotId, adverts){
+  const el=document.getElementById(slotId);
+  if(!el)return;
+  if(!adverts.length){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='';
+  if(adverts.length===1){
+    const av=adverts[0];
+    el.innerHTML=`<div class="advert-single" onclick="${av.link?`window.open('${esc(av.link)}','_blank','noopener,noreferrer')`:''}">
+      <img src="${esc(av.img)}" alt="${esc(av.title)}" loading="lazy">
+      <div class="advert-slide-ovl"><div class="advert-slide-title">${esc(av.title)}</div><div class="advert-slide-sub">${esc(av.subtitle||'')}</div></div>
+      <button class="advert-close-btn" onclick="event.stopPropagation();dismissAdvert('${esc(slotId)}')"><i class="fas fa-times"></i></button>
+    </div><div style="height:10px"></div>`;
+  } else {
+    // Carousel for 2+ adverts
+    let cur=0;
+    const render=()=>{
+      const dots=adverts.map((_,i)=>`<div class="advert-dot${i===cur?' on':''}" onclick="void(0)"></div>`).join('');
+      const av=adverts[cur];
+      el.innerHTML=`<div class="advert-carousel">
+        <div class="advert-slide" onclick="${av.link?`window.open('${esc(av.link)}','_blank','noopener,noreferrer')`:''}">
+          <img src="${esc(av.img)}" alt="${esc(av.title)}" loading="lazy">
+          <div class="advert-slide-ovl"><div class="advert-slide-title">${esc(av.title)}</div><div class="advert-slide-sub">${esc(av.subtitle||'')}</div></div>
+          <button class="advert-close-btn" onclick="event.stopPropagation();dismissAdvert('${esc(slotId)}')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="advert-dots">${dots}</div>
+      </div><div style="height:6px"></div>`;
+      // Dot click handlers
+      el.querySelectorAll('.advert-dot').forEach((d,i)=>d.addEventListener('click',()=>{cur=i;render();}));
+    };
+    render();
+    // Auto-advance every 4 seconds
+    _advertTimers.forEach(t=>clearInterval(t));
+    _advertTimers=[];
+    const t=setInterval(()=>{cur=(cur+1)%adverts.length;render();},4000);
+    _advertTimers.push(t);
+  }
+}
+function dismissAdvert(slotId){
+  const el=document.getElementById(slotId);
+  if(el){el.style.display='none';el.innerHTML='';}
+}
 async function saveAnn(){if(userRole!=='admin'||!sb)return;const txt=document.getElementById('ann-txt')?.value?.trim()||'';const{error}=await sb.from('app_settings').upsert({key:'announcement',value:txt,updated_at:new Date().toISOString()});if(error){toast(error.message,'er');return;}showAnnouncement(txt);toast('Announcement published! 📢','ok');}
 
 async function saveSocialLinks(){
@@ -3516,6 +4946,7 @@ function getWANum() {
 }
 
 function submitContact(){
+  if(!rateLimit('contact',30000)){toast('Please wait 30 seconds before sending another message','er');return;}
   const n=document.getElementById('ct-name')?.value?.trim();
   const c=document.getElementById('ct-contact')?.value?.trim();
   const s=document.getElementById('ct-subj')?.value||'';
@@ -3529,17 +4960,66 @@ function submitContact(){
   const sel=document.getElementById('ct-subj');if(sel)sel.value='';
   toast('Opening WhatsApp… 💬','ok');
 }
-async function submitAgent(){if(!rateLimit('agent',60000)){toast('Please wait before resubmitting','er');return;}const n=document.getElementById('ag-name')?.value?.trim(),e=document.getElementById('ag-email')?.value?.trim(),ph=document.getElementById('ag-phone')?.value?.trim(),l=document.getElementById('ag-loc')?.value?.trim(),c=document.getElementById('ag-ch')?.value,b=document.getElementById('ag-bio')?.value?.trim(),btn=document.getElementById('ag-btn');if(!n||!e||!ph||!l){toast('Fill required fields','er');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){toast('Enter a valid email','er');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Submitting…';const fullPhone='+254'+ph.replace(/\D/g,'');if(sb){const{error}=await sb.from('agent_applications').insert([{name:n,email:e,phone:fullPhone,location:l,channel:c||null,bio:b||null}]);if(error){toast('Submission failed','er');btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Submit Application';return;}}btn.innerHTML='<i class="fas fa-check"></i>Application Submitted!';toast("Application sent! We'll be in touch. 🤝",'ok');setTimeout(()=>{btn.innerHTML='<i class="fas fa-paper-plane"></i>Submit Application';btn.disabled=false;},4000);}
+async function checkAgentStatus(){
+  const statusEl=document.getElementById('ag-status-msg');
+  const btn=document.getElementById('ag-btn');
+  if(!statusEl||!user||!sb)return;
+  const{data:app}=await sb.from('agent_applications').select('status,created_at').eq('user_id',user.id).maybeSingle();
+  if(!app)return;
+  const colors={pending:'rgba(201,168,76,.1)',approved:'rgba(50,200,100,.1)',denied:'rgba(224,80,80,.1)'};
+  const textColors={pending:'var(--gold)',approved:'#32C864',denied:'var(--red)'};
+  const icons={pending:'fa-clock',approved:'fa-check-circle',denied:'fa-times-circle'};
+  const msgs={pending:'Your application is under review. We will contact you soon.',approved:'Your application is approved! Check your Agent Dashboard in the Account tab.',denied:'Your application was not approved this time. You may reapply.'};
+  statusEl.innerHTML=`<div style="background:${colors[app.status]};border:1px solid ${textColors[app.status]}4;border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:.76rem;color:${textColors[app.status]}"><i class="fas ${icons[app.status]}" style="margin-right:8px"></i>${msgs[app.status]}</div>`;
+  if(app.status==='approved'||app.status==='pending'){if(btn){btn.disabled=true;btn.style.opacity='.5';}}
+}
+async function submitAgent(){
+  if(!rateLimit('agent',60000)){toast('Please wait before resubmitting','er');return;}
+  // Check if user already has a pending/approved application
+  if(user&&sb){
+    const{data:existing}=await sb.from('agent_applications').select('id,status').eq('user_id',user.id).maybeSingle();
+    if(existing){
+      if(existing.status==='pending')toast('You already have a pending application. We will contact you soon.','nf');
+      else if(existing.status==='approved')toast('You are already an approved agent!','ok');
+      return;
+    }
+  }
+  const n=document.getElementById('ag-name')?.value?.trim(),
+        e=document.getElementById('ag-email')?.value?.trim(),
+        ph=document.getElementById('ag-phone')?.value?.trim(),
+        l=document.getElementById('ag-loc')?.value?.trim(),
+        c=document.getElementById('ag-ch')?.value,
+        b=document.getElementById('ag-bio')?.value?.trim(),
+        btn=document.getElementById('ag-btn');
+  if(!n||!e||!ph||!l){toast('Fill required fields','er');return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){toast('Enter a valid email','er');return;}
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Submitting…';
+  const fullPhone='+254'+ph.replace(/\D/g,'');
+  if(sb){
+    const{error}=await sb.from('agent_applications').insert([{name:n,email:e,phone:fullPhone,location:l,channel:c||null,bio:b||null,status:'pending',user_id:user?.id||null}]);
+    if(error){toast('Submission failed: '+error.message,'er');btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Submit Application';return;}
+  }
+  btn.innerHTML='<i class="fas fa-check"></i>Application Submitted!';
+  toast("Application sent! We'll review and get back to you. 🤝",'ok');
+  // Notify admins
+  if(sb&&user){
+    const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');
+    for(const a of(admins||[])){
+      await pushDBNotif({type:'user',title:'New Agent Application',body:`${n} has applied to become an agent. Review in Admin → Agents.`,targetUserId:a.id}).catch(()=>{});
+    }
+  }
+  setTimeout(()=>{btn.innerHTML='<i class="fas fa-paper-plane"></i>Submit Application';btn.disabled=false;},4000);
+}
 
 /* ════════ FEEDBACK / SUGGESTIONS ════════ */
 let fbRatingVal=0;
 function openFB(){document.getElementById('fb-modal').classList.add('on');showOvl();fbRatingVal=0;setRating(0);}
 function closeFB(){document.getElementById('fb-modal')?.classList.remove('on');hideOvl();const t=document.getElementById('fb-txt');if(t)t.value='';}
 function setRating(n){fbRatingVal=n;document.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('on',i<n));}
-async function submitFB(){if(!fbRatingVal){toast('Please select a rating','er');return;}const txt=document.getElementById('fb-txt')?.value?.trim()||'';if(sb)await sb.from('feedback').insert([{rating:fbRatingVal,comment:txt,user_id:user?.id||null}]).catch(()=>{});closeFB();toast('Thank you for your feedback! ⭐','ok');}
+async function submitFB(){if(!rateLimit('feedback',60000)){toast('Please wait before submitting feedback','er');return;}if(!fbRatingVal){toast('Please select a rating','er');return;}const txt=document.getElementById('fb-txt')?.value?.trim()||'';if(sb)await sb.from('feedback').insert([{rating:fbRatingVal,comment:txt,user_id:user?.id||null}]).catch(()=>{});closeFB();toast('Thank you for your feedback! ⭐','ok');}
 function openSugg(){document.getElementById('sugg-modal').classList.add('on');showOvl();}
 function closeSugg(){document.getElementById('sugg-modal')?.classList.remove('on');hideOvl();}
-async function submitSugg(){const txt=document.getElementById('sugg-txt')?.value?.trim(),email=document.getElementById('sugg-email')?.value?.trim();if(!txt){toast('Please write your suggestion','er');return;}if(sb)await sb.from('suggestions').insert([{suggestion:txt,email:email||null,user_id:user?.id||null}]).catch(()=>{});closeSugg();const st=document.getElementById('sugg-txt'),se=document.getElementById('sugg-email');if(st)st.value='';if(se)se.value='';toast('Suggestion sent! 💡','ok');}
+async function submitSugg(){if(!rateLimit('suggestion',60000)){toast('Please wait before submitting again','er');return;}const txt=document.getElementById('sugg-txt')?.value?.trim(),email=document.getElementById('sugg-email')?.value?.trim();if(!txt){toast('Please write your suggestion','er');return;}if(sb)await sb.from('suggestions').insert([{suggestion:txt,email:email||null,user_id:user?.id||null}]).catch(()=>{});closeSugg();const st=document.getElementById('sugg-txt'),se=document.getElementById('sugg-email');if(st)st.value='';if(se)se.value='';toast('Suggestion sent! 💡','ok');}
 
 /* ════════ SHARE ════════ */
 function _shareUrl(){ return socialLinks.site||SITE; }
@@ -3602,7 +5082,99 @@ function popupConfirm(title, msg, confirmLabel = 'Confirm', cancelLabel = 'Cance
 }
 
 /* ════════ BOOT ════════ */
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  const yearEl = document.getElementById('cr-year');
+  if (yearEl) yearEl.textContent = new Date().getFullYear();
+  init();
+});
 </script>
+<!-- AGENT ADVERT MODAL -->
+<div id="ag-advert-modal" class="modal">
+  <div class="sheet-pull"></div>
+  <div class="sheet-hdr">
+    <span class="sheet-title" style="color:var(--gold)"><i class="fas fa-bullhorn" style="margin-right:8px"></i>New Advert</span>
+    <button class="sheet-cls" onclick="agCloseAdvertModal()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="modal-body">
+
+    <!-- Image picker area -->
+    <div id="ag-av-preview" style="position:relative;width:100%;height:160px;background:var(--bg3);border:2px dashed var(--bd2);border-radius:var(--rl);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;margin-bottom:16px;overflow:hidden;transition:border-color .2s" onclick="document.getElementById('ag-av-file').click()">
+      <img id="ag-av-preview-img" src="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:var(--rl)">
+      <div id="ag-av-preview-placeholder" style="text-align:center;pointer-events:none">
+        <div style="width:52px;height:52px;background:var(--gold-a8);border:1px solid var(--gold-a25);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:1.3rem;color:var(--gold)"><i class="fas fa-camera"></i></div>
+        <div style="font-size:.8rem;color:var(--t2);font-weight:500">Tap to upload image</div>
+        <div style="font-size:.64rem;color:var(--t3);margin-top:4px">From camera or gallery · Max 5MB</div>
+      </div>
+      <div id="ag-av-uploading" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;border-radius:var(--rl)">
+        <div class="spin" style="width:28px;height:28px;border:3px solid var(--gold-a25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite"></div>
+        <div style="font-size:.72rem;color:var(--gold)">Uploading…</div>
+      </div>
+    </div>
+    <input type="file" id="ag-av-file" accept="image/*" style="display:none" onchange="agHandleAdvertImg(this)">
+
+    <!-- Hidden URL field (auto-filled after upload) -->
+    <input type="hidden" id="ag-av-img-url">
+
+    <div class="fg"><label class="flbl">Title *</label><input type="text" class="fi" id="ag-av-title" placeholder="e.g. Weekend Sale — 20% Off!" maxlength="100"></div>
+    <div class="fg"><label class="flbl">Subtitle</label><input type="text" class="fi" id="ag-av-sub" placeholder="e.g. Valid this weekend only" maxlength="150"></div>
+    <div class="fg"><label class="flbl">Link (optional)</label><input type="url" class="fi" id="ag-av-link" placeholder="https://… leave empty if none" maxlength="300"></div>
+    <div class="form-row">
+      <div class="fg"><label class="flbl">Show On</label>
+        <select class="fsel" id="ag-av-placement">
+          <option value="home">Home</option>
+          <option value="shop">Shop</option>
+          <option value="gallery">Gallery</option>
+          <option value="all">All Pages</option>
+        </select>
+      </div>
+      <div class="fg"><label class="flbl">Expires After</label>
+        <select class="fsel" id="ag-av-duration">
+          <option value="0">Manual only</option>
+          <option value="3600">1 hour</option>
+          <option value="21600">6 hours</option>
+          <option value="86400">1 day</option>
+          <option value="259200">3 days</option>
+          <option value="604800">1 week</option>
+        </select>
+      </div>
+    </div>
+    <div id="ag-av-err" class="ferr" style="display:none;margin-bottom:10px"></div>
+    <button class="btn btn-gold btn-full" id="ag-av-publish-btn" onclick="agSubmitAdvertModal()"><i class="fas fa-bullhorn"></i> Publish Advert</button>
+  </div>
+</div>
+
+<!-- AGENT GALLERY MODAL -->
+<div id="ag-gallery-modal" class="modal">
+  <div class="sheet-pull"></div>
+  <div class="sheet-hdr">
+    <span class="sheet-title" style="color:var(--gold)"><i class="fas fa-images" style="margin-right:8px"></i>New Gallery Item</span>
+    <button class="sheet-cls" onclick="agCloseGalleryModal()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="modal-body">
+
+    <!-- Image picker area -->
+    <div id="ag-gl-preview" style="position:relative;width:100%;height:160px;background:var(--bg3);border:2px dashed var(--bd2);border-radius:var(--rl);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;margin-bottom:16px;overflow:hidden;transition:border-color .2s" onclick="document.getElementById('ag-gl-file').click()">
+      <img id="ag-gl-preview-img" src="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:var(--rl)">
+      <div id="ag-gl-preview-placeholder" style="text-align:center;pointer-events:none">
+        <div style="width:52px;height:52px;background:var(--gold-a8);border:1px solid var(--gold-a25);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:1.3rem;color:var(--gold)"><i class="fas fa-image"></i></div>
+        <div style="font-size:.8rem;color:var(--t2);font-weight:500">Tap to upload photo</div>
+        <div style="font-size:.64rem;color:var(--t3);margin-top:4px">From camera or gallery · Max 5MB</div>
+      </div>
+      <div id="ag-gl-uploading" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.7);align-items:center;justify-content:center;flex-direction:column;gap:8px;border-radius:var(--rl)">
+        <div class="spin" style="width:28px;height:28px;border:3px solid var(--gold-a25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite"></div>
+        <div style="font-size:.72rem;color:var(--gold)">Uploading…</div>
+      </div>
+    </div>
+    <input type="file" id="ag-gl-file" accept="image/*" capture="environment" style="display:none" onchange="agHandleGalleryImg(this)">
+
+    <!-- Hidden URL field -->
+    <input type="hidden" id="ag-gl-img-url">
+
+    <div class="fg"><label class="flbl">Title *</label><input type="text" class="fi" id="ag-gl-title" placeholder="e.g. Savanna Leather Tote" maxlength="100"></div>
+    <div class="fg"><label class="flbl">Description</label><input type="text" class="fi" id="ag-gl-sub" placeholder="e.g. Full-grain leather · KES 7,500" maxlength="150"></div>
+    <div id="ag-gl-err" class="ferr" style="display:none;margin-bottom:10px"></div>
+    <button class="btn btn-gold btn-full" id="ag-gl-publish-btn" onclick="agSubmitGalleryModal()"><i class="fas fa-plus"></i> Add to Gallery</button>
+  </div>
+</div>
 </body>
 </html>
