@@ -4416,12 +4416,18 @@ Queries: wa.me/${getWANum()}`;
 async function renderAdmOrderAnalytics(){
   const el=document.getElementById('adm-content');
   el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
-  const{data}=await sb.from('orders')
-    .select('id,customer_name,customer_phone,user_id,items,total,status,created_at')
-    .order('created_at',{ascending:false}).limit(500);
-  const orders=data||[];
 
-  // ── Top Products ──
+  // Fetch orders + profiles for customer enrichment
+  const [{data:rawOrds},{data:allProfiles}] = await Promise.allSettled([
+    sb.from('orders').select('id,customer_name,customer_phone,user_id,items,total,status,created_at').order('created_at',{ascending:false}).limit(500),
+    sb.from('profiles').select('id,full_name,email,avatar_url,phone')
+  ]).then(r=>r.map(x=>x.status==='fulfilled'?x.value:{data:[]}));
+  const orders=rawOrds||[];
+
+  // Profile lookup by user_id
+  const profMap={};(allProfiles||[]).forEach(p=>profMap[p.id]=p);
+
+  // ── Top Products: balanced score = 60% qty rank + 40% revenue rank ──
   const prodMap={};
   orders.filter(o=>o.status!=='cancelled').forEach(o=>{
     safeParseItems(o.items).forEach(item=>{
@@ -4431,97 +4437,244 @@ async function renderAdmOrderAnalytics(){
       prodMap[k].revenue+=(item.price||0)*(item.qty||1);
     });
   });
-  const topProds=Object.entries(prodMap).sort((a,b)=>b[1].qty-a[1].qty).slice(0,10);
-  const maxQty=topProds[0]?.[1]?.qty||1;
+  const prodList=Object.entries(prodMap);
+  if(prodList.length>1){
+    const maxQty=Math.max(...prodList.map(([,v])=>v.qty))||1;
+    const maxRev=Math.max(...prodList.map(([,v])=>v.revenue))||1;
+    prodList.forEach(([,v])=>{
+      v.score = 0.6*(v.qty/maxQty) + 0.4*(v.revenue/maxRev);
+    });
+  } else {
+    prodList.forEach(([,v])=>{ v.score=v.qty||0; });
+  }
+  const topProds=prodList.sort((a,b)=>b[1].score-a[1].score).slice(0,8);
+  const maxScore=topProds[0]?.[1]?.score||1;
 
-  // ── Top Customers ──
+  // ── Top Customers: balanced score = 55% spend rank + 45% order count rank ──
   const custMap={};
   orders.forEach(o=>{
-    const k=(o.customer_name||'Unknown')+'|'+(o.customer_phone||'');
-    if(!custMap[k])custMap[k]={name:o.customer_name||'Unknown',phone:o.customer_phone||'—',orders:0,spend:0,last:o.created_at};
-    custMap[k].orders++;
-    if(o.status!=='cancelled')custMap[k].spend+=(o.total||0);
-    if(o.created_at>custMap[k].last)custMap[k].last=o.created_at;
+    const key=o.user_id||((o.customer_name||'Unknown')+'|'+(o.customer_phone||''));
+    if(!custMap[key])custMap[key]={
+      name:o.customer_name||'Unknown',
+      phone:o.customer_phone||'—',
+      userId:o.user_id||null,
+      orders:0,spend:0,qty:0,last:o.created_at
+    };
+    custMap[key].orders++;
+    if(o.status!=='cancelled'){
+      custMap[key].spend+=(o.total||0);
+      safeParseItems(o.items).forEach(i=>{ custMap[key].qty+=(i.qty||1); });
+    }
+    if(o.created_at>custMap[key].last)custMap[key].last=o.created_at;
   });
-  const topCusts=Object.values(custMap).sort((a,b)=>b.spend-a.spend).slice(0,10);
+  const custList=Object.values(custMap);
+  if(custList.length>1){
+    const maxSpend=Math.max(...custList.map(c=>c.spend))||1;
+    const maxOrds=Math.max(...custList.map(c=>c.orders))||1;
+    custList.forEach(c=>{ c.score=0.55*(c.spend/maxSpend)+0.45*(c.orders/maxOrds); });
+  } else { custList.forEach(c=>c.score=c.spend||0); }
+  const topCusts=custList.sort((a,b)=>b.score-a.score).slice(0,10);
 
-  // ── Revenue by status ──
+  // ── Revenue/count by status ──
   const statuses=['pending','confirmed','processing','shipped','completed','cancelled'];
+  const statusColorMap={pending:'#FFA032',confirmed:'#32C864',processing:'#9B8AF0',shipped:'#4DBBFF',completed:'#C9A84C',cancelled:'#E05050'};
+  const pieData=statuses.map(s=>({
+    s, cnt:orders.filter(o=>o.status===s).length,
+    rev:orders.filter(o=>o.status===s).reduce((sum,o)=>sum+(o.total||0),0),
+    col:statusColorMap[s]
+  })).filter(d=>d.cnt>0);
+  const totalOrds=orders.length;
   const totalRev=orders.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.total||0),0);
-  const statusColors={pending:'#FFA032',confirmed:'#32C864',processing:'#9B8AF0',shipped:'#4DBBFF',completed:'var(--gold)',cancelled:'var(--red)'};
 
   el.innerHTML=`
   <div style="padding:12px 14px 0">
     <button class="btn btn-ghost btn-sm" onclick="renderAdmOrders()"><i class="fas fa-arrow-left"></i>Back to Orders</button>
   </div>
 
-  <!-- Revenue by status -->
+  <!-- ① PIE CHART — Order Status Distribution -->
   <div class="adm-section">
-    <h3>Revenue Overview</h3>
+    <h3>Order Status Distribution</h3>
     <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px">
       <div style="font-family:var(--fd);font-size:2rem;color:var(--gold)">KES ${N(totalRev)}</div>
-      <div style="font-size:.7rem;color:var(--t3)">${orders.length} orders total</div>
+      <div style="font-size:.7rem;color:var(--t3)">${totalOrds} orders</div>
     </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:16px">
+      <canvas id="status-pie" width="220" height="220" style="max-width:220px"></canvas>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;width:100%">
+        ${pieData.map(d=>`
+          <div style="display:flex;align-items:center;gap:7px">
+            <div style="width:10px;height:10px;border-radius:3px;background:${d.col};flex-shrink:0"></div>
+            <div>
+              <div style="font-size:.72rem;color:var(--t1);text-transform:capitalize">${d.s}</div>
+              <div style="font-size:.6rem;color:var(--t3)">${d.cnt} orders · KES ${N(d.rev)}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>
+
+  <!-- ② BAR CHART — Top Products -->
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:14px">
+    <h3>🏆 Top Selling Products</h3>
+    <p style="font-size:.68rem;color:var(--t3);margin-bottom:12px">Score = 60% units sold + 40% revenue (balanced ranking)</p>
+    ${!topProds.length?'<p style="font-size:.76rem;color:var(--t3)">No product data yet.</p>':`
+    <canvas id="prod-bar" width="340" height="${Math.max(160, topProds.length*36)}" style="width:100%;max-height:340px"></canvas>
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:5px">
+      ${topProds.map(([name,stats],i)=>{
+        const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;font-size:.7rem;padding:4px 0;border-bottom:1px solid var(--bd)">
+          <span style="color:var(--t3);width:22px;flex-shrink:0">${medal}</span>
+          <span style="flex:1;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>
+          <span style="color:var(--gold);margin-left:8px;flex-shrink:0;font-weight:600">${stats.qty} sold</span>
+          <span style="color:var(--t3);margin-left:8px;flex-shrink:0">KES ${N(stats.revenue)}</span>
+        </div>`;
+      }).join('')}
+    </div>`}
+  </div>
+
+  <!-- ③ TOP CUSTOMERS -->
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:14px">
+    <h3>👑 Top Customers</h3>
+    <p style="font-size:.68rem;color:var(--t3);margin-bottom:10px">Ranked by balanced score: 55% total spend + 45% order count</p>
     <div style="display:flex;flex-direction:column;gap:8px">
-      ${statuses.map(s=>{
-        const cnt=orders.filter(o=>o.status===s).length;
-        const rev=orders.filter(o=>o.status===s).reduce((sum,o)=>sum+(o.total||0),0);
-        const pct=totalRev>0?Math.round((rev/totalRev)*100):0;
-        if(!cnt)return '';
-        return `<div>
-          <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--t2);margin-bottom:4px">
-            <span style="text-transform:capitalize">${s} <span style="color:var(--t3)">(${cnt})</span></span>
-            <span style="color:${statusColors[s]}">KES ${N(rev)}</span>
+      ${topCusts.map((c,i)=>{
+        const prof=c.userId?profMap[c.userId]:null;
+        const email=prof?.email||'—';
+        const avatar=prof?.avatar_url||'';
+        const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        const rank=i+1;
+        const rankColor=i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--t3)';
+        return `<div style="background:var(--bg3);border:1px solid ${i<3?rankColor+'44':'var(--bd)'};border-radius:var(--rl);padding:10px 12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <!-- Rank badge -->
+            <div style="width:28px;height:28px;border-radius:50%;background:${i<3?rankColor+'22':'var(--bg4)'};border:1.5px solid ${i<3?rankColor:'var(--bd)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:${i<3?'.8rem':'.7rem'};font-weight:700;color:${rankColor}">
+              ${medal||rank}
+            </div>
+            <!-- Avatar -->
+            <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--gold-a8);border:1px solid var(--bd2);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:.9rem">
+              ${avatar?`<img src="${esc(avatar)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<i class=\\"fas fa-user\\"></i>'">`:
+              `<i class="fas fa-user"></i>`}
+            </div>
+            <!-- Info -->
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.8rem;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}</div>
+              <div style="font-size:.62rem;color:var(--t3)">${esc(email)}</div>
+              <div style="font-size:.6rem;color:var(--t3)">${esc(c.phone)}</div>
+            </div>
+            <!-- Stats -->
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:.82rem;font-weight:700;color:var(--gold)">KES ${N(c.spend)}</div>
+              <div style="font-size:.6rem;color:var(--t3)">${c.orders} orders · ${c.qty} items</div>
+            </div>
           </div>
-          <div style="height:7px;background:var(--bg4);border-radius:4px;overflow:hidden">
-            <div style="height:100%;width:${Math.max(2,pct)}%;background:${statusColors[s]};border-radius:4px"></div>
-          </div>
+          ${c.userId?`<div style="margin-top:8px;display:flex;justify-content:flex-end">
+            <button class="btn btn-outline btn-xs" onclick="openViewUser('${c.userId}')"><i class="fas fa-eye"></i>View Profile</button>
+          </div>`:''}
         </div>`;
       }).join('')}
     </div>
-  </div>
-
-  <!-- Top Products -->
-  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:14px">
-    <h3>🏆 Top Selling Products</h3>
-    ${!topProds.length?'<p style="font-size:.76rem;color:var(--t3)">No product data yet.</p>':
-    topProds.map(([name,stats],i)=>{
-      const pct=Math.round((stats.qty/maxQty)*100);
-      const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span style="font-size:.72rem;color:var(--t3);font-weight:700">${i+1}</span>`;
-      return `<div style="margin-bottom:11px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px">
-          <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0">
-            <span style="flex-shrink:0">${medal}</span>
-            <span style="font-size:.76rem;color:var(--t1);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:.74rem;color:var(--gold);font-weight:700">${stats.qty} sold</div>
-            <div style="font-size:.6rem;color:var(--t3)">KES ${N(stats.revenue)}</div>
-          </div>
-        </div>
-        <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:${i===0?'var(--gold)':'rgba(201,168,76,.45)'};border-radius:3px"></div>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>
-
-  <!-- Top Customers -->
-  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:14px">
-    <h3>👑 Top Customers</h3>
-    <p style="font-size:.7rem;color:var(--t3);margin-bottom:10px">Ranked by total spend (excluding cancelled orders).</p>
-    ${!topCusts.length?'<p style="font-size:.76rem;color:var(--t3)">No data yet.</p>':`
-    <table><thead><tr><th>#</th><th>Customer</th><th>Orders</th><th>Spent</th><th>Last</th></tr></thead><tbody>
-    ${topCusts.map((c,i)=>`<tr>
-      <td style="font-size:.72rem;color:var(--gold);font-weight:700">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
-      <td><div style="font-size:.74rem;color:var(--t1);font-weight:500">${esc(c.name)}</div><div style="font-size:.6rem;color:var(--t3)">${esc(c.phone)}</div></td>
-      <td style="text-align:center;font-size:.76rem;color:var(--t2)">${c.orders}</td>
-      <td style="font-size:.76rem;color:var(--gold);font-weight:600">KES ${N(c.spend)}</td>
-      <td style="font-size:.6rem;color:var(--t3)">${D(c.last).split(',')[0]}</td>
-    </tr>`).join('')}
-    </tbody></table>`}
   </div>`;
+
+  // ── Draw PIE CHART ──────────────────────────────────────────────────
+  requestAnimationFrame(()=>{
+    const pc=document.getElementById('status-pie');
+    if(!pc)return;
+    const ctx=pc.getContext('2d');
+    const cx=110,cy=110,r=90,ri=52;
+    let angle=-Math.PI/2;
+    const total=pieData.reduce((s,d)=>s+d.cnt,0)||1;
+    // Shadow
+    ctx.shadowBlur=18; ctx.shadowColor='rgba(0,0,0,.35)';
+    pieData.forEach(d=>{
+      const sweep=(d.cnt/total)*Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,r,angle,angle+sweep);
+      ctx.closePath();
+      ctx.fillStyle=d.col;
+      ctx.fill();
+      angle+=sweep;
+    });
+    ctx.shadowBlur=0;
+    // Donut hole
+    ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2);
+    ctx.fillStyle='#0A0A0A'; ctx.fill();
+    // Gold ring
+    ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2);
+    ctx.strokeStyle='rgba(201,168,76,.3)'; ctx.lineWidth=1.5; ctx.stroke();
+    // Centre text
+    ctx.fillStyle='#C9A84C';
+    ctx.font='bold 13px system-ui,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(total+' orders',cx,cy-7);
+    ctx.fillStyle='rgba(201,168,76,.6)';
+    ctx.font='10px system-ui,sans-serif';
+    ctx.fillText('total',cx,cy+8);
+    // Percentage labels on segments
+    angle=-Math.PI/2;
+    pieData.forEach(d=>{
+      const sweep=(d.cnt/total)*Math.PI*2;
+      if(sweep<0.2){angle+=sweep;return;} // skip tiny slices
+      const mid=angle+sweep/2;
+      const lx=cx+Math.cos(mid)*(ri+r)/2*0.88;
+      const ly=cy+Math.sin(mid)*(ri+r)/2*0.88;
+      ctx.fillStyle='#fff';
+      ctx.font='bold 9px system-ui,sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(Math.round(d.cnt/total*100)+'%',lx,ly);
+      angle+=sweep;
+    });
+  });
+
+  // ── Draw PRODUCTS BAR CHART ─────────────────────────────────────────
+  requestAnimationFrame(()=>{
+    const bc=document.getElementById('prod-bar');
+    if(!bc||!topProds.length)return;
+    const ctx=bc.getContext('2d');
+    const W=bc.width, rowH=Math.floor(H/topProds.length);
+    const H=bc.height;
+    const padL=8, padR=70, barArea=W-padL-padR;
+    const colors=['#C9A84C','#A07830','#D4B060','#B8903C','#E0C070','#906820','#CCa040','#BA8828'];
+    ctx.clearRect(0,0,W,H);
+    topProds.forEach(([name,stats],i)=>{
+      const y=i*rowH;
+      const pct=stats.score/maxScore;
+      const bh=Math.max(12, rowH-10);
+      const by=y+(rowH-bh)/2;
+      // Bar background track
+      ctx.fillStyle='rgba(255,255,255,.05)';
+      ctx.beginPath();
+      ctx.roundRect(padL,by,barArea,bh,4);
+      ctx.fill();
+      // Bar fill
+      const bw=Math.max(4,Math.round(barArea*pct));
+      const grad=ctx.createLinearGradient(padL,0,padL+bw,0);
+      grad.addColorStop(0,colors[i%colors.length]);
+      grad.addColorStop(1,colors[i%colors.length]+'88');
+      ctx.fillStyle=grad;
+      ctx.shadowBlur=6; ctx.shadowColor=colors[i%colors.length]+'66';
+      ctx.beginPath();
+      ctx.roundRect(padL,by,bw,bh,4);
+      ctx.fill();
+      ctx.shadowBlur=0;
+      // Product name label (left inside bar if wide enough, else outside)
+      ctx.fillStyle=bw>60?'rgba(0,0,0,.85)':'rgba(255,255,255,.7)';
+      ctx.font=`${Math.min(10,bh-4)}px system-ui,sans-serif`;
+      ctx.textAlign='left'; ctx.textBaseline='middle';
+      const label=name.length>22?name.slice(0,21)+'…':name;
+      ctx.fillText(label, padL+6, by+bh/2);
+      // Qty label right
+      ctx.fillStyle='#C9A84C';
+      ctx.font=`bold ${Math.min(10,bh-4)}px system-ui,sans-serif`;
+      ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillText(stats.qty+'×', W-padR+4, by+bh/2-3);
+      ctx.fillStyle='rgba(180,155,100,.7)';
+      ctx.font=`${Math.min(8,bh-6)}px system-ui,sans-serif`;
+      ctx.fillText('KES'+N(stats.revenue).replace(/,/g,''), W-padR+4, by+bh/2+7);
+    });
+  });
 }
+
 
 
 async function updateOrderStatus(id,status){
