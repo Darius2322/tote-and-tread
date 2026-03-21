@@ -2507,12 +2507,22 @@ async function openEditProfile(){
     <div style="text-align:center;margin-bottom:20px">
       <div style="position:relative;display:inline-block;margin:0 auto 8px">
         <div class="prof-avatar" id="ep-avatar-preview" style="margin:0;width:72px;height:72px;font-size:1.6rem">${user?.user_metadata?.avatar_url?`<img src="${esc(user.user_metadata.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" id="ep-avatar-img">` : '<i class="fas fa-user"></i>'}</div>
-        <label for="ep-avatar-file" style="position:absolute;bottom:-2px;right:-2px;width:26px;height:26px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)">
+        <div style="position:absolute;bottom:-2px;right:-2px;width:26px;height:26px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)" onclick="document.getElementById('ep-avatar-choice').style.display=document.getElementById('ep-avatar-choice').style.display==='none'?'':'none'">
           <i class="fas fa-camera" style="font-size:.62rem;color:#000"></i>
-        </label>
-        <input type="file" id="ep-avatar-file" accept="image/*" capture="environment" style="display:none" onchange="previewAvatar(this)">
+        </div>
+        <input type="file" id="ep-avatar-file" accept="image/*" style="display:none" onchange="previewAvatar(this)">
+        <input type="file" id="ep-avatar-camera" accept="image/*" capture="environment" style="display:none" onchange="previewAvatar(this)">
       </div>
-      <p style="font-size:.66rem;color:var(--t3)">Tap the camera to change your photo</p>
+      <!-- Photo choice popup -->
+      <div id="ep-avatar-choice" style="display:none;position:absolute;z-index:99;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:8px;box-shadow:var(--sh);min-width:160px;left:50%;transform:translateX(-50%);margin-top:4px">
+        <button onclick="document.getElementById('ep-avatar-file').click();document.getElementById('ep-avatar-choice').style.display='none'" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:none;border:none;color:var(--t1);font-size:.78rem;cursor:pointer;border-radius:8px;font-family:var(--fb)" onmouseover="this.style.background='var(--gold-a8)'" onmouseout="this.style.background='none'">
+          <i class="fas fa-images" style="color:var(--gold);width:16px"></i> Choose from Gallery
+        </button>
+        <button onclick="document.getElementById('ep-avatar-camera').click();document.getElementById('ep-avatar-choice').style.display='none'" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:none;border:none;color:var(--t1);font-size:.78rem;cursor:pointer;border-radius:8px;font-family:var(--fb)" onmouseover="this.style.background='var(--gold-a8)'" onmouseout="this.style.background='none'">
+          <i class="fas fa-camera" style="color:var(--gold);width:16px"></i> Take a Photo
+        </button>
+      </div>
+      <p style="font-size:.66rem;color:var(--t3)">Tap the camera icon to change your photo</p>
       <div id="ep-avatar-uploading" style="display:none;font-size:.68rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:10px;height:10px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:5px"></span>Uploading…</div>
     </div>
     <div class="fg"><label class="flbl">Full Name *</label><input type="text" class="fi" id="ep-name" value="${esc(profile.full_name)}" placeholder="Your full name" maxlength="100" autocomplete="name"></div>
@@ -2528,6 +2538,10 @@ async function openEditProfile(){
 }
 function previewAvatar(input){
   const file=input.files[0];if(!file)return;
+  // Mirror the file to the other input so uploadAvatarFile always finds it
+  const other=document.getElementById(input.id==='ep-avatar-file'?'ep-avatar-camera':'ep-avatar-file');
+  // Store file reference globally so saveProfile can always access it
+  window._avatarFileToUpload=file;
   const reader=new FileReader();
   reader.onload=e=>{
     const prev=document.getElementById('ep-avatar-preview');
@@ -2536,10 +2550,12 @@ function previewAvatar(input){
   reader.readAsDataURL(file);
 }
 async function uploadAvatarFile(){
-  const input=document.getElementById('ep-avatar-file');
-  if(!input||!input.files[0])return null;
+  // Use whichever input has a file, or the global reference from previewAvatar
+  const file=window._avatarFileToUpload
+    ||(document.getElementById('ep-avatar-file')?.files[0])
+    ||(document.getElementById('ep-avatar-camera')?.files[0]);
+  if(!file)return null;
   if(!sb){toast('Supabase not configured','er');return null;}
-  const file=input.files[0];
   if(file.size>2*1024*1024){toast('Image too large (max 2MB)','er');return null;}
   const ext=file.name.split('.').pop()||'jpg';
   const path=`${user.id}/avatar_${Date.now()}.${ext}`;
@@ -2559,49 +2575,91 @@ async function saveProfile(){
   const errEl=document.getElementById('ep-err');
   const btn=document.getElementById('ep-btn');
   if(!name){setErr(errEl,'Full name is required');return;}
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';
-  const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;
-  // Upload avatar if changed
-  let avatarUrl=null;
-  const avatarFile=document.getElementById('ep-avatar-file');
-  if(avatarFile&&avatarFile.files[0])avatarUrl=await uploadAvatarFile();
-  const updateData={full_name:name,phone:fullPhone||null,updated_at:new Date().toISOString()};
-  if(avatarUrl)updateData.avatar_url=avatarUrl;
-  const{error}=await sb.from('profiles').update(updateData).eq('id',user.id);
-  // Also update auth metadata
-  const metaUpdate={full_name:name};
-  if(avatarUrl)metaUpdate.avatar_url=avatarUrl;
-  await sb.auth.updateUser({data:metaUpdate}).catch(()=>{});
-  btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i>Save Changes';
-  if(error){setErr(errEl,error.message);return;}
-  // Update local user metadata
-  if(user.user_metadata)user.user_metadata.full_name=name;
-  errEl.style.display='none';
-  // Keep user_contacts in sync
-  if (sb && fullPhone) {
-    await sb.from('user_contacts').upsert({user_id:user.id,phone:fullPhone,updated_at:new Date().toISOString()},{onConflict:'user_id'}).catch(()=>{});
+
+  // ── Lock button immediately ──
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin"></span> Saving…';
+
+  // ── Helper: always unlock button on any failure ──
+  function unlockBtn(){
+    btn.disabled=false;
+    btn.innerHTML='<i class="fas fa-save"></i>Save Changes';
   }
-  // FIX-1: Show inline success animation before closing
-  const body = document.getElementById('editprofile-body');
-  if (body) {
-    body.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;text-align:center;padding:32px 24px;animation:fadeUp .4s ease both">
-        <div style="position:relative;width:96px;height:96px;margin-bottom:24px">
-          <div style="position:absolute;inset:0;border-radius:50%;background:rgba(50,200,100,.1);border:2px solid rgba(50,200,100,.28);animation:pulseRing 1.6s ease-out infinite"></div>
-          <div style="position:absolute;inset:10px;border-radius:50%;background:rgba(50,200,100,.18);display:flex;align-items:center;justify-content:center">
-            <i class="fas fa-check" style="font-size:2rem;color:#32C864"></i>
+
+  try {
+    const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;
+
+    // Upload avatar if a new file was chosen
+    let avatarUrl=null;
+    const avatarFile=window._avatarFileToUpload
+      ||document.getElementById('ep-avatar-file')?.files[0]
+      ||document.getElementById('ep-avatar-camera')?.files[0];
+    if(avatarFile){
+      try{ avatarUrl=await uploadAvatarFile(); }catch(_){ avatarUrl=null; }
+    }
+
+    // Build update payload
+    const updateData={full_name:name,phone:fullPhone||null,updated_at:new Date().toISOString()};
+    if(avatarUrl) updateData.avatar_url=avatarUrl;
+
+    // Save to DB with a 10-second timeout so button never stays stuck
+    const savePromise=sb.from('profiles').update(updateData).eq('id',user.id);
+    const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Save timed out — check your internet connection')),10000));
+    const{error}=await Promise.race([savePromise,timeout]);
+
+    if(error){
+      unlockBtn();
+      setErr(errEl,error.message);
+      return;
+    }
+
+    // Update auth metadata (non-blocking — don't let it block the UI)
+    const metaUpdate={full_name:name};
+    if(avatarUrl) metaUpdate.avatar_url=avatarUrl;
+    sb.auth.updateUser({data:metaUpdate}).catch(()=>{});
+
+    // Update local state
+    if(user.user_metadata) user.user_metadata.full_name=name;
+    if(avatarUrl&&user.user_metadata) user.user_metadata.avatar_url=avatarUrl;
+    errEl.style.display='none';
+
+    // Keep user_contacts in sync (non-blocking)
+    if(fullPhone){
+      sb.from('user_contacts').upsert({user_id:user.id,phone:fullPhone,updated_at:new Date().toISOString()},{onConflict:'user_id'}).catch(()=>{});
+    }
+
+    // ── SUCCESS: show animation, then go back ──
+    const body=document.getElementById('editprofile-body');
+    if(body){
+      body.innerHTML=`
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;text-align:center;padding:32px 24px;animation:fadeUp .4s ease both">
+          <div style="position:relative;width:96px;height:96px;margin-bottom:28px">
+            <div style="position:absolute;inset:0;border-radius:50%;background:rgba(50,200,100,.1);border:2px solid rgba(50,200,100,.3);animation:pulseRing 1.6s ease-out infinite"></div>
+            <div style="position:absolute;inset:10px;border-radius:50%;background:rgba(50,200,100,.2);display:flex;align-items:center;justify-content:center">
+              <i class="fas fa-check" style="font-size:2rem;color:#32C864"></i>
+            </div>
           </div>
-        </div>
-        <div style="font-family:var(--fd);font-size:1.7rem;color:var(--t1);margin-bottom:8px">Profile Updated!</div>
-        <div style="font-size:.82rem;color:#32C864;font-weight:500;margin-bottom:6px">Your changes have been saved</div>
-        <div style="font-size:.74rem;color:var(--t3)">Taking you back to your account…</div>
-      </div>`;
+          <div style="font-family:var(--fd);font-size:1.75rem;color:var(--t1);margin-bottom:8px">Profile Updated!</div>
+          <div style="font-size:.84rem;color:#32C864;font-weight:500;margin-bottom:8px">Your changes have been saved</div>
+          <div style="font-size:.74rem;color:var(--t3)">Taking you back to your account…</div>
+        </div>`;
+    }
+    window._avatarFileToUpload=null; // clear global file ref
+    setTimeout(()=>{
+      closeSub('editprofile');
+      renderAcc();
+      toast('Profile updated! ✓','ok');
+    },2000);
+
+  } catch(err) {
+    // Catch ANY unexpected throw — button always gets unlocked
+    unlockBtn();
+    const msg=!navigator.onLine||String(err.message).toLowerCase().includes('fetch')||String(err.message).toLowerCase().includes('timed out')
+      ? 'No internet connection. Please check your Wi-Fi or mobile data.'
+      : (err.message||'Could not save profile. Please try again.');
+    setErr(errEl,msg);
+    toast(msg,'er');
   }
-  setTimeout(() => {
-    closeSub('editprofile');
-    renderAcc();
-    toast('Profile updated! ✓', 'ok');
-  }, 2000);
 }
 
 /* ════════ SETTINGS ════════ */
@@ -3431,18 +3489,25 @@ async function doLogin(){
     }
     user=data?.user||null;
     errEl.style.display='none';
-    toast('Signed in! ✓','ok');
-    // Force navigate to account tab after 1 second
-    setTimeout(function(){
-      document.querySelectorAll('.scr').forEach(function(s){s.classList.remove('on');});
-      document.querySelectorAll('.ni').forEach(function(n){n.classList.remove('on');});
-      var acc=document.getElementById('scr-acc');
-      if(acc)acc.classList.add('on');
-      var ni=document.querySelector('.ni[data-tab="acc"]');
-      if(ni)ni.classList.add('on');
-      window.scrollTo(0,0);
-      renderAcc();
-    },1000);
+    // Navigate to account tab immediately — no delay
+    document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+    document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
+    const accScr=document.getElementById('scr-acc');
+    if(accScr)accScr.classList.add('on');
+    const accNi=document.querySelector('.ni[data-tab="acc"]');
+    if(accNi)accNi.classList.add('on');
+    window.scrollTo(0,0);
+    // Fetch role then update UI — if admin open dashboard automatically
+    await fetchRole();
+    renderAcc();
+    if(userRole==='admin'){
+      toast('Welcome back, Admin 🛡','ok');
+      setTimeout(()=>openAdmin(),400);
+    } else if(userRole==='agent'){
+      toast('Welcome back, Agent 🤝','ok');
+    } else {
+      toast('Signed in! ✓','ok');
+    }
   }catch(err){
     console.error('Login error:',err);
     if(!navigator.onLine||String(err.message).includes('fetch')){
@@ -4086,7 +4151,33 @@ async function notifyAllAdmins({type='system',title,body}){
   }catch{}
 }
 
-async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('id,customer_name,customer_phone,delivery_address,items,total,status,notes,user_id,created_at').order('created_at',{ascending:false}).limit(200);el.innerHTML=`<div class="adm-section"><h3>All Orders (${data?.length||0})</h3>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" onclick="window.open('https://wa.me/'+getWANum(),'_blank','noopener,noreferrer')" href="#"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
+async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('id,customer_name,customer_phone,delivery_address,items,total,status,notes,user_id,created_at').order('created_at',{ascending:false}).limit(200);el.innerHTML=`<div class="adm-section"><h3>All Orders (${data?.length||0})</h3>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" onclick="admSendOrderWA(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,notes:o.notes,status:o.status,created_at:o.created_at})})" href="#" title="Send order to customer via WhatsApp"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
+function admSendOrderWA(o){
+  // Send order summary to the CUSTOMER's own phone number
+  const phone=(o.customer_phone||'').replace(/\D/g,'');
+  if(!phone){toast("No phone number on this order",'er');return;}
+  // Strip leading 0 if needed, add 254 prefix
+  const intlPhone=phone.startsWith('254')?phone:phone.startsWith('0')?'254'+phone.slice(1):'254'+phone;
+  const items=safeParseItems(o.items);
+  const lines=items.map(i=>`• ${i.qty||1}× ${i.name||''} — KES ${N((i.price||0)*(i.qty||1))}`).join('\n');
+  const statusEmoji={pending:'⏳',confirmed:'✅',processing:'⚙️',shipped:'🚚',completed:'🎉',cancelled:'❌'};
+  const msg=`🛍️ *Tote & Tread — Order Update*
+
+Hi ${o.customer_name||''}! Here's your order summary:
+
+*Ref:* #${(o.id||'').slice(0,8).toUpperCase()}
+*Status:* ${statusEmoji[o.status]||''} ${(o.status||'pending').toUpperCase()}
+*Address:* ${o.delivery_address||''}
+
+*Items:*
+${lines}
+
+*Total: KES ${N(o.total||0)}*
+
+Thank you for shopping with Tote & Tread! 💛
+Queries: wa.me/${getWANum()}`;
+  window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`,'_blank','noopener,noreferrer');
+}
 async function updateOrderStatus(id,status){
   if(userRole!=='admin'||!sb)return;
   const{data:ord,error}=await sb.from('orders').update({status}).eq('id',id).select('user_id,customer_name,total').single();
@@ -4139,7 +4230,7 @@ async function renderAdmUsers(){
       const lastSeen=u.last_visit?D(u.last_visit).split(',')[0]:'Never';
       const visits=u.visit_count||0;
       return `<tr>
-        <td class="td-name">${esc(u.full_name||'—')}${isSelf?'<span class="badge badge-amber" style="margin-left:5px;font-size:.5rem">You</span>':''}${u.role==='agent'?'<span class="badge badge-green" style="margin-left:5px;font-size:.5rem">Agent</span>':u.role==='banned_agent'?'<span class="badge badge-red" style="margin-left:5px;font-size:.5rem">Banned</span>':''}</td>
+        <td class="td-name" style="display:flex;align-items:center;gap:8px">${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--bd2)" onerror="this.style.display='none'">`:`<div style="width:30px;height:30px;border-radius:50%;background:var(--gold-a8);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:.7rem;color:var(--gold);flex-shrink:0"><i class="fas fa-user"></i></div>`}<div>${esc(u.full_name||'—')}${isSelf?'<span class="badge badge-amber" style="margin-left:5px;font-size:.5rem">You</span>':''}${u.role==='agent'?'<span class="badge badge-green" style="margin-left:5px;font-size:.5rem">Agent</span>':u.role==='banned_agent'?'<span class="badge badge-red" style="margin-left:5px;font-size:.5rem">Banned</span>':''}</td>
         <td class="td-sm" style="font-size:.62rem">${esc(u.email||u.phone||'—')}</td>
         <td>
           ${isSelf
