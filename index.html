@@ -2042,49 +2042,80 @@ async function init() {
   // Load and render adverts
   if (sb) loadAndRenderAdverts();
 
-  // Realtime (set up after client ready, non-blocking)
+  // ── REALTIME: Single multiplexed WebSocket channel (1 WS connection for everything) ──
   if (sb) {
-    sb.channel('rt-products').on('postgres_changes',{event:'*',schema:'public',table:'products'},() => { try{sessionStorage.removeItem('tt_products_cache');sessionStorage.removeItem('tt_products_time');}catch{} if(userRole==='admin')loadProducts(true); else loadProducts(); }).subscribe();
-    sb.channel('rt-settings').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},async (payload) => {
-      if (payload.new?.key === 'announcement') showAnnouncement(payload.new.value);
-    }).subscribe();
-    // Realtime notifications for logged-in user
-    sb.channel('rt-settings-gallery').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},async(payload)=>{
+    // One channel handles all tables — Supabase multiplexes over a single WS
+    sb.channel('tt-main', {
+      config: { broadcast: { self: false }, presence: { key: '' } }
+    })
+    // Products changes
+    .on('postgres_changes',{event:'*',schema:'public',table:'products'}, () => {
+      try{sessionStorage.removeItem('tt_products_cache');sessionStorage.removeItem('tt_products_time');}catch{}
+      // Debounce: don't reload if tab is hidden (saves battery & bandwidth)
+      if(document.visibilityState==='hidden'){window._rtPendingProducts=true;return;}
+      if(userRole==='admin') loadProducts(true); else loadProducts();
+    })
+    // App settings: announcement, gallery, adverts
+    .on('postgres_changes',{event:'*',schema:'public',table:'app_settings'}, async(payload)=>{
       const k=payload.new?.key||payload.old?.key||'';
-      if(k.startsWith('gallery_'))loadGalleryFromDB();
-      if(k.startsWith('advert_'))loadAndRenderAdverts();
-    }).subscribe();
-    // Admin notifications realtime
-    sb.channel('rt-admin-notifs').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},async(payload)=>{
-      if(userRole==='admin'&&payload.new?.user_id===user?.id){
-        // Refresh notifications tab if open
-        const activeTab=document.querySelector('.adm-tab.on');
-        if(activeTab?.textContent?.trim()==='Notifications')renderAdmNotifications();
-        // Update overview unread count
-        if(activeTab?.textContent?.trim()==='Overview')renderAdmOverview();
-      }
-    }).subscribe();
-    sb.channel('rt-notifications').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},async (payload) => {
-      if (user && payload.new?.user_id === user.id) {
+      if(k==='announcement') showAnnouncement(payload.new?.value||'');
+      if(k.startsWith('gallery_')) loadGalleryFromDB();
+      if(k.startsWith('advert_')) loadAndRenderAdverts();
+    })
+    // Notifications: new inserts for current user
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'}, async(payload)=>{
+      if(!user) return;
+      // User notification
+      if(payload.new?.user_id===user.id){
         _notifCache.unshift(payload.new);
         updNotifBadge();
-        // Show toast for new notification
-        toast(payload.new.title, 'nf');
+        if(document.visibilityState!=='hidden') toast(payload.new.title,'nf');
       }
-    }).subscribe();
-    // Realtime orders for admin
-    sb.channel('rt-orders').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},async () => {
-      if (userRole === 'admin') {
-        updBadges();
-        // Refresh admin orders if panel is open
-        const admEl = document.getElementById('admin');
-        if (admEl?.classList.contains('on')) {
-          const activeTab = document.querySelector('.adm-tab.on');
-          if (activeTab?.textContent?.trim() === 'Orders') renderAdmOrders();
-          if (activeTab?.textContent?.trim() === 'Overview') renderAdmOverview();
+      // Admin tab refresh
+      if(userRole==='admin'&&payload.new?.user_id===user.id){
+        const admEl=document.getElementById('admin');
+        if(admEl?.classList.contains('on')){
+          const aTab=document.querySelector('.adm-tab.on')?.textContent?.trim();
+          if(aTab==='Notifications') renderAdmNotifications();
+          if(aTab==='Overview') renderAdmOverview();
         }
       }
-    }).subscribe();
+    })
+    // Orders: new orders for admin
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'}, async()=>{
+      if(userRole!=='admin') return;
+      updBadges();
+      const admEl=document.getElementById('admin');
+      if(admEl?.classList.contains('on')){
+        const aTab=document.querySelector('.adm-tab.on')?.textContent?.trim();
+        if(aTab==='Orders') renderAdmOrders();
+        if(aTab==='Overview') renderAdmOverview();
+      }
+    })
+    .subscribe((status)=>{
+      if(status==='SUBSCRIBED') console.log('[WS] tt-main connected');
+      if(status==='CHANNEL_ERROR') console.warn('[WS] tt-main error — will retry');
+    });
+
+    // ── Page Visibility: flush deferred updates when tab becomes visible ──
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState!=='visible') return;
+      if(window._rtPendingProducts){
+        window._rtPendingProducts=false;
+        if(userRole==='admin') loadProducts(true); else loadProducts();
+      }
+      // Soft refresh: update notification badge when user comes back
+      if(user&&sb) loadNotifications();
+    });
+
+    // ── Smart background poll: every 4 min while visible, keep data fresh ──
+    // Fires only when the tab is in focus — zero cost when minimised
+    setInterval(()=>{
+      if(document.visibilityState!=='visible'||!user||!sb) return;
+      loadNotifications();
+      // Bust product cache every 4 min so prices stay current
+      try{sessionStorage.removeItem('tt_products_cache');sessionStorage.removeItem('tt_products_time');}catch{}
+    }, 4*60*1000);
   }
 
   // Run auth + settings in background; products renders as it arrives
@@ -3185,174 +3216,235 @@ async function placeOrder() {
   } catch { toast('Could not place order. Please try again.','er'); btn.disabled=false; btn.innerHTML='<i class="fas fa-lock"></i>Confirm Order via WhatsApp'; }
 }
 
+function _buildReceiptDoc(o) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const items = safeParseItems(o.items);
+  const total = o.total || items.reduce((s,i) => s + (i.price||0)*(i.qty||1), 0);
+  const W = 210, H = 297;
+  const gold  = [201,168,76],
+        goldD = [160,128,48],
+        goldL = [240,220,160],
+        dark  = [10,8,4],
+        dark2 = [22,18,10],
+        dark3 = [32,26,14],
+        cream = [252,248,238],
+        cream2= [244,238,224],
+        warm  = [180,155,100],
+        warmD = [120,100,65];
+
+  // ── 1. CREAM BODY BACKGROUND ──────────────────────────
+  doc.setFillColor(...cream); doc.rect(0,0,W,H,'F');
+
+  // ── 2. DOODLE BACKGROUND (SVG-encoded as vector strokes) ──
+  // Draw elegant repeating doodle pattern across full page
+  doc.setDrawColor(201,168,76); doc.setLineWidth(0.18); doc.setGlobalAlpha(0.06);
+
+  // Scattered leaf/teardrop doodles
+  const doodleSeeds = [
+    [18,40],[55,28],[92,55],[130,32],[165,45],[195,25],
+    [28,80],[72,95],[115,78],[155,92],[190,68],
+    [15,135],[50,148],[88,128],[128,145],[170,130],[200,118],
+    [25,185],[65,172],[108,190],[148,175],[188,195],
+    [20,235],[58,250],[100,230],[145,248],[178,235],[205,245],
+    [35,275],[80,265],[125,280],[162,268],[195,282],
+  ];
+  doodleSeeds.forEach(([x,y]) => {
+    // Small diamond
+    doc.lines([[3,0],[3,3],[-3,3],[-3,-3]],x,y);
+    // Circle
+    doc.circle(x+7, y+2, 2);
+    // Tiny cross
+    doc.line(x+14,y-1,x+14,y+3); doc.line(x+12,y+1,x+16,y+1);
+    // Leaf swirl
+    doc.lines([[4,2],[1,4],[-3,2],[-1,-2]],x+20,y+1,'S');
+  });
+  // Diagonal hatching lines (light)
+  for(let i=-20; i<220; i+=18){
+    doc.line(i, 0, i+30, H);
+  }
+  doc.setGlobalAlpha(1.0);
+
+  // ── 3. DARK LETTERHEAD BAND ────────────────────────────
+  doc.setFillColor(...dark); doc.rect(0,0,W,64,'F');
+  // Inner subtle gradient overlay
+  doc.setFillColor(20,15,5); doc.rect(0,0,W,32,'F');
+
+  // ── 4. LETTERHEAD DOODLE OVERLAY (on dark bg) ──────────
+  doc.setDrawColor(...gold); doc.setLineWidth(0.12); doc.setGlobalAlpha(0.09);
+  [0,30,60,90,120,150,180,210].forEach(x => {
+    doc.line(x, 0, x+20, 64);
+  });
+  [10,26,44].forEach(y => {
+    for(let x=0; x<220; x+=22){
+      doc.circle(x+5, y, 3);
+    }
+  });
+  doc.setGlobalAlpha(1.0);
+
+  // ── 5. GOLD BORDER LINES ──────────────────────────────
+  doc.setFillColor(...gold); doc.rect(0,62,W,1.2,'F');
+  doc.setFillColor(160,128,48); doc.rect(0,63.2,W,0.5,'F');
+
+  // Left/right gold accent bars
+  doc.setFillColor(...gold); doc.rect(0,0,3,64,'F');
+  doc.setFillColor(160,128,48); doc.rect(W-3,0,3,64,'F');
+
+  // ── 6. BRAND NAME ─────────────────────────────────────
+  doc.setFont('times','bolditalic');
+  doc.setFontSize(28);
+  doc.setTextColor(...gold);
+  doc.text('Tote & Tread', W/2, 22, {align:'center'});
+
+  // COLLECTIONS — centred, spaced
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...goldL);
+  doc.setCharSpace(4.5);
+  doc.text('C O L L E C T I O N S', W/2, 31, {align:'center'});
+  doc.setCharSpace(0);
+
+  // Gold decorative line under COLLECTIONS
+  doc.setDrawColor(...goldD); doc.setLineWidth(0.3);
+  doc.line(W/2-28, 33.5, W/2+28, 33.5);
+
+  // Contact info
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...warm);
+  doc.text('Nairobi, Kenya  ·  0107545752', W/2, 41, {align:'center'});
+  doc.text('toteandtreadcollection@gmail.com', W/2, 47, {align:'center'});
+  doc.text(_shareUrl()||SITE, W/2, 53, {align:'center'});
+
+  // ── 7. RECEIPT TITLE + REF ────────────────────────────
+  // Title background pill
+  doc.setFillColor(...dark3); doc.roundedRect(W/2-30, 68, 60, 10, 3, 3, 'F');
+  doc.setDrawColor(...gold); doc.setLineWidth(0.3); doc.roundedRect(W/2-30, 68, 60, 10, 3, 3, 'S');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...gold);
+  doc.setCharSpace(1.5);
+  doc.text('ORDER RECEIPT', W/2, 74.8, {align:'center'});
+  doc.setCharSpace(0);
+
+  // Ref & Date
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...warmD);
+  const ref = `Ref: #${(o.id||'').toString().slice(0,8).toUpperCase()||'N/A'}`;
+  const dt  = `Date: ${D(o.created_at||new Date().toISOString())}`;
+  doc.text(ref, W/2, 83, {align:'center'});
+  doc.text(dt,  W/2, 89, {align:'center'});
+
+  // ── 8. DIVIDER ────────────────────────────────────────
+  doc.setDrawColor(...goldD); doc.setLineWidth(0.2);
+  doc.line(18, 93, W-18, 93);
+
+  // ── 9. BILL TO + STATUS ───────────────────────────────
+  doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(...gold);
+  doc.setCharSpace(1.2);
+  doc.text('BILL TO', 20, 101);
+  doc.setCharSpace(0);
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(50,42,25);
+  doc.text(o.customer_name||'—', 20, 108);
+  doc.setFontSize(7.5); doc.setTextColor(...warmD);
+  doc.text(o.customer_phone||'—', 20, 113.5);
+  const addrLines = doc.splitTextToSize(o.delivery_address||'—', 82);
+  doc.text(addrLines, 20, 119);
+
+  // Status badge (right side)
+  const statusColors = {
+    pending:[255,160,50], confirmed:[50,200,100], processing:[155,138,240],
+    shipped:[77,187,255], completed:[201,168,76], cancelled:[224,80,80]
+  };
+  const sc = statusColors[o.status||'pending'] || [201,168,76];
+  doc.setFillColor(...dark2);
+  doc.roundedRect(W-70,97,50,14,3,3,'F');
+  doc.setDrawColor(...sc); doc.setLineWidth(0.4);
+  doc.roundedRect(W-70,97,50,14,3,3,'S');
+  // Coloured dot
+  doc.setFillColor(...sc); doc.circle(W-65, 104, 2, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(7);
+  doc.setTextColor(...sc);
+  doc.text((o.status||'pending').toUpperCase(), W-58, 105.2);
+
+  // ── 10. ITEMS TABLE ────────────────────────────────────
+  let y = Math.max(134, 119 + addrLines.length*5.5 + 6);
+
+  // Section label
+  doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(...gold);
+  doc.setCharSpace(1.5);
+  doc.text('ORDER ITEMS', 20, y-4);
+  doc.setCharSpace(0);
+
+  doc.setFillColor(...dark3); doc.rect(18, y, W-36, 10, 'F');
+  doc.setDrawColor(...goldD); doc.setLineWidth(0.2);
+  doc.rect(18, y, W-36, 10, 'S');
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(...gold);
+  doc.text('PRODUCT', 23, y+7);
+  doc.text('QTY', W-65, y+7, {align:'center'});
+  doc.text('AMOUNT', W-20, y+7, {align:'right'});
+  y += 12;
+
+  items.forEach((item, idx) => {
+    const rowBg = idx%2===0 ? cream : cream2;
+    doc.setFillColor(...rowBg); doc.rect(18, y-5, W-36, 10.5, 'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(45,35,18);
+    doc.text(String(item.name||'').slice(0,40), 23, y+1);
+    doc.setTextColor(...warmD);
+    doc.text(String(item.qty||1), W-65, y+1, {align:'center'});
+    doc.setFont('helvetica','bold'); doc.setTextColor(...goldD);
+    doc.text(`KES ${N((item.price||0)*(item.qty||1))}`, W-20, y+1, {align:'right'});
+    y += 11.5;
+  });
+
+  // ── 11. TOTAL BAND ────────────────────────────────────
+  y += 2;
+  doc.setFillColor(...dark); doc.rect(18, y-2, W-36, 14, 'F');
+  doc.setDrawColor(...gold); doc.setLineWidth(0.5);
+  doc.rect(18, y-2, W-36, 14, 'S');
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...gold);
+  doc.text('TOTAL', 25, y+7);
+  doc.setFontSize(12);
+  doc.text(`KES ${N(total)}`, W-21, y+7, {align:'right'});
+  y += 20;
+
+  // ── 12. NOTES ─────────────────────────────────────────
+  if(o.notes){
+    doc.setFillColor(240,230,200); doc.roundedRect(18, y-2, W-36, 10, 2, 2, 'F');
+    doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(...warmD);
+    const noteLines = doc.splitTextToSize('Note: '+o.notes.slice(0,90), W-44);
+    doc.text(noteLines, 23, y+4);
+    y += 14;
+  }
+
+  // ── 13. FOOTER ────────────────────────────────────────
+  y = Math.max(y, 255);
+  doc.setDrawColor(...goldD); doc.setLineWidth(0.3); doc.line(18, y, W-18, y); y+=8;
+
+  // Thank you message
+  doc.setFont('times','italic'); doc.setFontSize(10); doc.setTextColor(...goldD);
+  doc.text('Thank you for shopping with Tote & Tread!', W/2, y, {align:'center'}); y+=7;
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...warmD);
+  doc.text('For queries: toteandtreadcollection@gmail.com  ·  0107545752', W/2, y, {align:'center'}); y+=5;
+  doc.setTextColor(...gold);
+  doc.text(_shareUrl()||SITE, W/2, y, {align:'center'}); y+=5;
+  doc.setFontSize(6.5); doc.setTextColor(160,140,100);
+  doc.text(`Generated: ${new Date().toLocaleString('en-KE')}`, W/2, y, {align:'center'});
+
+  // ── 14. CORNER ACCENTS ────────────────────────────────
+  // Bottom-left corner
+  doc.setFillColor(...gold); doc.rect(0,H-8,3,8,'F'); doc.rect(0,H-3,20,3,'F');
+  // Bottom-right corner
+  doc.rect(W-3,H-8,3,8,'F'); doc.rect(W-20,H-3,20,3,'F');
+
+  return doc;
+}
+
 function dlReceipt(o) {
   try {
-    const { jsPDF } = window.jspdf, doc = new jsPDF();
-    const items = safeParseItems(o.items); // FIX-11c
-    const total = o.total||items.reduce((s,i)=>s+i.price*i.qty,0);
-    const pageW=210;
-
-    // ── LETTERHEAD BACKGROUND ──
-    doc.setFillColor(10,10,10);doc.rect(0,0,pageW,60,'F');
-    // Gold border stripe
-    doc.setFillColor(201,168,76);doc.rect(0,58,pageW,2,'F');
-
-    // Brand name
-    doc.setFontSize(26);doc.setFont('times','bolditalic');doc.setTextColor(201,168,76);
-    doc.text('Tote & Tread',pageW/2,24,{align:'center'});
-
-    // Brand sub-title
-    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(180,165,130);
-    doc.setCharSpace(2);doc.text('C O L L E C T I O N',pageW/2,31,{align:'center'});doc.setCharSpace(0);
-
-    // Contact info in header
-    doc.setFontSize(7.5);doc.setTextColor(140,125,95);
-    doc.text('Nairobi, Kenya',pageW/2,39,{align:'center'});
-    doc.text('0107545752  ·  toteandtreadcollection@gmail.com',pageW/2,46,{align:'center'});
-    doc.text('tote-and-tread.vercel.app',pageW/2,53,{align:'center'});
-
-    // ── RECEIPT TITLE ──
-    doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(40,32,18);
-    doc.text('ORDER RECEIPT',pageW/2,72,{align:'center'});
-    doc.setDrawColor(201,168,76);doc.setLineWidth(.4);doc.line(60,74,pageW-60,74);
-
-    // Ref & Date
-    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(100,88,65);
-    doc.text(`Ref: #${(o.id||'').toString().slice(0,8).toUpperCase()||'N/A'}`,pageW/2,81,{align:'center'});
-    doc.text(`Date: ${D(o.created_at||new Date().toISOString())}`,pageW/2,87,{align:'center'});
-
-    // ── CUSTOMER INFO ──
-    doc.setLineWidth(.25);doc.setDrawColor(220,200,160);doc.line(20,93,pageW-20,93);
-    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(40,32,18);
-    doc.text('BILL TO',20,100);
-    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(80,68,48);
-    doc.text(o.customer_name||'—',20,108);
-    doc.text(o.customer_phone||'—',20,114);
-    const addr=(o.delivery_address||'—');
-    const addrLines=doc.splitTextToSize(addr,90);
-    doc.text(addrLines,20,120);
-
-    // ── STATUS badge ──
-    const statusY=100;
-    doc.setFillColor(25,20,10);doc.roundedRect(pageW-70,statusY-7,50,14,3,3,'F');
-    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(201,168,76);
-    doc.text((o.status||'pending').toUpperCase(),pageW-45,statusY+1,{align:'center'});
-
-    // ── ITEMS TABLE ──
-    let y=Math.max(130,120+addrLines.length*6+4);
-    doc.line(20,y,pageW-20,y);y+=2;
-    // Table header
-    doc.setFillColor(25,20,5);doc.rect(20,y,pageW-40,10,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(201,168,76);
-    doc.text('ITEM',24,y+7);doc.text('QTY',pageW-70,y+7,{align:'center'});doc.text('PRICE',pageW-22,y+7,{align:'right'});
-    y+=14;
-    items.forEach((item,idx)=>{
-      if(idx%2===0){doc.setFillColor(252,248,240);}else{doc.setFillColor(246,241,232);}
-      doc.rect(20,y-5,pageW-40,10,'F');
-      doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(60,50,32);
-      doc.text(String(item.name||'').slice(0,38),24,y);
-      doc.text(String(item.qty||1),pageW-70,y,{align:'center'});
-      doc.text(`KES ${N((item.price||0)*(item.qty||1))}`,pageW-22,y,{align:'right'});
-      y+=12;
-    });
-
-    // ── TOTAL ──
-    doc.setLineWidth(.4);doc.setDrawColor(201,168,76);doc.line(20,y,pageW-20,y);y+=8;
-    doc.setFillColor(25,20,5);doc.rect(20,y-4,pageW-40,14,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(201,168,76);
-    doc.text('TOTAL',26,y+5);
-    doc.text(`KES ${N(total)}`,pageW-22,y+5,{align:'right'});
-    y+=20;
-
-    // ── NOTES ──
-    if(o.notes){
-      doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor(120,105,78);
-      doc.text('Notes: '+o.notes.slice(0,80),20,y);y+=10;
-    }
-
-    // ── FOOTER ──
-    y=Math.max(y,260);
-    doc.setDrawColor(201,168,76);doc.setLineWidth(.4);doc.line(20,y,pageW-20,y);y+=8;
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,120,85);
-    doc.text('Thank you for shopping with Tote & Tread Collection!',pageW/2,y,{align:'center'});y+=5;
-    doc.text('For queries: toteandtreadcollection@gmail.com  ·  0107545752',pageW/2,y,{align:'center'});y+=5;
-    doc.setFontSize(7.5);doc.setTextColor(201,168,76);
-    doc.text(_shareUrl()||SITE,pageW/2,y,{align:'center'});y+=5;
-    doc.setFontSize(7);doc.setTextColor(160,140,100);
-    doc.text(`Generated: ${new Date().toLocaleString('en-KE')}`,pageW/2,y,{align:'center'});
-
+    const doc = _buildReceiptDoc(o);
     doc.save(`TnT_Receipt_${(o.id||'').toString().slice(0,8)||Date.now()}.pdf`);
-    toast('Receipt downloaded!','ok');
+    toast('Receipt downloaded! 📄','ok');
   } catch(err) { console.error(err); toast('Could not generate receipt','er'); }
 }
-async function shareReceipt(o) {
-  try {
-    const { jsPDF } = window.jspdf, doc = new jsPDF();
-    const items = safeParseItems(o.items); // FIX-11d
-    const total = o.total||items.reduce((s,i)=>s+i.price*i.qty,0);
-    const pageW=210;
-    doc.setFillColor(10,10,10);doc.rect(0,0,pageW,60,'F');
-    doc.setFillColor(201,168,76);doc.rect(0,58,pageW,2,'F');
-    doc.setFontSize(26);doc.setFont('times','bolditalic');doc.setTextColor(201,168,76);
-    doc.text('Tote & Tread',pageW/2,24,{align:'center'});
-    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(180,165,130);
-    doc.setCharSpace(2);doc.text('C O L L E C T I O N',pageW/2,31,{align:'center'});doc.setCharSpace(0);
-    doc.setFontSize(7.5);doc.setTextColor(140,125,95);
-    doc.text('Nairobi, Kenya',pageW/2,39,{align:'center'});
-    doc.text('0107545752  ·  toteandtreadcollection@gmail.com',pageW/2,46,{align:'center'});
-    doc.text(_shareUrl()||SITE,pageW/2,53,{align:'center'});
-    doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(40,32,18);
-    doc.text('ORDER RECEIPT',pageW/2,72,{align:'center'});
-    doc.setDrawColor(201,168,76);doc.setLineWidth(.4);doc.line(60,74,pageW-60,74);
-    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(100,88,65);
-    doc.text(`Ref: #${(o.id||'').toString().slice(0,8).toUpperCase()||'N/A'}`,pageW/2,81,{align:'center'});
-    doc.text(`Date: ${D(o.created_at||new Date().toISOString())}`,pageW/2,87,{align:'center'});
-    doc.setLineWidth(.25);doc.setDrawColor(220,200,160);doc.line(20,93,pageW-20,93);
-    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(40,32,18);doc.text('BILL TO',20,100);
-    doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(80,68,48);
-    doc.text(o.customer_name||'—',20,108);doc.text(o.customer_phone||'—',20,114);
-    const addr=(o.delivery_address||'—');const addrLines=doc.splitTextToSize(addr,90);doc.text(addrLines,20,120);
-    const statusY=100;doc.setFillColor(25,20,10);doc.roundedRect(pageW-70,statusY-7,50,14,3,3,'F');
-    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(201,168,76);
-    doc.text((o.status||'pending').toUpperCase(),pageW-45,statusY+1,{align:'center'});
-    let y=Math.max(130,120+addrLines.length*6+4);
-    doc.line(20,y,pageW-20,y);y+=2;
-    doc.setFillColor(25,20,5);doc.rect(20,y,pageW-40,10,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(201,168,76);
-    doc.text('ITEM',24,y+7);doc.text('QTY',pageW-70,y+7,{align:'center'});doc.text('PRICE',pageW-22,y+7,{align:'right'});y+=14;
-    items.forEach((item,idx)=>{
-      if(idx%2===0){doc.setFillColor(252,248,240);}else{doc.setFillColor(246,241,232);}
-      doc.rect(20,y-5,pageW-40,10,'F');
-      doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(60,50,32);
-      doc.text(String(item.name||'').slice(0,38),24,y);
-      doc.text(String(item.qty||1),pageW-70,y,{align:'center'});
-      doc.text(`KES ${N((item.price||0)*(item.qty||1))}`,pageW-22,y,{align:'right'});y+=12;
-    });
-    doc.setLineWidth(.4);doc.setDrawColor(201,168,76);doc.line(20,y,pageW-20,y);y+=8;
-    doc.setFillColor(25,20,5);doc.rect(20,y-4,pageW-40,14,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(201,168,76);
-    doc.text('TOTAL',26,y+5);doc.text(`KES ${N(total)}`,pageW-22,y+5,{align:'right'});y+=20;
-    if(o.notes){doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor(120,105,78);doc.text('Notes: '+o.notes.slice(0,80),20,y);y+=10;}
-    y=Math.max(y,260);
-    doc.setDrawColor(201,168,76);doc.setLineWidth(.4);doc.line(20,y,pageW-20,y);y+=8;
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(140,120,85);
-    doc.text('Thank you for shopping with Tote & Tread Collection!',pageW/2,y,{align:'center'});y+=5;
-    doc.text('For queries: toteandtreadcollection@gmail.com  ·  0107545752',pageW/2,y,{align:'center'});y+=5;
-    doc.setFontSize(7.5);doc.setTextColor(201,168,76);doc.text(_shareUrl()||SITE,pageW/2,y,{align:'center'});y+=5;
-    doc.setFontSize(7);doc.setTextColor(160,140,100);
-    doc.text(`Generated: ${new Date().toLocaleString('en-KE')}`,pageW/2,y,{align:'center'});
-    const pdfBlob = doc.output('blob');
-    const fname = `TnT_Receipt_${(o.id||'').toString().slice(0,8)||Date.now()}.pdf`;
-    const file = new File([pdfBlob], fname, {type:'application/pdf'});
-    if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
-      await navigator.share({title:'Tote & Tread Receipt', text:`Order Receipt — ${_shareUrl()||SITE}`, files:[file]});
-    } else {
-      // Fallback: download
-      dlReceipt(o);
-      toast('Share not supported — PDF downloaded instead','nf');
-    }
-  } catch(err) { if(err.name!=='AbortError'){console.error(err);toast('Could not share receipt','er');} }
-}
+
+
 
 /* ════════ NOTIFY ME ════════ */
 function openNotify(pid) { document.getElementById('notify-pid').value=pid; document.getElementById('notify-email').value=user?.email||''; document.getElementById('notify-modal').classList.add('on'); showOvl(); }
@@ -4259,14 +4351,29 @@ async function renderAdmOrders(){
     return;
   }
   (data||[]).forEach(o=>{ _admOrdersMap[o.id]=o; });
+  const allStatuses=['all','pending','confirmed','processing','shipped','completed','cancelled'];
+  const activeFilter=window._ordersFilter||'all';
+  const filtered=activeFilter==='all'?data:(data||[]).filter(o=>o.status===activeFilter);
+  const statusCounts={};
+  (data||[]).forEach(o=>{statusCounts[o.status]=(statusCounts[o.status]||0)+1;});
+
   el.innerHTML=`<div class="adm-section">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <h3 style="margin:0">All Orders (${data?.length||0})</h3>
+      <h3 style="margin:0">Orders (${filtered.length}/${data?.length||0})</h3>
       <button class="btn btn-outline btn-sm" onclick="renderAdmOrderAnalytics()"><i class="fas fa-chart-bar" style="color:var(--gold)"></i>Analytics</button>
     </div>
-    ${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`
+    <!-- Status filter tabs -->
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
+      ${allStatuses.map(s=>{
+        const cnt=s==='all'?(data?.length||0):(statusCounts[s]||0);
+        const active=activeFilter===s;
+        const colors={pending:'#FFA032',confirmed:'#32C864',processing:'#9B8AF0',shipped:'#4DBBFF',completed:'var(--gold)',cancelled:'var(--red)',all:'var(--gold)'};
+        return cnt>0||s==='all'?`<button onclick="window._ordersFilter='${s}';renderAdmOrders()" style="padding:4px 10px;font-size:.6rem;font-family:var(--fb);border-radius:20px;cursor:pointer;border:1px solid ${active?colors[s]:'var(--bd)'};background:${active?'rgba(201,168,76,.1)':'transparent'};color:${active?colors[s]:'var(--t3)'};font-weight:${active?'700':'400'};transition:all .2s">${s==='all'?'All':''}${s!=='all'?s.charAt(0).toUpperCase()+s.slice(1):''} ${cnt}</button>`:'';
+      }).join('')}
+    </div>
+    ${!filtered.length?`<p style="font-size:.76rem;color:var(--t3)">No ${activeFilter==='all'?'':'<b>'+activeFilter+'</b> '}orders yet.</p>`:`
     <table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead>
-    <tbody>${data.map(o=>`<tr>
+    <tbody>${filtered.map(o=>`<tr>
       <td class="td-sm">#${esc(o.id.slice(0,6))}</td>
       <td class="td-name">${esc(o.customer_name||'—')}</td>
       <td class="td-gold">KES ${N(o.total||0)}</td>
@@ -4306,6 +4413,117 @@ Thank you for shopping with Tote & Tread! 💛
 Queries: wa.me/${getWANum()}`;
   window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`,'_blank','noopener,noreferrer');
 }
+async function renderAdmOrderAnalytics(){
+  const el=document.getElementById('adm-content');
+  el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+  const{data}=await sb.from('orders')
+    .select('id,customer_name,customer_phone,user_id,items,total,status,created_at')
+    .order('created_at',{ascending:false}).limit(500);
+  const orders=data||[];
+
+  // ── Top Products ──
+  const prodMap={};
+  orders.filter(o=>o.status!=='cancelled').forEach(o=>{
+    safeParseItems(o.items).forEach(item=>{
+      const k=item.name||'Unknown';
+      if(!prodMap[k])prodMap[k]={qty:0,revenue:0};
+      prodMap[k].qty+=(item.qty||1);
+      prodMap[k].revenue+=(item.price||0)*(item.qty||1);
+    });
+  });
+  const topProds=Object.entries(prodMap).sort((a,b)=>b[1].qty-a[1].qty).slice(0,10);
+  const maxQty=topProds[0]?.[1]?.qty||1;
+
+  // ── Top Customers ──
+  const custMap={};
+  orders.forEach(o=>{
+    const k=(o.customer_name||'Unknown')+'|'+(o.customer_phone||'');
+    if(!custMap[k])custMap[k]={name:o.customer_name||'Unknown',phone:o.customer_phone||'—',orders:0,spend:0,last:o.created_at};
+    custMap[k].orders++;
+    if(o.status!=='cancelled')custMap[k].spend+=(o.total||0);
+    if(o.created_at>custMap[k].last)custMap[k].last=o.created_at;
+  });
+  const topCusts=Object.values(custMap).sort((a,b)=>b.spend-a.spend).slice(0,10);
+
+  // ── Revenue by status ──
+  const statuses=['pending','confirmed','processing','shipped','completed','cancelled'];
+  const totalRev=orders.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.total||0),0);
+  const statusColors={pending:'#FFA032',confirmed:'#32C864',processing:'#9B8AF0',shipped:'#4DBBFF',completed:'var(--gold)',cancelled:'var(--red)'};
+
+  el.innerHTML=`
+  <div style="padding:12px 14px 0">
+    <button class="btn btn-ghost btn-sm" onclick="renderAdmOrders()"><i class="fas fa-arrow-left"></i>Back to Orders</button>
+  </div>
+
+  <!-- Revenue by status -->
+  <div class="adm-section">
+    <h3>Revenue Overview</h3>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px">
+      <div style="font-family:var(--fd);font-size:2rem;color:var(--gold)">KES ${N(totalRev)}</div>
+      <div style="font-size:.7rem;color:var(--t3)">${orders.length} orders total</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${statuses.map(s=>{
+        const cnt=orders.filter(o=>o.status===s).length;
+        const rev=orders.filter(o=>o.status===s).reduce((sum,o)=>sum+(o.total||0),0);
+        const pct=totalRev>0?Math.round((rev/totalRev)*100):0;
+        if(!cnt)return '';
+        return `<div>
+          <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--t2);margin-bottom:4px">
+            <span style="text-transform:capitalize">${s} <span style="color:var(--t3)">(${cnt})</span></span>
+            <span style="color:${statusColors[s]}">KES ${N(rev)}</span>
+          </div>
+          <div style="height:7px;background:var(--bg4);border-radius:4px;overflow:hidden">
+            <div style="height:100%;width:${Math.max(2,pct)}%;background:${statusColors[s]};border-radius:4px"></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+
+  <!-- Top Products -->
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:14px">
+    <h3>🏆 Top Selling Products</h3>
+    ${!topProds.length?'<p style="font-size:.76rem;color:var(--t3)">No product data yet.</p>':
+    topProds.map(([name,stats],i)=>{
+      const pct=Math.round((stats.qty/maxQty)*100);
+      const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span style="font-size:.72rem;color:var(--t3);font-weight:700">${i+1}</span>`;
+      return `<div style="margin-bottom:11px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px">
+          <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0">
+            <span style="flex-shrink:0">${medal}</span>
+            <span style="font-size:.76rem;color:var(--t1);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:.74rem;color:var(--gold);font-weight:700">${stats.qty} sold</div>
+            <div style="font-size:.6rem;color:var(--t3)">KES ${N(stats.revenue)}</div>
+          </div>
+        </div>
+        <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${i===0?'var(--gold)':'rgba(201,168,76,.45)'};border-radius:3px"></div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <!-- Top Customers -->
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:14px">
+    <h3>👑 Top Customers</h3>
+    <p style="font-size:.7rem;color:var(--t3);margin-bottom:10px">Ranked by total spend (excluding cancelled orders).</p>
+    ${!topCusts.length?'<p style="font-size:.76rem;color:var(--t3)">No data yet.</p>':`
+    <table><thead><tr><th>#</th><th>Customer</th><th>Orders</th><th>Spent</th><th>Last</th></tr></thead><tbody>
+    ${topCusts.map((c,i)=>`<tr>
+      <td style="font-size:.72rem;color:var(--gold);font-weight:700">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
+      <td><div style="font-size:.74rem;color:var(--t1);font-weight:500">${esc(c.name)}</div><div style="font-size:.6rem;color:var(--t3)">${esc(c.phone)}</div></td>
+      <td style="text-align:center;font-size:.76rem;color:var(--t2)">${c.orders}</td>
+      <td style="font-size:.76rem;color:var(--gold);font-weight:600">KES ${N(c.spend)}</td>
+      <td style="font-size:.6rem;color:var(--t3)">${D(c.last).split(',')[0]}</td>
+    </tr>`).join('')}
+    </tbody></table>`}
+  </div>`;
+}
+
+
 async function updateOrderStatus(id,status){
   if(userRole!=='admin'||!sb)return;
   const{data:ord,error}=await sb.from('orders').update({status}).eq('id',id).select('user_id,customer_name,total').single();
@@ -4567,13 +4785,19 @@ async function openViewUser(uid){
       </div>
     </div>
     <div style="padding:10px 14px;display:flex;gap:8px;border-top:1px solid var(--bd)">
-      <button class="btn btn-gold btn-sm" style="flex:1" onclick="(function(){const _u=_admUserMap['${uid}']||{id:'${uid}'};closeViewUser();document.getElementById('edit-user-modal').classList.add('on');showOvl();(function openEU(u){editingUser=u;const b=document.getElementById('edit-user-body');b.innerHTML='<div class=\"fg\"><label class=\"flbl\">Full Name</label><input type=\"text\" class=\"fi\" id=\"eu-name\" value=\"'+esc(_u.full_name||'')+'\" maxlength=\"100\"></div><div class=\"fg\"><label class=\"flbl\">Phone</label><input type=\"tel\" class=\"fi\" id=\"eu-phone\" value=\"'+esc(_u.phone||'')+'\" maxlength=\"20\"></div><div class=\"fg\"><label class=\"flbl\">Role</label><select class=\"fsel\" id=\"eu-role\"><option value=\"customer\" '+(_u.role===\'customer\'?'selected':'')+'>Customer</option><option value=\"agent\" '+(_u.role===\'agent\'?'selected':'')+'>Agent</option><option value=\"admin\" '+(_u.role===\'admin\'?'selected':'')+'>Admin</option></select></div><button class=\"btn btn-gold btn-full\" onclick=\"saveEditUser()\"><i class=\"fas fa-save\"></i>Save Changes</button>';}(_u));})()">
-        <i class="fas fa-edit"></i>Edit Profile
-      </button>
+      <button class="btn btn-gold btn-sm" style="flex:1" onclick="viewUserEditProfile('${uid}')"><i class="fas fa-edit"></i>Edit Profile</button>
       <button class="btn btn-ghost btn-sm" onclick="closeViewUser()"><i class="fas fa-times"></i>Close</button>
     </div>`;
 }
 function closeViewUser(){document.getElementById('view-user-modal')?.classList.remove('on');hideOvl();}
+function viewUserEditProfile(uid){
+  const u=_admUserMap[uid];
+  if(!u){toast('User data not found','er');return;}
+  closeViewUser();
+  // Use the existing openEditUser with the stored user object
+  setTimeout(()=>openEditUser(u),120);
+}
+
 
 let editingUser=null;
 function openEditUser(u){editingUser=u;const body=document.getElementById('edit-user-body');body.innerHTML=`<div class="fg"><label class="flbl">Full Name</label><input type="text" class="fi" id="eu-name" value="${esc(u.full_name||'')}" maxlength="100"></div><div class="fg"><label class="flbl">Email</label><input type="email" class="fi" id="eu-email" value="${esc(u.email||'')}" maxlength="200" disabled style="opacity:.5"></div><div class="fg"><label class="flbl">Phone</label><input type="tel" class="fi" id="eu-phone" value="${esc(u.phone||'')}" maxlength="20"></div><div class="fg"><label class="flbl">Role</label><select class="fsel" id="eu-role"><option value="customer" ${u.role==='customer'?'selected':''}>Customer</option><option value="agent" ${u.role==='agent'?'selected':''}>Agent</option><option value="banned_agent" ${u.role==='banned_agent'?'selected':''}>Suspended Agent</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select></div><button class="btn btn-gold btn-full" onclick="saveEditUser()"><i class="fas fa-save"></i>Save Changes</button>`;document.getElementById('edit-user-modal').classList.add('on');showOvl();}
