@@ -177,8 +177,6 @@
 <meta property="og:image" content="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&q=80">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A0A0A'/%3E%3Cg transform='translate(32,32) scale(1.55) translate(-18,-18)'%3E%3Cpath d='M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z' stroke='%23C9A84C' stroke-width='1.6' fill='none' stroke-linejoin='round'/%3E%3Cpath d='M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11' stroke='%23C9A84C' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3Cline x1='11' y1='18' x2='25' y2='18' stroke='%23C9A84C' stroke-width='1.1' opacity='.7'/%3E%3Cline x1='11' y1='22' x2='21' y2='22' stroke='%23C9A84C' stroke-width='1.1' opacity='.7'/%3E%3Ccircle cx='18' cy='14.5' r='2' fill='%23C9A84C'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230A0A0A'/%3E%3Cg transform='translate(90,90) scale(4.2) translate(-18,-18)'%3E%3Cpath d='M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z' stroke='%23C9A84C' stroke-width='1.6' fill='none' stroke-linejoin='round'/%3E%3Cpath d='M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11' stroke='%23C9A84C' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3Cline x1='11' y1='18' x2='25' y2='18' stroke='%23C9A84C' stroke-width='1.1' opacity='.7'/%3E%3Cline x1='11' y1='22' x2='21' y2='22' stroke='%23C9A84C' stroke-width='1.1' opacity='.7'/%3E%3Ccircle cx='18' cy='14.5' r='2' fill='%23C9A84C'/%3E%3C/g%3E%3C/svg%3E">
-<link rel="preconnect" href="https://edxdjrdzzzkxwxketezu.supabase.co" crossorigin>
-<link rel="dns-prefetch" href="https://edxdjrdzzzkxwxketezu.supabase.co">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -1526,7 +1524,7 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
     <p style="font-size:.74rem;color:var(--t2);line-height:1.6;margin:0">Fill in your details below and we'll open WhatsApp with your message pre-written — just hit send!</p>
   </div>
   <div class="fg"><label class="flbl">Your Name *</label><input type="text" class="fi" id="ct-name" placeholder="Full name" maxlength="100" autocomplete="name"></div>
-  <div class="fg"><label class="flbl">Your WhatsApp Number *</label><div class="phone-wrap"><span class="phone-prefix">+254</span><input type="tel" class="fi" id="ct-phone" placeholder="7XX XXX XXX" maxlength="12" autocomplete="tel" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" style="border-radius:0 var(--r) var(--r) 0"></div><div class="fhint">Enter your number so we can reply on WhatsApp e.g. 0712345678</div></div>
+  <div class="fg"><label class="flbl">Phone / Email</label><input type="text" class="fi" id="ct-contact" placeholder="Your phone or email (optional)" maxlength="200" autocomplete="tel"></div>
   <div class="fg"><label class="flbl">Topic</label>
     <select class="fi fsel" id="ct-subj">
       <option value="">Select a topic…</option>
@@ -1689,13 +1687,13 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 
 <div id="edit-prod-modal" class="modal"><div class="sheet-pull"></div><div class="sheet-hdr"><span class="sheet-title">Edit Product</span><button class="sheet-cls" onclick="closeEditProd()"><i class="fas fa-times"></i></button></div><div class="modal-body" id="edit-prod-body"></div></div>
 <!-- View User Modal -->
-<div id="view-user-modal" class="modal" style="max-height:92vh;overflow-y:auto">
+<div id="view-user-modal" class="modal" style="overflow-y:auto;max-height:92vh">
   <div class="sheet-pull"></div>
-  <div class="sheet-hdr" style="position:sticky;top:0;z-index:2;background:var(--bg2)">
+  <div class="sheet-hdr" style="position:sticky;top:0;z-index:10;background:var(--bg2)">
     <span class="sheet-title"><i class="fas fa-user-circle" style="margin-right:8px;color:var(--gold)"></i>User Profile</span>
     <button class="sheet-cls" onclick="closeViewUser()"><i class="fas fa-times"></i></button>
   </div>
-  <div id="view-user-body"></div>
+  <div id="view-user-body" style="padding-bottom:16px"></div>
 </div>
 
 <div id="edit-user-modal" class="modal"><div class="sheet-pull"></div><div class="sheet-hdr"><span class="sheet-title">Edit User</span><button class="sheet-cls" onclick="closeEditUser()"><i class="fas fa-times"></i></button></div><div class="modal-body" id="edit-user-body"></div></div>
@@ -1996,12 +1994,7 @@ async function init() {
   document.getElementById('brand-btn')?.addEventListener('click', () => showTab('home'));
 
   // Init Supabase client
-  try { sb = supabase.createClient(SB_URL, SB_KEY, {
-    auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true },
-    realtime:{ params:{ eventsPerSecond:10 }, heartbeatIntervalMs:25000 },
-    global:{ headers:{'x-client-info':'tote-tread-pwa'},
-      fetch:(url,opts={})=>fetch(url,{...opts,keepalive:true}) }
-  }); }
+  try { sb = supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } }); }
   catch { toast('Supabase error — using demo mode', 'nf'); products = MOCK_PRODUCTS; }
 
   // Init offline IndexedDB store
@@ -2051,19 +2044,16 @@ async function init() {
 
   // Realtime (set up after client ready, non-blocking)
   if (sb) {
-    // Single multiplexed WS channel — one connection, multiple table listeners
-    sb.channel('tt-main')
-      .on('postgres_changes',{event:'*',schema:'public',table:'products'},()=>{
-        try{sessionStorage.removeItem('tt_products_cache');sessionStorage.removeItem('tt_products_time');}catch{}
-        loadProducts(true);
-      })
-      .on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},async(payload)=>{
-        const k=payload.new?.key||payload.old?.key||'';
-        if(payload.new?.key==='announcement')showAnnouncement(payload.new.value);
-        if(k.startsWith('gallery_'))loadGalleryFromDB();
-        if(k.startsWith('advert_'))loadAndRenderAdverts();
-      })
-      .subscribe();
+    sb.channel('rt-products').on('postgres_changes',{event:'*',schema:'public',table:'products'},() => { try{sessionStorage.removeItem('tt_products_cache');sessionStorage.removeItem('tt_products_time');}catch{} if(userRole==='admin')loadProducts(true); else loadProducts(); }).subscribe();
+    sb.channel('rt-settings').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},async (payload) => {
+      if (payload.new?.key === 'announcement') showAnnouncement(payload.new.value);
+    }).subscribe();
+    // Realtime notifications for logged-in user
+    sb.channel('rt-settings-gallery').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},async(payload)=>{
+      const k=payload.new?.key||payload.old?.key||'';
+      if(k.startsWith('gallery_'))loadGalleryFromDB();
+      if(k.startsWith('advert_'))loadAndRenderAdverts();
+    }).subscribe();
     // Admin notifications realtime
     sb.channel('rt-admin-notifs').on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications'},async(payload)=>{
       if(userRole==='admin'&&payload.new?.user_id===user?.id){
@@ -2569,62 +2559,24 @@ function previewAvatar(input){
   };
   reader.readAsDataURL(file);
 }
-// Compress image to JPEG before upload — faster, smaller
-function compressImage(file,maxW,quality){
-  return new Promise((resolve,reject)=>{
-    const reader=new FileReader();
-    reader.onerror=reject;
-    reader.onload=ev=>{
-      const img=new Image();
-      img.onerror=reject;
-      img.onload=()=>{
-        const scale=Math.min(1,maxW/img.width);
-        const c=document.createElement('canvas');
-        c.width=Math.round(img.width*scale);
-        c.height=Math.round(img.height*scale);
-        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-        c.toBlob(b=>{
-          if(!b){reject(new Error('compression failed'));return;}
-          resolve(new File([b],'avatar.jpg',{type:'image/jpeg'}));
-        },'image/jpeg',quality);
-      };
-      img.src=ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
 async function uploadAvatarFile(){
+  // Use whichever input has a file, or the global reference from previewAvatar
   const file=window._avatarFileToUpload
     ||(document.getElementById('ep-avatar-file')?.files[0])
     ||(document.getElementById('ep-avatar-camera')?.files[0]);
   if(!file)return null;
   if(!sb){toast('Supabase not configured','er');return null;}
-  if(!user){toast('Not signed in','er');return null;}
-  if(file.size>8*1024*1024){toast('Photo too large (max 8MB)','er');return null;}
-  const spinEl=document.getElementById('ep-avatar-uploading');
-  if(spinEl)spinEl.style.display='';
-  // Compress down to 800px wide JPEG before uploading
-  let upload=file;
-  try{ upload=await compressImage(file,800,0.82); }catch(_){}
-  const path=user.id+'/avatar_'+Date.now()+'.jpg';
+  if(file.size>2*1024*1024){toast('Image too large (max 2MB)','er');return null;}
+  const ext=file.name.split('.').pop()||'jpg';
+  const path=`${user.id}/avatar_${Date.now()}.${ext}`;
+  document.getElementById('ep-avatar-uploading').style.display='';
   try{
-    const{error}=await sb.storage.from('avatars').upload(path,upload,{upsert:true,contentType:'image/jpeg'});
-    if(spinEl)spinEl.style.display='none';
-    if(error){
-      const isBucket=error.message.toLowerCase().includes('bucket')||error.message.includes('not found');
-      toast(isBucket?'Storage bucket "avatars" not found. Ask your admin to create it in Supabase Storage.':'Photo upload failed: '+error.message,'er');
-      return null;
-    }
+    const{error}=await sb.storage.from('avatars').upload(path,file,{upsert:true,contentType:file.type});
+    document.getElementById('ep-avatar-uploading').style.display='none';
+    if(error){toast('Upload failed: '+error.message,'er');return null;}
     const{data}=sb.storage.from('avatars').getPublicUrl(path);
-    const url=data?.publicUrl||null;
-    if(url&&user.user_metadata){ user.user_metadata.avatar_url=url; }
-    return url;
-  }catch(e){
-    if(spinEl)spinEl.style.display='none';
-    toast('Photo upload error — check your connection and try again','er');
-    return null;
-  }
+    return data?.publicUrl||null;
+  }catch(e){document.getElementById('ep-avatar-uploading').style.display='none';toast('Upload error','er');return null;}
 }
 async function saveProfile(){
   if(!sb||!user){toast('Not signed in','er');return;}
@@ -2674,37 +2626,16 @@ async function saveProfile(){
     // Update auth metadata (non-blocking — don't let it block the UI)
     const metaUpdate={full_name:name};
     if(avatarUrl) metaUpdate.avatar_url=avatarUrl;
-    (async()=>{try{await sb.auth.updateUser({data:metaUpdate});}catch(_){}})();
+    sb.auth.updateUser({data:metaUpdate}).catch(()=>{});
 
-    // Update local user state immediately — renderAcc() uses this
-    if(!user.user_metadata)user.user_metadata={};
-    user.user_metadata.full_name=name;
-    if(avatarUrl)user.user_metadata.avatar_url=avatarUrl;
+    // Update local state
+    if(user.user_metadata) user.user_metadata.full_name=name;
+    if(avatarUrl&&user.user_metadata) user.user_metadata.avatar_url=avatarUrl;
     errEl.style.display='none';
-    // Instantly update the avatar shown in the main account card (no re-render needed)
-    if(avatarUrl){
-      const mainAv=document.getElementById('main-avatar');
-      if(mainAv){
-        const img=document.createElement('img');
-        img.src=avatarUrl;
-        img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%';
-        img.onerror=()=>{mainAv.innerHTML='<i class="fas fa-user"></i>';};
-        mainAv.innerHTML='';
-        mainAv.appendChild(img);
-      }
-      const epPrev=document.getElementById('ep-avatar-preview');
-      if(epPrev){
-        const img2=document.createElement('img');
-        img2.src=avatarUrl;
-        img2.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%';
-        epPrev.innerHTML='';
-        epPrev.appendChild(img2);
-      }
-    }
 
     // Keep user_contacts in sync (non-blocking)
     if(fullPhone){
-      (async()=>{try{await sb.from('user_contacts').upsert({user_id:user.id,phone:fullPhone,updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(_){}})();
+      sb.from('user_contacts').upsert({user_id:user.id,phone:fullPhone,updated_at:new Date().toISOString()},{onConflict:'user_id'}).catch(()=>{});
     }
 
     // ── SUCCESS: show animation, then go back ──
@@ -2891,28 +2822,23 @@ async function loadProducts(forceRefresh = false) {
     }
   }
 
-  const _ac=new AbortController();
-  const _tid=setTimeout(()=>_ac.abort(),8000);
   try {
     const { data } = await sb.from('products')
       .select(PRODUCTS_COLS)
       .order('created_at', { ascending: false })
-      .limit(80)
-      .abortSignal(_ac.signal);
-    clearTimeout(_tid);
+      .limit(80);
     if (data?.length) {
       products = data;
+      // Save to both caches
       try {
         sessionStorage.setItem('tt_products_cache', JSON.stringify(products));
         sessionStorage.setItem('tt_products_time', Date.now().toString());
       } catch {}
-      idbSaveProducts(products);
-    } else if (!products.length) { products = MOCK_PRODUCTS; }
-  } catch(fetchErr) {
-    clearTimeout(_tid);
-    if(!navigator.onLine)showOfflineBanner();
-    if (!products.length) products = MOCK_PRODUCTS;
-  }
+      idbSaveProducts(products); // IndexedDB — async, non-blocking
+    } else if (!products.length) {
+      products = MOCK_PRODUCTS;
+    }
+  } catch(fetchErr) { if(!navigator.onLine)showOfflineBanner(); if (!products.length) products = MOCK_PRODUCTS; }
   renderFeatured(); renderTrending(); renderShop();
 }
 function sortProducts(list) {
@@ -3253,7 +3179,7 @@ async function placeOrder() {
     await notifyOrderPlaced(ordId, total);
     // Save contact if user checked the option
     if (user && sb && document.getElementById('co-save-contact')?.checked) {
-      try{await sb.from('user_contacts').upsert({user_id:user.id, phone:fullPhone, delivery_address:addr, updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(_){}
+      await sb.from('user_contacts').upsert({user_id:user.id, phone:fullPhone, delivery_address:addr, updated_at:new Date().toISOString()},{onConflict:'user_id'}).catch(()=>{});
     }
     cart=[]; saveCart(); updBadges(); closeCO(); toast('Order placed successfully! 🎉','ok');
   } catch { toast('Could not place order. Please try again.','er'); btn.disabled=false; btn.innerHTML='<i class="fas fa-lock"></i>Confirm Order via WhatsApp'; }
@@ -3435,7 +3361,7 @@ async function submitNotify() {
   const pid=document.getElementById('notify-pid')?.value, email=document.getElementById('notify-email')?.value?.trim();
   if (!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email','er');return;}
   const p=products.find(x=>x.id===pid);
-  if (sb) try{await sb.from('restock_notifications').insert([{product_id:pid,email,product_name:p?.name||''}]);}catch(_){}
+  if (sb) await sb.from('restock_notifications').insert([{product_id:pid,email,product_name:p?.name||''}]).catch(()=>{});
   closeNotify(); toast("We'll notify you when it's back!",'ok');
 }
 
@@ -3467,19 +3393,43 @@ async function renderNotifications(){
   if(!notifs.length){bodyEl.innerHTML='<div class="empty-state"><i class="fas fa-bell"></i>No notifications yet</div>';return;}
   const icons={welcome:'fa-gift',order:'fa-box',restock:'fa-bell',promo:'fa-tag',system:'fa-info-circle',product:'fa-tag',user:'fa-user',admin:'fa-shield-alt'};
   const colors={welcome:'badge-green',order:'badge-gold',restock:'badge-amber',promo:'badge-purple',system:'badge-blue',product:'badge-amber',user:'badge-green',admin:'badge-purple'};
-  bodyEl.innerHTML=notifs.map(n=>`<div class="notif-item${n.read?' read':''}" onclick="readNotif('${n.id}')"><div class="notif-ico ${colors[n.type]||'badge-blue'}"><i class="fas ${icons[n.type]||'fa-info-circle'}"></i></div><div style="flex:1;min-width:0"><div class="notif-title">${esc(n.title)}</div><div class="notif-body">${esc(n.body)}</div><div class="notif-ts">${D(n.created_at)}</div></div>${!n.read?'<div class="notif-dot"></div>':''}</div>`).join('');
+  bodyEl.innerHTML=notifs.map(n=>`
+    <div class="notif-item${n.read?' read':''}" id="ni-${n.id}" onclick="toggleNotif('${n.id}')">
+      <div class="notif-ico ${colors[n.type]||'badge-blue'}"><i class="fas ${icons[n.type]||'fa-info-circle'}"></i></div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <div class="notif-title" style="flex:1">${esc(n.title)}</div>
+          <i class="fas fa-chevron-down" id="ni-chev-${n.id}" style="font-size:.55rem;color:var(--t3);transition:transform .25s;flex-shrink:0"></i>
+        </div>
+        <div class="notif-ts">${D(n.created_at)}</div>
+        <div id="ni-body-${n.id}" style="display:none;margin-top:8px;padding:10px 12px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bd)">
+          <div style="font-size:.78rem;color:var(--t1);line-height:1.65;white-space:pre-wrap">${esc(n.body)}</div>
+        </div>
+      </div>
+      ${!n.read?'<div class="notif-dot" id="ni-dot-'+n.id+'"></div>':''}
+    </div>`).join('');
+}
+function toggleNotif(id){
+  const body=document.getElementById('ni-body-'+id);
+  const chev=document.getElementById('ni-chev-'+id);
+  if(!body)return;
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'block';
+  if(chev)chev.style.transform=isOpen?'':'rotate(180deg)';
+  // Mark as read when expanded
+  if(!isOpen) readNotif(id);
 }
 async function readNotif(id){
   if(!sb||!user)return;
   _notifCache=_notifCache.map(n=>n.id===id?{...n,read:true}:n);
   renderNotifications();updNotifBadge();
-  try{await sb.from('notifications').update({read:true}).eq('id',id).eq('user_id',user.id);}catch(_){}
+  await sb.from('notifications').update({read:true}).eq('id',id).eq('user_id',user.id).catch(()=>{});
 }
 async function markAllRead(){
   if(!sb||!user)return;
   _notifCache=_notifCache.map(n=>({...n,read:true}));
   renderNotifications();updNotifBadge();
-  try{await sb.from('notifications').update({read:true}).eq('user_id',user.id);}catch(_){}
+  await sb.from('notifications').update({read:true}).eq('user_id',user.id).catch(()=>{});
 }
 async function notifyOrderPlaced(orderId,total){
   // Notify the customer
@@ -3587,7 +3537,6 @@ async function doLogin(){
     if(userRole==='admin'){
       toast('Welcome back, Admin 🛡','ok');
       setTimeout(()=>openAdmin(),400);
-      writeAdminLog('Admin Sign In','Signed in at '+new Date().toLocaleString('en-KE'));
     } else if(userRole==='agent'){
       toast('Welcome back, Agent 🤝','ok');
     } else {
@@ -3608,7 +3557,7 @@ async function doLogin(){
 }
 async function doPhoneLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('li-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('li-ph-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('li-otp-wrap').style.display='';document.getElementById('li-otp-send-wrap').style.display='none';toast('OTP sent to '+fullPhone,'ok');}
 async function doPhoneVerify(){if(!sb)return;const ph=document.getElementById('li-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('otp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('otp-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify OTP';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}toast('Signed in successfully! 👋','ok');}
-async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const redirectUrl=(SITE&&SITE.startsWith('https://'))?SITE+'?tab=acc':(window.location.origin+window.location.pathname+'?tab=acc');const{data:_suData,error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:redirectUrl}});if(!error&&_suData?.user?.identities?.length===0){btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';const ew=document.getElementById('su-err');ew.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">'+esc(e)+'</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');setTimeout(()=>{const li=document.getElementById(\'li-e\');if(li)li.value=\''+e+'\';},150)"><i class="fas fa-sign-in-alt"></i>Sign In Instead</button></div></div>';ew.style.display='';return;}if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)try{await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e});}catch(_){}},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?null:error.message;if(!msg){const errWrap=document.getElementById('su-err');errWrap.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px;margin-bottom:4px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">' + esc(e) + '</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');document.getElementById(\'li-e\')&&(document.getElementById(\'li-e\').value=\'' + e.replace(/'/g,"\\'")+'\')"><i class="fas fa-sign-in-alt"></i>Sign In</button><button class="btn btn-ghost" style="flex:1;font-size:.72rem" onclick="this.closest(\'[id=su-err]\').style.display=\'none\';"><i class="fas fa-times"></i>Cancel</button></div></div>';errWrap.style.display='';return;}setErr(errEl,msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','We\'ve sent a confirmation link to '+e+'. Click the link in your email to activate your account — it will bring you straight to your profile.');notifyAllAdmins({type:'user',title:'New User Registered',body:`${esc(n)} (${esc(e)}) just created an account.`}).catch(()=>{});}
+async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const redirectUrl=(SITE&&SITE.startsWith('https://'))?SITE+'?tab=acc':(window.location.origin+window.location.pathname+'?tab=acc');const{data:_suData,error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:redirectUrl}});if(!error&&_suData?.user?.identities?.length===0){btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';const ew=document.getElementById('su-err');ew.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">'+esc(e)+'</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');setTimeout(()=>{const li=document.getElementById(\'li-e\');if(li)li.value=\''+e+'\';},150)"><i class="fas fa-sign-in-alt"></i>Sign In Instead</button></div></div>';ew.style.display='';return;}if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?null:error.message;if(!msg){const errWrap=document.getElementById('su-err');errWrap.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px;margin-bottom:4px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">' + esc(e) + '</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');document.getElementById(\'li-e\')&&(document.getElementById(\'li-e\').value=\'' + e.replace(/'/g,"\\'")+'\')"><i class="fas fa-sign-in-alt"></i>Sign In</button><button class="btn btn-ghost" style="flex:1;font-size:.72rem" onclick="this.closest(\'[id=su-err]\').style.display=\'none\';"><i class="fas fa-times"></i>Cancel</button></div></div>';errWrap.style.display='';return;}setErr(errEl,msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','We\'ve sent a confirmation link to '+e+'. Click the link in your email to activate your account — it will bring you straight to your profile.');notifyAllAdmins({type:'user',title:'New User Registered',body:`${esc(n)} (${esc(e)}) just created an account.`}).catch(()=>{});}
 async function showReset(){
   const el=document.getElementById('acc-body');
   if(!el)return;
@@ -3794,6 +3743,9 @@ async function renderLoggedIn(el){
         </div>
       </div>
 
+      <!-- Leaderboard badge — shown if user is top 5 buyer -->
+      <div id="prof-leaderboard-badge" style="display:none;margin-top:10px;width:100%"></div>
+
       <div style="margin-top:10px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:11px 13px;width:100%;font-size:.72rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="color:var(--t3)"><i class="fas fa-calendar-plus" style="width:14px;margin-right:5px;color:var(--gold);opacity:.7"></i>Member since</span>
@@ -3820,8 +3772,52 @@ async function renderLoggedIn(el){
       <button class="menu-item" onclick="toggleTheme()"><i class="fas fa-adjust mi-icon"></i>Toggle Theme<i class="fas fa-chevron-right mi-arrow"></i></button>
       <button class="menu-item danger" id="signout-btn" onclick="doLogout()"><i class="fas fa-sign-out-alt mi-icon" style="color:var(--red)"></i><span style="color:var(--red)">Sign Out</span></button>
     </div>`;
-  // Fetch order count after UI is painted — non-blocking
-  if(sb&&user){sb.from('orders').select('id',{count:'exact',head:true}).eq('user_id',user.id).then(({count})=>{const el2=document.getElementById('prof-order-count');if(el2)el2.textContent=count||0;}).catch(()=>{});}
+  // Fetch order count + leaderboard badge — non-blocking
+  if(sb&&user){
+    // Parallel: my order count + all orders for leaderboard
+    Promise.allSettled([
+      sb.from('orders').select('id,total,user_id,status',{count:'exact'}).eq('user_id',user.id),
+      sb.from('orders').select('user_id,total,status').neq('status','cancelled').not('user_id','is',null).limit(2000)
+    ]).then(([myRes,allRes])=>{
+      // Update order count
+      const myCount=myRes.status==='fulfilled'?(myRes.value.data||[]).length:0;
+      const el2=document.getElementById('prof-order-count');
+      if(el2)el2.textContent=myCount||0;
+
+      // Build leaderboard from all orders
+      if(allRes.status==='fulfilled'){
+        const spendMap={};
+        (allRes.value.data||[]).forEach(o=>{
+          if(!o.user_id)return;
+          spendMap[o.user_id]=(spendMap[o.user_id]||0)+(o.total||0);
+        });
+        const ranked=Object.entries(spendMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+        const myRank=ranked.findIndex(([uid])=>uid===user.id);
+        if(myRank>-1){
+          const badges=[
+            {label:'#1 Top Buyer',icon:'fa-crown',color:'#FFD700',bg:'rgba(255,215,0,.12)',border:'rgba(255,215,0,.4)'},
+            {label:'#2 Top Buyer',icon:'fa-medal',color:'#C0C0C0',bg:'rgba(192,192,192,.1)',border:'rgba(192,192,192,.3)'},
+            {label:'#3 Top Buyer',icon:'fa-medal',color:'#CD7F32',bg:'rgba(205,127,50,.1)',border:'rgba(205,127,50,.3)'},
+            {label:'#4 Loyal Buyer',icon:'fa-star',color:'var(--gold)',bg:'var(--gold-a8)',border:'var(--gold-a25)'},
+            {label:'#5 Loyal Buyer',icon:'fa-star',color:'var(--gold)',bg:'var(--gold-a8)',border:'var(--gold-a25)'},
+          ];
+          const b=badges[myRank];
+          const badgeEl=document.getElementById('prof-leaderboard-badge');
+          if(badgeEl){
+            badgeEl.style.display='flex';
+            badgeEl.innerHTML=`
+              <div style="display:flex;align-items:center;gap:8px;padding:9px 13px;background:${b.bg};border:1px solid ${b.border};border-radius:var(--rl)">
+                <i class="fas ${b.icon}" style="color:${b.color};font-size:1rem"></i>
+                <div>
+                  <div style="font-size:.72rem;font-weight:700;color:${b.color}">${b.label}</div>
+                  <div style="font-size:.62rem;color:var(--t3)">KES ${N(spendMap[user.id]||0)} total spend · Rank ${myRank+1} of ${ranked.length}</div>
+                </div>
+              </div>`;
+          }
+        }
+      }
+    }).catch(()=>{});
+  }
 }
 async function doLogout(){
   // Show signing-out state on the button immediately
@@ -3829,9 +3825,6 @@ async function doLogout(){
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(224,80,80,.25);border-top-color:var(--red);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span><span style="color:var(--red)">Signing out…</span>'; }
 
   // Clear all local state immediately so UI feels instant
-  if(userRole==='admin'){
-    writeAdminLog('Admin Sign Out','Signed out at '+new Date().toLocaleString('en-KE'));
-  }
   user = null; userRole = null; isGuest = false;
   cart = []; saveCart();
   wish = []; try{ localStorage.removeItem('tt_wish'); }catch{}
@@ -4123,163 +4116,55 @@ async function admUploadProductImg(input, targetId){
     if(url){const inp=document.getElementById(targetId);if(inp)inp.value=url;admShowImgPreview(targetId,targetId+'-preview');toast('Image uploaded! ✓','ok');}
   }catch(e){if(progressEl)progressEl.style.display='none';toast('Upload error','er');}
 }
-async function admAddProd(){if(userRole!=='admin'||!sb)return;const n=document.getElementById('ap-n')?.value?.trim(),cat=document.getElementById('ap-c')?.value,price=parseFloat(document.getElementById('ap-p')?.value),cp=parseFloat(document.getElementById('ap-cp')?.value)||null,stock=parseInt(document.getElementById('ap-s')?.value)||0,desc=document.getElementById('ap-d')?.value?.trim(),img=document.getElementById('ap-i')?.value?.trim(),img2=document.getElementById('ap-i2')?.value?.trim();if(!n||!cat||!price||isNaN(price)||price<0){toast('Fill required fields','er');return;}if(img&&!safeImgSrc(img)){toast('Primary image must be https:// URL','er');return;}const flags={is_featured:!!document.getElementById('ap-feat')?.checked,is_trending:!!document.getElementById('ap-trend')?.checked,is_bestseller:!!document.getElementById('ap-best')?.checked,is_premium:!!document.getElementById('ap-prem')?.checked,is_new:!!document.getElementById('ap-new')?.checked};const{error}=await sb.from('products').insert([{name:n,category:cat,price,compare_price:cp,stock,description:desc,image_url:img||null,image_url_2:img2||null,...flags}]);if(error){toast(error.message,'er');return;}toast('Product added!','ok');
-  writeAdminLog('Product Added',`Added on ${new Date().toLocaleString('en-KE')}`);await loadProducts();try{const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');for(const a of(admins||[])){await pushDBNotif({type:'product',title:'Product Added',body:`New product "${n}" added to the catalogue at KES ${N(price)}.`,targetUserId:a.id}).catch(()=>{});}}catch{}['ap-n','ap-p','ap-cp','ap-s','ap-d','ap-i','ap-i2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});loadAdmProducts();}
+async function admAddProd(){if(userRole!=='admin'||!sb)return;const n=document.getElementById('ap-n')?.value?.trim(),cat=document.getElementById('ap-c')?.value,price=parseFloat(document.getElementById('ap-p')?.value),cp=parseFloat(document.getElementById('ap-cp')?.value)||null,stock=parseInt(document.getElementById('ap-s')?.value)||0,desc=document.getElementById('ap-d')?.value?.trim(),img=document.getElementById('ap-i')?.value?.trim(),img2=document.getElementById('ap-i2')?.value?.trim();if(!n||!cat||!price||isNaN(price)||price<0){toast('Fill required fields','er');return;}if(img&&!safeImgSrc(img)){toast('Primary image must be https:// URL','er');return;}const flags={is_featured:!!document.getElementById('ap-feat')?.checked,is_trending:!!document.getElementById('ap-trend')?.checked,is_bestseller:!!document.getElementById('ap-best')?.checked,is_premium:!!document.getElementById('ap-prem')?.checked,is_new:!!document.getElementById('ap-new')?.checked};const{error}=await sb.from('products').insert([{name:n,category:cat,price,compare_price:cp,stock,description:desc,image_url:img||null,image_url_2:img2||null,...flags}]);if(error){toast(error.message,'er');return;}toast('Product added!','ok');await loadProducts();try{const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');for(const a of(admins||[])){await pushDBNotif({type:'product',title:'Product Added',body:`New product "${n}" added to the catalogue at KES ${N(price)}.`,targetUserId:a.id}).catch(()=>{});}}catch{}['ap-n','ap-p','ap-cp','ap-s','ap-d','ap-i','ap-i2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});loadAdmProducts();}
 let editingProd=null;
 function openEditProd(p){editingProd=p;const body=document.getElementById('edit-prod-body');body.innerHTML=`<div class="fg"><label class="flbl">Name *</label><input type="text" class="fi" id="ep-n" value="${esc(p.name)}" maxlength="200"></div><div class="form-row"><div class="fg"><label class="flbl">Category</label><select class="fsel" id="ep-c"><option value="tote-bags" ${p.category==='tote-bags'?'selected':''}>Tote Bags</option><option value="footwear" ${p.category==='footwear'?'selected':''}>Footwear</option><option value="accessories" ${p.category==='accessories'?'selected':''}>Accessories</option></select></div><div class="fg"><label class="flbl">Price</label><input type="number" class="fi" id="ep-p" value="${p.price}" min="0"></div></div><div class="form-row"><div class="fg"><label class="flbl">Compare Price</label><input type="number" class="fi" id="ep-cp" value="${p.compare_price||''}" min="0"></div><div class="fg"><label class="flbl">Stock</label><input type="number" class="fi" id="ep-s" value="${p.stock||0}" min="0"></div></div><div class="fg"><label class="flbl">Description</label><textarea class="fta" id="ep-d" maxlength="1000" style="min-height:70px">${esc(p.description||'')}</textarea></div><div class="fg"><label class="flbl">Primary Image URL</label><input type="url" class="fi" id="ep-i" value="${esc(p.image_url||'')}" maxlength="500"></div><div class="fg"><label class="flbl">Secondary Image URL</label><input type="url" class="fi" id="ep-i2" value="${esc(p.image_url_2||'')}" maxlength="500"></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">${[['feat','Featured',p.is_featured],['trend','Trending',p.is_trending],['best','Best Seller',p.is_bestseller],['prem','Premium',p.is_premium],['new','New',p.is_new]].map(([k,l,v])=>`<label class="flag-btn${v?' on':''}" id="ep-${k}-btn" onclick="this.classList.toggle('on');document.getElementById('ep-${k}').checked=!document.getElementById('ep-${k}').checked"><input type="checkbox" id="ep-${k}" style="display:none" ${v?'checked':''}> ${l}</label>`).join('')}</div><button class="btn btn-gold btn-full" onclick="saveEditProd()"><i class="fas fa-save"></i>Save Changes</button>`;document.getElementById('edit-prod-modal').classList.add('on');showOvl();}
 function closeEditProd(){document.getElementById('edit-prod-modal')?.classList.remove('on');hideOvl();editingProd=null;}
-async function saveEditProd(){if(!editingProd||userRole!=='admin'||!sb)return;const n=document.getElementById('ep-n')?.value?.trim(),cat=document.getElementById('ep-c')?.value,pr=parseFloat(document.getElementById('ep-p')?.value),cp=parseFloat(document.getElementById('ep-cp')?.value)||null,stk=parseInt(document.getElementById('ep-s')?.value)||0,dsc=document.getElementById('ep-d')?.value?.trim(),img=document.getElementById('ep-i')?.value?.trim(),img2=document.getElementById('ep-i2')?.value?.trim();if(!n||isNaN(pr)||pr<0){toast('Fill required fields','er');return;}const flags={is_featured:!!document.getElementById('ep-feat')?.checked,is_trending:!!document.getElementById('ep-trend')?.checked,is_bestseller:!!document.getElementById('ep-best')?.checked,is_premium:!!document.getElementById('ep-prem')?.checked,is_new:!!document.getElementById('ep-new')?.checked};const{error}=await sb.from('products').update({name:n,category:cat,price:pr,compare_price:cp,stock:stk,description:dsc,image_url:img||null,image_url_2:img2||null,...flags}).eq('id',editingProd.id);if(error){toast(error.message,'er');return;}toast('Product updated!','ok');
-  writeAdminLog('Product Edited',`Edited on ${new Date().toLocaleString('en-KE')}`);
-  closeEditProd();await loadProducts();loadAdmProducts();}
-async function delProduct(id){if(userRole!=='admin'||!sb)return;const confirmed=await popupConfirm('Delete Product','Are you sure you want to permanently delete this product? This cannot be undone.','Delete','Cancel');if(!confirmed)return;await sb.from('products').delete().eq('id',id);await loadProducts();loadAdmProducts();toast('Product deleted','nf');
-  writeAdminLog('Product Deleted',`Product deleted on ${new Date().toLocaleString('en-KE')}`);}
+async function saveEditProd(){if(!editingProd||userRole!=='admin'||!sb)return;const n=document.getElementById('ep-n')?.value?.trim(),cat=document.getElementById('ep-c')?.value,pr=parseFloat(document.getElementById('ep-p')?.value),cp=parseFloat(document.getElementById('ep-cp')?.value)||null,stk=parseInt(document.getElementById('ep-s')?.value)||0,dsc=document.getElementById('ep-d')?.value?.trim(),img=document.getElementById('ep-i')?.value?.trim(),img2=document.getElementById('ep-i2')?.value?.trim();if(!n||isNaN(pr)||pr<0){toast('Fill required fields','er');return;}const flags={is_featured:!!document.getElementById('ep-feat')?.checked,is_trending:!!document.getElementById('ep-trend')?.checked,is_bestseller:!!document.getElementById('ep-best')?.checked,is_premium:!!document.getElementById('ep-prem')?.checked,is_new:!!document.getElementById('ep-new')?.checked};const{error}=await sb.from('products').update({name:n,category:cat,price:pr,compare_price:cp,stock:stk,description:dsc,image_url:img||null,image_url_2:img2||null,...flags}).eq('id',editingProd.id);if(error){toast(error.message,'er');return;}toast('Product updated!','ok');closeEditProd();await loadProducts();loadAdmProducts();}
+async function delProduct(id){if(userRole!=='admin'||!sb)return;const confirmed=await popupConfirm('Delete Product','Are you sure you want to permanently delete this product? This cannot be undone.','Delete','Cancel');if(!confirmed)return;await sb.from('products').delete().eq('id',id);await loadProducts();loadAdmProducts();toast('Product deleted','nf');}
 /* ════════ ADMIN LOGS ════════ */
-
-// Write a structured admin activity log entry to the notifications table
-async function writeAdminLog(action, detail=''){
-  if(!sb||!user)return;
-  const adminName=user.user_metadata?.full_name||user.email||'Admin';
-  const ts=new Date().toISOString();
-  try{
-    await sb.from('notifications').insert([{
-      user_id:user.id,
-      type:'admin_log',
-      title:action,
-      body:detail||adminName,
-      read:false,
-      created_at:ts
-    }]);
-  }catch(_){}
-}
-
 async function renderAdmLogs(){
   const el=document.getElementById('adm-content');
   if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
   el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
-
-  // Fetch admin logs (type=admin_log) AND all other notification events together
-  const[adminLogsRes, allNotifsRes, allUsersRes]=await Promise.allSettled([
-    sb.from('notifications').select('*').eq('type','admin_log').order('created_at',{ascending:false}).limit(200),
-    sb.from('notifications').select('*').neq('type','admin_log').order('created_at',{ascending:false}).limit(200),
+  const[{data:notifs},{data:allUsers}]=await Promise.all([
+    sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(300),
     sb.from('profiles').select('id,full_name,email,role')
   ]);
-  const adminLogs = adminLogsRes.status==='fulfilled'  ? adminLogsRes.value.data||[]  : [];
-  const allNotifs = allNotifsRes.status==='fulfilled'  ? allNotifsRes.value.data||[]  : [];
-  const allUsers  = allUsersRes.status==='fulfilled'   ? allUsersRes.value.data||[]   : [];
-
-  const userMap={};allUsers.forEach(u=>userMap[u.id]=u);
-
-  // Tab state
-  const activeTab = window._logsTab||'admin';
-
-  const tabBtn=(t,label,count)=>`
-    <button onclick="window._logsTab='${t}';renderAdmLogs()" style="flex:1;padding:7px;font-size:.66rem;font-family:var(--fb);border:none;border-radius:6px;cursor:pointer;transition:all .2s;${activeTab===t?'background:var(--gold);color:#000;font-weight:700':'background:transparent;color:var(--t3)'}">
-      ${label} <span style="font-size:.58rem;opacity:.7">(${count})</span>
-    </button>`;
-
-  const typeIcons={order:'fa-receipt',user:'fa-user-plus',welcome:'fa-gift',warning:'fa-exclamation-triangle',product:'fa-box',admin:'fa-shield-alt',system:'fa-info-circle',promo:'fa-tag',admin_log:'fa-history'};
-  const typeColors={order:'var(--gold)',user:'#32C864',welcome:'#32C864',warning:'var(--red)',product:'var(--gold)',admin:'#9B8AF0',system:'var(--t3)',promo:'#FF8C42',admin_log:'#4DBBFF'};
-
-  // Admin log icons by action
-  const logIcons={
-    'Admin Sign In':   'fa-sign-in-alt',
-    'Admin Sign Out':  'fa-sign-out-alt',
-    'Order Updated':   'fa-receipt',
-    'Product Added':   'fa-box',
-    'Product Edited':  'fa-edit',
-    'Product Deleted': 'fa-trash',
-    'User Created':    'fa-user-plus',
-    'User Deleted':    'fa-user-times',
-    'Role Changed':    'fa-user-shield',
-    'Agent Approved':  'fa-handshake',
-    'Agent Denied':    'fa-user-slash',
-    'Agent Suspended': 'fa-ban',
-    'Settings Saved':  'fa-cog',
-    'Announcement':    'fa-bullhorn',
-  };
-  const logColors={
-    'Admin Sign In':   '#32C864',
-    'Admin Sign Out':  'var(--t3)',
-    'Order Updated':   'var(--gold)',
-    'Product Added':   'var(--gold)',
-    'Product Edited':  '#4DBBFF',
-    'Product Deleted': 'var(--red)',
-    'User Created':    '#32C864',
-    'User Deleted':    'var(--red)',
-    'Role Changed':    '#9B8AF0',
-    'Agent Approved':  '#32C864',
-    'Agent Denied':    'var(--red)',
-    'Agent Suspended': '#FFA032',
-    'Settings Saved':  'var(--t3)',
-    'Announcement':    'var(--gold)',
-  };
-
-  const renderAdminLogRow = (log) => {
-    const u=userMap[log.user_id];
-    const adminName=u?esc(u.full_name||u.email||'Admin'):'Admin';
-    const ico=logIcons[log.title]||'fa-history';
-    const col=logColors[log.title]||'#4DBBFF';
-    const dt=new Date(log.created_at);
-    return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">
-      <div style="width:34px;height:34px;border-radius:8px;background:rgba(77,187,255,.08);border:1px solid rgba(77,187,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${col}">
-        <i class="fas ${ico}" style="font-size:.72rem"></i>
-      </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:.8rem;font-weight:600;color:var(--t1)">${esc(log.title||'')}</div>
-        <div style="font-size:.7rem;color:var(--t2);margin-top:2px">${esc(log.body||'')}</div>
-        <div style="font-size:.6rem;color:var(--t4);margin-top:4px;display:flex;align-items:center;gap:5px">
-          <i class="fas fa-user-shield" style="color:var(--gold);font-size:.55rem"></i>${adminName}
-        </div>
-      </div>
-      <div style="flex-shrink:0;text-align:right;min-width:68px">
-        <div style="font-size:.62rem;color:var(--t2)">${dt.toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}</div>
-        <div style="font-size:.6rem;color:var(--t4);margin-top:2px">${dt.toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div>
-      </div>
-    </div>`;
-  };
-
-  const renderEventRow = (log) => {
-    const u=userMap[log.user_id];
-    const uName=u?`${esc(u.full_name||u.email||'?')} (${esc(u.role||'?')})`:'System';
-    const icon=typeIcons[log.type]||'fa-info-circle';
-    const color=typeColors[log.type]||'var(--t3)';
-    const dt=new Date(log.created_at);
-    return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">
-      <div style="width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${color}">
-        <i class="fas ${icon}" style="font-size:.72rem"></i>
-      </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(log.title||'')}</div>
-        <div style="font-size:.68rem;color:var(--t3);margin-top:2px;line-height:1.5">${esc(log.body||'')}</div>
-        <div style="font-size:.6rem;color:var(--t4);margin-top:4px"><i class="fas fa-user" style="margin-right:3px"></i>${uName}</div>
-      </div>
-      <div style="flex-shrink:0;text-align:right;min-width:68px">
-        <div style="font-size:.62rem;color:var(--t2)">${dt.toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}</div>
-        <div style="font-size:.6rem;color:var(--t4);margin-top:2px">${dt.toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div>
-        <div style="font-size:.55rem;background:rgba(255,255,255,.05);border-radius:4px;padding:2px 5px;margin-top:4px;color:${color}">${esc(log.type||'system')}</div>
-      </div>
-    </div>`;
-  };
-
-  const logsToShow  = activeTab==='admin' ? adminLogs : allNotifs;
-  const emptyMsg    = activeTab==='admin'
-    ? 'No admin activity logged yet. Actions like sign-in, order updates, and product changes will appear here.'
-    : 'No system events yet.';
-
+  const userMap={};(allUsers||[]).forEach(u=>userMap[u.id]=u);
+  const logs=notifs||[];
+  const typeIcons={order:'fa-receipt',user:'fa-user-plus',welcome:'fa-gift',warning:'fa-exclamation-triangle',product:'fa-box',admin:'fa-shield-alt',system:'fa-info-circle',promo:'fa-tag'};
+  const typeColors={order:'var(--gold)',user:'#32C864',welcome:'#32C864',warning:'var(--red)',product:'var(--gold)',admin:'#9B8AF0',system:'var(--t3)',promo:'#FF8C42'};
   el.innerHTML=`
   <div class="adm-section">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <h3 style="margin:0">Activity Logs</h3>
-      <button class="btn btn-ghost btn-xs" onclick="renderAdmLogs()"><i class="fas fa-sync"></i></button>
+      <div><h3 style="margin:0">Activity Logs</h3><div style="font-size:.66rem;color:var(--t3);margin-top:2px">${logs.length} events</div></div>
+      <button class="btn btn-ghost btn-xs" onclick="renderAdmLogs()"><i class="fas fa-sync"></i> Refresh</button>
     </div>
-    <!-- Tabs -->
-    <div style="display:flex;gap:4px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:4px;margin-bottom:14px">
-      ${tabBtn('admin','🛡 Admin Actions',adminLogs.length)}
-      ${tabBtn('events','⚡ All Events',allNotifs.length)}
-    </div>
-    ${!logsToShow.length
-      ? `<div style="text-align:center;padding:32px 16px"><i class="fas fa-history" style="font-size:2rem;color:var(--bd2);margin-bottom:12px;display:block"></i><p style="font-size:.76rem;color:var(--t3);line-height:1.7">${emptyMsg}</p></div>`
-      : logsToShow.map(log=>activeTab==='admin'?renderAdminLogRow(log):renderEventRow(log)).join('')}
+    ${!logs.length?'<p style="font-size:.76rem;color:var(--t3)">No activity yet.</p>':logs.map(log=>{
+      const u=userMap[log.user_id];
+      const uName=u?`${esc(u.full_name||u.email||'?')} (${esc(u.role||'?')})`:'System';
+      const icon=typeIcons[log.type]||'fa-info-circle';
+      const color=typeColors[log.type]||'var(--t3)';
+      const dt=new Date(log.created_at);
+      const dateStr=dt.toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'});
+      const timeStr=dt.toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${color}">
+          <i class="fas ${icon}" style="font-size:.72rem"></i>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(log.title||'')}</div>
+          <div style="font-size:.68rem;color:var(--t3);margin-top:2px;line-height:1.5">${esc(log.body||'')}</div>
+          <div style="font-size:.6rem;color:var(--t4);margin-top:4px"><i class="fas fa-user" style="margin-right:3px"></i>${uName}</div>
+        </div>
+        <div style="flex-shrink:0;text-align:right;min-width:70px">
+          <div style="font-size:.62rem;color:var(--t3)">${dateStr}</div>
+          <div style="font-size:.58rem;color:var(--t4);margin-top:2px">${timeStr}</div>
+          <div style="font-size:.55rem;background:rgba(255,255,255,.05);border-radius:4px;padding:2px 5px;margin-top:4px;color:${color}">${esc(log.type||'system')}</div>
+        </div>
+      </div>`;
+    }).join('')}
   </div>`;
 }
 
@@ -4327,11 +4212,11 @@ async function admReadNotif(id, rowEl){
     const dot=rowEl.querySelector('[style*="background:var(--gold)"]');
     if(dot)dot.remove();
   }
-  try{await sb.from('notifications').update({read:true}).eq('id',id);}catch(_){}
+  await sb.from('notifications').update({read:true}).eq('id',id).catch(()=>{});
 }
 async function admMarkAllNotifsRead(){
   if(!sb||!user)return;
-  try{await sb.from('notifications').update({read:true}).eq('user_id',user.id);}catch(_){}
+  await sb.from('notifications').update({read:true}).eq('user_id',user.id).catch(()=>{});
   toast('All notifications marked as read','ok');
   renderAdmNotifications();
 }
@@ -4342,18 +4227,59 @@ async function notifyAllAdmins({type='system',title,body}){
   try{
     const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');
     for(const a of(admins||[])){
-      try{await sb.from('notifications').insert([{user_id:a.id,type,title,body,read:false}]);}catch(_){}
+      await sb.from('notifications').insert([{user_id:a.id,type,title,body,read:false}]).catch(()=>{});
     }
   }catch{}
 }
 
-async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('id,customer_name,customer_phone,delivery_address,items,total,status,notes,user_id,created_at').order('created_at',{ascending:false}).limit(200);// Store orders for analytics
+const _admOrdersMap = {};
+function dlReceiptById(id){ const o=_admOrdersMap[id]; if(o) dlReceipt(o); }
+function admSendOrderById(id){ const o=_admOrdersMap[id]; if(!o){toast('Order not found','er');return;} admSendOrderWA(o); }
+
+async function renderAdmOrders(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+  let data=null;
+  try{
+    const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Request timed out')),12000));
+    const query=sb.from('orders')
+      .select('id,customer_name,customer_phone,delivery_address,items,total,status,notes,user_id,created_at')
+      .order('created_at',{ascending:false}).limit(200);
+    const res=await Promise.race([query,timeout]);
+    if(res.error) throw res.error;
+    data=res.data;
+  }catch(err){
+    el.innerHTML=`<div class="adm-section"><div style="text-align:center;padding:32px 16px">
+      <i class="fas fa-exclamation-circle" style="font-size:2rem;color:var(--red);margin-bottom:12px;display:block"></i>
+      <p style="font-size:.82rem;color:var(--t1);margin-bottom:6px">Could not load orders</p>
+      <p style="font-size:.72rem;color:var(--t3);margin-bottom:16px">${!navigator.onLine?'You appear to be offline.':esc(err?.message||'Network error — please retry')}</p>
+      <button class="btn btn-gold btn-sm" onclick="renderAdmOrders()"><i class="fas fa-redo"></i>Try Again</button>
+    </div></div>`;
+    return;
+  }
   (data||[]).forEach(o=>{ _admOrdersMap[o.id]=o; });
   el.innerHTML=`<div class="adm-section">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <h3 style="margin:0">All Orders (${data?.length||0})</h3>
-      <button class="btn btn-outline btn-sm" onclick="renderAdmOrderAnalytics()" style="gap:5px"><i class="fas fa-chart-bar" style="color:var(--gold)"></i>Analytics</button>
-    </div>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" onclick="admSendOrderWA(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,notes:o.notes,status:o.status,created_at:o.created_at})})" href="#" title="Send order to customer via WhatsApp"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
+      <button class="btn btn-outline btn-sm" onclick="renderAdmOrderAnalytics()"><i class="fas fa-chart-bar" style="color:var(--gold)"></i>Analytics</button>
+    </div>
+    ${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`
+    <table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead>
+    <tbody>${data.map(o=>`<tr>
+      <td class="td-sm">#${esc(o.id.slice(0,6))}</td>
+      <td class="td-name">${esc(o.customer_name||'—')}</td>
+      <td class="td-gold">KES ${N(o.total||0)}</td>
+      <td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">
+        ${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}
+      </select></td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-ghost btn-xs" onclick="dlReceiptById('${esc(o.id)}')" title="Download Receipt"><i class="fas fa-download"></i></button>
+        <a class="btn btn-green btn-xs" href="#" onclick="admSendOrderById('${esc(o.id)}')" title="Send to customer"><i class="fab fa-whatsapp"></i></a>
+      </td>
+    </tr>`).join('')}</tbody></table>`}
+  </div>`;
+}
 function admSendOrderWA(o){
   // Send order summary to the CUSTOMER's own phone number
   const phone=(o.customer_phone||'').replace(/\D/g,'');
@@ -4380,136 +4306,11 @@ Thank you for shopping with Tote & Tread! 💛
 Queries: wa.me/${getWANum()}`;
   window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`,'_blank','noopener,noreferrer');
 }
-async function renderAdmOrderAnalytics(){
-  const el=document.getElementById('adm-content');
-  el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
-
-  // Fetch all orders with items
-  const{data}=await sb.from('orders')
-    .select('id,customer_name,customer_phone,user_id,items,total,status,created_at')
-    .order('created_at',{ascending:false})
-    .limit(500);
-  const orders=data||[];
-
-  // ── Top Products: parse all items, count qty sold ──
-  const productSales={};  // name → {qty, revenue}
-  orders.filter(o=>o.status!=='cancelled').forEach(o=>{
-    safeParseItems(o.items).forEach(item=>{
-      const k=item.name||'Unknown';
-      if(!productSales[k])productSales[k]={qty:0,revenue:0};
-      productSales[k].qty    += (item.qty||1);
-      productSales[k].revenue+= (item.price||0)*(item.qty||1);
-    });
-  });
-  const topProducts=Object.entries(productSales)
-    .sort((a,b)=>b[1].qty-a[1].qty)
-    .slice(0,10);
-  const maxQty=topProducts[0]?.[1]?.qty||1;
-
-  // ── Top Customers: group by customer name+phone ──
-  const custMap={};
-  orders.forEach(o=>{
-    const k=(o.customer_name||'Unknown')+'|'+(o.customer_phone||'');
-    if(!custMap[k])custMap[k]={name:o.customer_name||'Unknown',phone:o.customer_phone||'—',orders:0,spend:0,lastOrder:o.created_at};
-    custMap[k].orders++;
-    if(o.status!=='cancelled')custMap[k].spend+=(o.total||0);
-    if(o.created_at>custMap[k].lastOrder)custMap[k].lastOrder=o.created_at;
-  });
-  const topCustomers=Object.values(custMap)
-    .sort((a,b)=>b.spend-a.spend)
-    .slice(0,10);
-
-  // ── Revenue by status ──
-  const statuses=['pending','confirmed','processing','shipped','completed','cancelled'];
-  const byStatus={};
-  statuses.forEach(s=>{ byStatus[s]=orders.filter(o=>o.status===s).reduce((sum,o)=>sum+(o.total||0),0); });
-  const totalRev=orders.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.total||0),0);
-
-  const statusColors={pending:'#FFA032',confirmed:'#32C864',processing:'#9B8AF0',shipped:'#4DBBFF',completed:'var(--gold)',cancelled:'var(--red)'};
-
-  el.innerHTML=`
-  <!-- Back button -->
-  <div style="padding:12px 14px 0">
-    <button class="btn btn-ghost btn-sm" onclick="renderAdmOrders()"><i class="fas fa-arrow-left"></i>Back to Orders</button>
-  </div>
-
-  <!-- Revenue breakdown -->
-  <div class="adm-section">
-    <h3>Revenue Breakdown</h3>
-    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px">
-      <div style="font-family:var(--fd);font-size:2rem;color:var(--gold)">KES ${N(totalRev)}</div>
-      <div style="font-size:.7rem;color:var(--t3)">${orders.length} total orders</div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:7px">
-      ${statuses.map(s=>{
-        const cnt=orders.filter(o=>o.status===s).length;
-        const rev=byStatus[s];
-        const pct=totalRev>0?Math.round((rev/totalRev)*100):0;
-        return cnt>0?`
-        <div>
-          <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--t2);margin-bottom:4px">
-            <span style="text-transform:capitalize">${s} <span style="color:var(--t3)">(${cnt})</span></span>
-            <span style="color:${statusColors[s]||'var(--t2)'}">KES ${N(rev)}</span>
-          </div>
-          <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">
-            <div style="height:100%;width:${Math.max(3,pct)}%;background:${statusColors[s]||'var(--bd)'};border-radius:3px;transition:width .4s"></div>
-          </div>
-        </div>`:'';
-      }).join('')}
-    </div>
-  </div>
-
-  <!-- Top Products -->
-  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
-    <h3>🏆 Top Selling Products</h3>
-    <p style="font-size:.7rem;color:var(--t3);margin-bottom:12px">Based on quantity sold across non-cancelled orders.</p>
-    ${!topProducts.length?'<p style="font-size:.76rem;color:var(--t3)">No data yet.</p>':
-    topProducts.map(([name,stats],i)=>{
-      const pct=Math.round((stats.qty/maxQty)*100);
-      return `<div style="margin-bottom:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <div style="width:22px;height:22px;border-radius:50%;background:${i===0?'var(--gold-a15)':i===1?'rgba(180,180,180,.1)':'rgba(160,100,20,.1)'};border:1px solid ${i===0?'var(--gold)':i===1?'rgba(180,180,180,.3)':'rgba(160,100,20,.3)'};display:flex;align-items:center;justify-content:center;font-size:.62rem;color:${i===0?'var(--gold)':i===1?'#aaa':'#a06414'};flex-shrink:0">${i+1}</div>
-            <span style="font-size:.78rem;color:var(--t1);font-weight:500">${esc(name)}</span>
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:.74rem;color:var(--gold);font-weight:600">${stats.qty} sold</div>
-            <div style="font-size:.62rem;color:var(--t3)">KES ${N(stats.revenue)}</div>
-          </div>
-        </div>
-        <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:${i===0?'var(--gold)':'rgba(201,168,76,.4)'};border-radius:3px"></div>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>
-
-  <!-- Top Customers -->
-  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
-    <h3>👑 Top Customers</h3>
-    <p style="font-size:.7rem;color:var(--t3);margin-bottom:12px">Ranked by total spend (excluding cancelled orders).</p>
-    ${!topCustomers.length?'<p style="font-size:.76rem;color:var(--t3)">No data yet.</p>':`
-    <table><thead><tr><th>#</th><th>Customer</th><th>Orders</th><th>Spent</th><th>Last Order</th></tr></thead><tbody>
-    ${topCustomers.map((c,i)=>`<tr>
-      <td style="font-size:.7rem;color:var(--gold);font-weight:700">${i+1}</td>
-      <td>
-        <div style="font-size:.76rem;color:var(--t1);font-weight:500">${esc(c.name)}</div>
-        <div style="font-size:.62rem;color:var(--t3)">${esc(c.phone)}</div>
-      </td>
-      <td style="text-align:center;font-size:.78rem;color:var(--t2)">${c.orders}</td>
-      <td style="font-size:.78rem;color:var(--gold);font-weight:600">KES ${N(c.spend)}</td>
-      <td style="font-size:.6rem;color:var(--t3)">${D(c.lastOrder).split(',')[0]}</td>
-    </tr>`).join('')}
-    </tbody></table>`}
-  </div>`;
-}
-
 async function updateOrderStatus(id,status){
   if(userRole!=='admin'||!sb)return;
   const{data:ord,error}=await sb.from('orders').update({status}).eq('id',id).select('user_id,customer_name,total').single();
   if(error){toast(error.message,'er');return;}
   toast('Status updated','ok');
-  writeAdminLog('Order Updated',`Order #${id.slice(0,8).toUpperCase()} → ${status} at ${new Date().toLocaleString('en-KE')}`);
   // Notify the customer
   if(ord?.user_id){
     const msgs={confirmed:'Your order has been confirmed! We are preparing it.',processing:'Your order is being processed and packed.',shipped:'Your order is on the way! 🚚',completed:'Your order has been delivered. Thank you for shopping with us! 🎉',cancelled:'Your order has been cancelled. Contact us for more info.'};
@@ -4527,8 +4328,7 @@ async function renderAdmUsers(){
   ]);
   const contactMap={};(contacts||[]).forEach(c=>contactMap[c.user_id]=c);
   const users=data||[];
-  // Populate lookup map so openViewUser can fallback without a DB call
-  users.forEach(u=>{ _admUserMap[u.id]=u; });
+  users.forEach(u=>{_admUserMap[u.id]=u;});
   el.innerHTML=`
   <div class="adm-section" style="display:flex;gap:8px;margin-bottom:0;padding-bottom:0">
     <button class="btn btn-gold btn-sm" onclick="renderAdmUsers()" style="flex:1"><i class="fas fa-users"></i>Users</button>
@@ -4639,19 +4439,17 @@ async function admCreateUser(){
     // Set role in profile (trigger creates it automatically)
     if(data?.user){
       await new Promise(r=>setTimeout(r,1000)); // wait for trigger
-      try{await sb.from('profiles').update({role,full_name:name}).eq('id',data.user.id);}catch(_){}
+      await sb.from('profiles').update({role,full_name:name}).eq('id',data.user.id).catch(()=>{});
       await pushDBNotif({type:'welcome',title:'Welcome to Tote & Tread!',body:`Hi ${name}, your account has been created. Start exploring our collection.`,targetUserId:data.user.id});
     }
     ['nu-name','nu-email','nu-pw'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-    toast('User created! Confirmation email sent.','ok');
-  writeAdminLog('User Created',`Account created for ${name} (${email}) as ${role} on ${new Date().toLocaleString('en-KE')}`);
-  notifyAllAdmins({type:'user',title:'User Created by Admin',body:`Admin created account for ${name} (${email}) with role: ${role}.`}).catch(()=>{});
+    toast('User created! Confirmation email sent.','ok');notifyAllAdmins({type:'user',title:'User Created by Admin',body:`Admin created account for ${name} (${email}) with role: ${role}.`}).catch(()=>{});
     // If created as agent, auto-create approved application record
     if(role==='agent'&&data?.user){
       await new Promise(r=>setTimeout(r,1500));
-      try{await sb.from('agent_applications').insert([{
+      await sb.from('agent_applications').insert([{
         user_id:data.user.id,name,email,phone:'',location:'Kenya',status:'approved'
-      }]);}catch(_){}
+      }]).catch(()=>{});
       await pushDBNotif({type:'welcome',title:'Agent Account Created! 🎉',body:'Your account has been set up with agent access. Open your Agent Dashboard in the Account tab.',targetUserId:data.user.id}).catch(()=>{});
     }
     renderAdmUsers();
@@ -4664,30 +4462,27 @@ async function admDeleteUser(userId,name,email){
   const{error}=await sb.from('profiles').delete().eq('id',userId);
   if(error){toast(error.message,'er');return;}
   toast('User profile removed','ok');
-  writeAdminLog('User Deleted',`Profile for ${name||email} removed on ${new Date().toLocaleString('en-KE')}`);
   renderAdmUsers();
 }
 async function setUserRole(userId, newRole, selectEl){
   if(userRole!=='admin'||!sb)return;
   const{error}=await sb.from('profiles').update({role:newRole}).eq('id',userId);
   if(error){toast(error.message,'er');if(selectEl)selectEl.value='customer';return;}
-  toast(`Role updated to ${newRole} ✓`,'ok');
-  writeAdminLog('Role Changed',`User role changed to ${newRole} on ${new Date().toLocaleString('en-KE')}`);
-  notifyAllAdmins({type:'admin',title:'User Role Changed',body:`A user's role was updated to ${newRole}.`}).catch(()=>{});
+  toast(`Role updated to ${newRole} ✓`,'ok');notifyAllAdmins({type:'admin',title:'User Role Changed',body:`A user's role was updated to ${newRole}.`}).catch(()=>{});
   // If upgrading to agent, auto-create/approve their agent application
   if(newRole==='agent'){
     // Check if they already have an application
     const{data:existingApp}=await sb.from('agent_applications').select('id,status').eq('user_id',userId).maybeSingle();
     if(existingApp){
       // Update existing to approved
-      try{await sb.from('agent_applications').update({status:'approved'}).eq('user_id',userId);}catch(_){}
+      await sb.from('agent_applications').update({status:'approved'}).eq('user_id',userId).catch(()=>{});
     } else {
       // Get their profile info to create an application record
-      let prof={data:null};try{prof=await sb.from('profiles').select('full_name,email,phone').eq('id',userId).single();}catch(_){}
-      try{await sb.from('agent_applications').insert([{
+      const{data:prof}=await sb.from('profiles').select('full_name,email,phone').eq('id',userId).single().catch(()=>({data:null}));
+      await sb.from('agent_applications').insert([{
         user_id:userId, name:prof?.full_name||'Agent', email:prof?.email||'',
         phone:prof?.phone||'', location:'Kenya', status:'approved'
-      }]);}catch(_){}
+      }]).catch(()=>{});
     }
     // Notify the user
     await pushDBNotif({type:'welcome',title:'You are now an Agent! 🎉',body:'Your account has been upgraded to Agent. Open your Agent Dashboard in the Account tab to get started.',targetUserId:userId}).catch(()=>{});
@@ -4696,120 +4491,83 @@ async function setUserRole(userId, newRole, selectEl){
     await pushDBNotif({type:'warning',title:'Agent Account Suspended',body:'Your agent account has been suspended. Contact support if you believe this is an error.',targetUserId:userId}).catch(()=>{});
   }
 }
-// ── View User Profile ──────────────────────────────────────────
-const _admUserMap = {}; // populated when users table renders
+const _admUserMap={};
 
 async function openViewUser(uid){
+  // Get user from map or fetch fresh
+  let u=_admUserMap[uid]||{id:uid};
   const modal=document.getElementById('view-user-modal');
   const body=document.getElementById('view-user-body');
   if(!modal||!body)return;
   body.innerHTML='<div class="load-center"><div class="spin"></div></div>';
-  modal.classList.add('on'); showOvl();
+  modal.classList.add('on');showOvl();
 
-  // Fetch all user data in parallel
-  const [profRes, contactRes, orderRes, notifRes] = await Promise.allSettled([
+  const[profR,contactR,orderR,notifR]=await Promise.allSettled([
     sb.from('profiles').select('*').eq('id',uid).single(),
     sb.from('user_contacts').select('*').eq('user_id',uid).maybeSingle(),
-    sb.from('orders').select('id,total,status,created_at').eq('user_id',uid).order('created_at',{ascending:false}).limit(50),
-    sb.from('notifications').select('id,title,body,type,read,created_at').eq('user_id',uid).order('created_at',{ascending:false}).limit(10)
+    sb.from('orders').select('id,total,status,created_at,items').eq('user_id',uid).order('created_at',{ascending:false}).limit(50),
+    sb.from('notifications').select('id,title,body,type,read,created_at').eq('user_id',uid).order('created_at',{ascending:false}).limit(8)
   ]);
+  if(profR.status==='fulfilled'&&profR.value.data) u={...u,...profR.value.data};
+  const c   =contactR.status==='fulfilled'?contactR.value.data:null;
+  const ords =orderR.status==='fulfilled'?(orderR.value.data||[]):[];
+  const nots =notifR.status==='fulfilled'?(notifR.value.data||[]):[];
 
-  const u   = profRes.status==='fulfilled'    ? profRes.value.data    : (_admUserMap[uid]||{});
-  const c   = contactRes.status==='fulfilled' ? contactRes.value.data : null;
-  const ords= orderRes.status==='fulfilled'   ? orderRes.value.data||[] : [];
-  const nots= notifRes.status==='fulfilled'   ? notifRes.value.data||[] : [];
+  const totalSpend=ords.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.total||0),0);
+  const rColors={admin:'badge-purple',agent:'badge-green',customer:'badge-amber',banned_agent:'badge-red'};
+  const sColors={completed:'badge-green',pending:'badge-amber',cancelled:'badge-red',shipped:'badge-blue',confirmed:'badge-green',processing:'badge-amber'};
 
-  const totalSpend = ords.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.total||0),0);
-  const roleColors = {admin:'badge-purple',agent:'badge-green',customer:'badge-amber',banned_agent:'badge-red'};
-  const statusColors = {completed:'badge-green',pending:'badge-amber',cancelled:'badge-red',shipped:'badge-blue',confirmed:'badge-green',processing:'badge-amber'};
-
-  body.innerHTML = `
-    <!-- Header with avatar -->
-    <div style="display:flex;align-items:center;gap:14px;padding:16px 16px 12px;border-bottom:1px solid var(--bd)">
-      <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--gold-a8);border:2px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--gold)">
-        ${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<i class=\"fas fa-user\"></i>'">`:
-        '<i class="fas fa-user"></i>'}
+  body.innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;padding:14px;border-bottom:1px solid var(--bd)">
+      <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--gold-a8);border:2px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:var(--gold)">
+        ${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<i class=\"fas fa-user\"></i>'">`:'<i class="fas fa-user"></i>'}
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-family:var(--fd);font-size:1.2rem;color:var(--t1)">${esc(u.full_name||'—')}</div>
-        <div style="font-size:.72rem;color:var(--t3);margin-top:2px">${esc(u.email||u.phone||'—')}</div>
-        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px">
-          <span class="badge ${roleColors[u.role]||'badge-amber'}">${esc(u.role||'customer')}</span>
+        <div style="font-family:var(--fd);font-size:1.15rem;color:var(--t1)">${esc(u.full_name||'—')}</div>
+        <div style="font-size:.7rem;color:var(--t3);margin-top:2px">${esc(u.email||u.phone||'—')}</div>
+        <div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:4px">
+          <span class="badge ${rColors[u.role]||'badge-amber'}">${esc(u.role||'customer')}</span>
           ${u.last_visit?`<span style="font-size:.58rem;color:var(--t3);background:var(--bg4);padding:2px 7px;border-radius:20px">Last seen ${D(u.last_visit).split(',')[0]}</span>`:''}
         </div>
       </div>
     </div>
-
-    <!-- Info grid -->
-    <div style="padding:12px 16px;border-bottom:1px solid var(--bd)">
-      <div style="font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Profile Info</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        ${[
-          ['User ID',      (u.id||'—').slice(0,12)+'…'],
-          ['Phone',        esc(c?.phone||u.phone||'—')],
-          ['Joined',       u.created_at?D(u.created_at).split(',')[0]:'—'],
-          ['Visits',       (u.visit_count||0)+' times'],
-          ['Delivery Addr',esc(c?.delivery_address||'—')],
-          ['Auth Provider',esc(u.provider||'email')],
-        ].map(([k,v])=>`
-          <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:8px 10px">
-            <div style="font-size:.54rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:3px">${k}</div>
-            <div style="font-size:.76rem;color:var(--t1);word-break:break-all">${v}</div>
-          </div>`).join('')}
+    <div style="padding:10px 14px;border-bottom:1px solid var(--bd)">
+      <div style="font-size:.54rem;letter-spacing:.15em;text-transform:uppercase;color:var(--t3);margin-bottom:7px">Profile Info</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+        ${[['Phone',esc(c?.phone||u.phone||'—')],['Joined',u.created_at?D(u.created_at).split(',')[0]:'—'],
+           ['Visits',(u.visit_count||0)+' times'],['Address',esc(c?.delivery_address||'—')]
+          ].map(([k,v])=>`<div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:7px 9px">
+          <div style="font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:2px">${k}</div>
+          <div style="font-size:.74rem;color:var(--t1);word-break:break-all">${v}</div>
+        </div>`).join('')}
       </div>
     </div>
-
-    <!-- Order stats -->
-    <div style="padding:12px 16px;border-bottom:1px solid var(--bd)">
-      <div style="font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Order Summary</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
-        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:10px;text-align:center">
-          <div style="font-family:var(--fd);font-size:1.4rem;color:var(--gold)">${ords.length}</div>
-          <div style="font-size:.52rem;text-transform:uppercase;color:var(--t3);margin-top:2px">Orders</div>
+    <div style="padding:10px 14px;border-bottom:1px solid var(--bd)">
+      <div style="font-size:.54rem;letter-spacing:.15em;text-transform:uppercase;color:var(--t3);margin-bottom:7px">Orders</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:8px">
+        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:8px;text-align:center">
+          <div style="font-family:var(--fd);font-size:1.3rem;color:var(--gold)">${ords.length}</div>
+          <div style="font-size:.5rem;text-transform:uppercase;color:var(--t3);margin-top:2px">Total</div>
         </div>
-        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:10px;text-align:center">
-          <div style="font-family:var(--fd);font-size:1rem;color:var(--gold);margin-top:4px">KES ${N(totalSpend)}</div>
-          <div style="font-size:.52rem;text-transform:uppercase;color:var(--t3);margin-top:2px">Total Spent</div>
+        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:8px;text-align:center">
+          <div style="font-size:.8rem;color:var(--gold);margin-top:4px">${N(totalSpend)}</div>
+          <div style="font-size:.5rem;text-transform:uppercase;color:var(--t3);margin-top:2px">Spent KES</div>
         </div>
-        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:10px;text-align:center">
-          <div style="font-family:var(--fd);font-size:1.4rem;color:${ords.filter(o=>o.status==='completed').length>0?'#32C864':'var(--t3)'}">
-            ${ords.filter(o=>o.status==='completed').length}</div>
-          <div style="font-size:.52rem;text-transform:uppercase;color:var(--t3);margin-top:2px">Completed</div>
+        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:8px;text-align:center">
+          <div style="font-family:var(--fd);font-size:1.3rem;color:#32C864">${ords.filter(o=>o.status==='completed').length}</div>
+          <div style="font-size:.5rem;text-transform:uppercase;color:var(--t3);margin-top:2px">Done</div>
         </div>
       </div>
-      ${ords.length?`
-      <div style="display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto">
-        ${ords.slice(0,8).map(o=>`
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r)">
-            <div>
-              <span style="font-size:.68rem;color:var(--gold)">#${(o.id||'').slice(0,8).toUpperCase()}</span>
-              <span style="font-size:.6rem;color:var(--t3);margin-left:6px">${D(o.created_at).split(',')[0]}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:.7rem;color:var(--t1)">KES ${N(o.total||0)}</span>
-              <span class="badge ${statusColors[o.status]||'badge-amber'}" style="font-size:.52rem">${o.status}</span>
-            </div>
-          </div>`).join('')}
-      </div>`:'<p style="font-size:.74rem;color:var(--t3)">No orders yet.</p>'}
+      <div style="max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+        ${ords.slice(0,6).map(o=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r)">
+          <span style="font-size:.66rem;color:var(--gold)">#${(o.id||'').slice(0,8).toUpperCase()}</span>
+          <span style="font-size:.66rem;color:var(--t1)">KES ${N(o.total||0)}</span>
+          <span class="badge ${sColors[o.status]||'badge-amber'}" style="font-size:.5rem">${o.status}</span>
+        </div>`).join('')||'<p style="font-size:.72rem;color:var(--t3)">No orders yet.</p>'}
+      </div>
     </div>
-
-    <!-- Recent notifications -->
-    <div style="padding:12px 16px">
-      <div style="font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Recent Notifications (${nots.length})</div>
-      ${nots.length?nots.map(n=>`
-        <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd)">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:.74rem;font-weight:${n.read?'400':'600'};color:${n.read?'var(--t2)':'var(--t1)'}">${esc(n.title||'')}</div>
-            <div style="font-size:.64rem;color:var(--t3)">${esc(n.body||'')}</div>
-          </div>
-          <div style="font-size:.58rem;color:var(--t4);flex-shrink:0">${D(n.created_at).split(',')[0]}</div>
-        </div>`).join(''):
-        '<p style="font-size:.74rem;color:var(--t3)">No notifications.</p>'}
-    </div>
-
-    <!-- Actions -->
-    <div style="padding:12px 16px;display:flex;gap:8px;border-top:1px solid var(--bd)">
-      <button class="btn btn-gold btn-sm" style="flex:1" onclick="closeViewUser();setTimeout(()=>openEditUser(${JSON.stringify(u)}),100)">
+    <div style="padding:10px 14px;display:flex;gap:8px;border-top:1px solid var(--bd)">
+      <button class="btn btn-gold btn-sm" style="flex:1" onclick="(function(){const _u=_admUserMap['${uid}']||{id:'${uid}'};closeViewUser();document.getElementById('edit-user-modal').classList.add('on');showOvl();(function openEU(u){editingUser=u;const b=document.getElementById('edit-user-body');b.innerHTML='<div class=\"fg\"><label class=\"flbl\">Full Name</label><input type=\"text\" class=\"fi\" id=\"eu-name\" value=\"'+esc(_u.full_name||'')+'\" maxlength=\"100\"></div><div class=\"fg\"><label class=\"flbl\">Phone</label><input type=\"tel\" class=\"fi\" id=\"eu-phone\" value=\"'+esc(_u.phone||'')+'\" maxlength=\"20\"></div><div class=\"fg\"><label class=\"flbl\">Role</label><select class=\"fsel\" id=\"eu-role\"><option value=\"customer\" '+(_u.role===\'customer\'?'selected':'')+'>Customer</option><option value=\"agent\" '+(_u.role===\'agent\'?'selected':'')+'>Agent</option><option value=\"admin\" '+(_u.role===\'admin\'?'selected':'')+'>Admin</option></select></div><button class=\"btn btn-gold btn-full\" onclick=\"saveEditUser()\"><i class=\"fas fa-save\"></i>Save Changes</button>';}(_u));})()">
         <i class="fas fa-edit"></i>Edit Profile
       </button>
       <button class="btn btn-ghost btn-sm" onclick="closeViewUser()"><i class="fas fa-times"></i>Close</button>
@@ -4823,7 +4581,7 @@ function closeEditUser(){document.getElementById('edit-user-modal')?.classList.r
 async function saveEditUser(){if(!editingUser||userRole!=='admin'||!sb)return;const name=document.getElementById('eu-name')?.value?.trim(),phone=document.getElementById('eu-phone')?.value?.trim(),role=document.getElementById('eu-role')?.value;const{error}=await sb.from('profiles').update({full_name:name,phone:phone||null,role}).eq('id',editingUser.id);if(error){toast(error.message,'er');return;}toast('User updated!','ok');closeEditUser();renderAdmUsers();}
 function openSendRecovery(u){const body=document.getElementById('recovery-body');const code=Array.from(crypto.getRandomValues(new Uint8Array(6))).map(b=>(b%36).toString(36)).join('').toUpperCase().slice(0,8);body.innerHTML=`<p style="font-size:.78rem;color:var(--t3);margin-bottom:14px;line-height:1.65">Generate a temporary recovery code for <strong style="color:var(--t1)">${esc(u.name||u.email||'this user')}</strong>.</p><div class="card card-p" style="margin-bottom:14px;text-align:center"><span class="sec-eyebrow">Recovery Code</span><div style="font-family:var(--fd);font-size:2rem;color:var(--gold);letter-spacing:.18em;margin:10px 0">${code}</div><p style="font-size:.66rem;color:var(--t3)">Expires in 48 hours</p></div><button class="btn btn-gold btn-full" onclick="sendRecoveryCode('${esc(u.id)}','${esc(u.email)}','${code}')"><i class="fas fa-paper-plane"></i>Store &amp; Copy Code</button><button class="btn btn-ghost btn-full btn-sm" onclick="copyText('${code}')" style="margin-top:8px"><i class="fas fa-copy"></i>Copy Code</button>`;document.getElementById('recovery-modal').classList.add('on');showOvl();}
 function closeRecovery(){document.getElementById('recovery-modal')?.classList.remove('on');hideOvl();}
-async function sendRecoveryCode(userId,email,code){if(userRole!=='admin')return;if(sb)try{await sb.from('recovery_codes').insert([{user_id:userId,email,code}]);}catch(_){}copyText(code);closeRecovery();toast('Code stored & copied to clipboard!','ok');}
+async function sendRecoveryCode(userId,email,code){if(userRole!=='admin')return;if(sb)await sb.from('recovery_codes').insert([{user_id:userId,email,code}]).catch(()=>{});copyText(code);closeRecovery();toast('Code stored & copied to clipboard!','ok');}
 async function renderAdmMessages(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const[{data:msgs},{data:fb},{data:sugg}]=await Promise.all([sb.from('contact_messages').select('*').order('created_at',{ascending:false}),sb.from('feedback').select('*').order('created_at',{ascending:false}),sb.from('suggestions').select('*').order('created_at',{ascending:false})]);el.innerHTML=`<div class="adm-section"><h3>Contact (${(msgs||[]).length})</h3>${(msgs||[]).length?msgs.map(m=>`<div class="card card-p" style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(m.name||'—')}</span><span style="font-size:.6rem;color:var(--t3)">${D(m.created_at)}</span></div><div style="font-size:.7rem;color:var(--t3);margin-bottom:4px">${esc(m.email||'')}${m.phone?' · '+esc(m.phone):''}</div>${m.subject?`<div style="font-size:.72rem;font-weight:500;color:var(--gold);margin-bottom:4px">${esc(m.subject)}</div>`:''}<p style="font-size:.76rem;color:var(--t2);line-height:1.6">${esc(m.message)}</p><a href="mailto:${esc(m.email||'')}" class="btn btn-ghost btn-xs" style="margin-top:8px">Reply</a></div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No messages.</p>'}</div><div class="adm-section"><h3>Feedback (${(fb||[]).length})</h3>${(fb||[]).length?fb.map(f=>`<div style="display:flex;align-items:center;gap:10px;padding:9px;border-bottom:1px solid var(--bd)"><span style="color:var(--gold)">${'★'.repeat(f.rating||0)}${'☆'.repeat(5-(f.rating||0))}</span><span style="font-size:.76rem;color:var(--t2);flex:1">${esc(f.comment||'')}</span><span style="font-size:.6rem;color:var(--t3)">${D(f.created_at).split(',')[0]}</span></div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No feedback.</p>'}</div><div class="adm-section"><h3>Suggestions (${(sugg||[]).length})</h3>${(sugg||[]).length?sugg.map(s=>`<div class="card card-p" style="margin-bottom:9px"><p style="font-size:.78rem;color:var(--t2);line-height:1.65;margin-bottom:4px">${esc(s.suggestion)}</p>${s.email?`<div style="font-size:.66rem;color:var(--t3)">${esc(s.email)}</div>`:''}</div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No suggestions.</p>'}</div>`;}
 async function renderAdmSettings(){
   const el=document.getElementById('adm-content');
@@ -4956,7 +4714,7 @@ async function bcSendNotifications(){
     try{await sb.from('notifications').insert([{user_id:uid,type,title:subject,body,read:false}]);sent++;}catch{}
   }
   // Log broadcast
-  try{await sb.from('broadcast_emails').insert([{subject,body,type,recipient_ids:selected,sent_count:sent,sent_by:user.id}]);}catch(_){}
+  await sb.from('broadcast_emails').insert([{subject,body,type,recipient_ids:selected,sent_count:sent,sent_by:user.id}]).catch(()=>{});
   btn.disabled=false;btn.innerHTML='<i class="fas fa-bell"></i>Send In-App';
   toast(`Notification sent to ${sent} users! 🔔`,'ok');
   renderAdmBroadcast();
@@ -5666,7 +5424,7 @@ async function loadAndRenderAdverts(){
     // Auto-clean expired
     const expired=(data||[]).map(r=>{try{return{...JSON.parse(r.value),_key:r.key};}catch{return null;}})
       .filter(av=>av&&av.expires_at&&new Date(av.expires_at)<=now);
-    expired.forEach(av=>{(async()=>{try{await sb.from('app_settings').delete().eq('key',av._key);}catch(_){}})();});
+    expired.forEach(av=>sb.from('app_settings').delete().eq('key',av._key).catch(()=>{}));
     // Render in each slot
     renderAdvertSlot('advert-banner-home',   active.filter(av=>av.placement==='home'||av.placement==='all'));
     renderAdvertSlot('advert-banner-shop',   active.filter(av=>av.placement==='shop'||av.placement==='all'));
@@ -5767,8 +5525,7 @@ function dismissAdvert(slotId){
   const el=document.getElementById(slotId);
   if(el){el.style.display='none';el.innerHTML='';}
 }
-async function saveAnn(){if(userRole!=='admin'||!sb)return;const txt=document.getElementById('ann-txt')?.value?.trim()||'';const{error}=await sb.from('app_settings').upsert({key:'announcement',value:txt,updated_at:new Date().toISOString()});if(error){toast(error.message,'er');return;}showAnnouncement(txt);toast('Announcement published! 📢','ok');
-  writeAdminLog('Announcement',`Banner updated on ${new Date().toLocaleString('en-KE')}`);}
+async function saveAnn(){if(userRole!=='admin'||!sb)return;const txt=document.getElementById('ann-txt')?.value?.trim()||'';const{error}=await sb.from('app_settings').upsert({key:'announcement',value:txt,updated_at:new Date().toISOString()});if(error){toast(error.message,'er');return;}showAnnouncement(txt);toast('Announcement published! 📢','ok');}
 
 async function saveSocialLinks(){
   if(userRole!=='admin'||!sb)return;
@@ -5828,20 +5585,15 @@ function getWANum() {
 function submitContact(){
   if(!rateLimit('contact',30000)){toast('Please wait 30 seconds before sending another message','er');return;}
   const n=document.getElementById('ct-name')?.value?.trim();
-  const rawPh=(document.getElementById('ct-phone')?.value||'').replace(/\D/g,'');
+  const c=document.getElementById('ct-contact')?.value?.trim();
   const s=document.getElementById('ct-subj')?.value||'';
   const m=document.getElementById('ct-msg')?.value?.trim();
   if(!n){toast('Please enter your name','er');return;}
-  if(!rawPh||rawPh.replace(/^0/,'').length<9){toast('Please enter a valid WhatsApp number (e.g. 0712345678)','er');document.getElementById('ct-phone')?.focus();return;}
   if(!m){toast('Please enter your message','er');return;}
-  const intlPh=rawPh.startsWith('254')?rawPh:rawPh.startsWith('0')?'254'+rawPh.slice(1):'254'+rawPh;
-  const waMsg='*New Message — Tote & Tread*'
-    +'\n\n👤 *Name:* '+n
-    +'\n📲 *Reply to:* +'+intlPh
-    +(s?'\n📌 *Topic:* '+s:'')
-    +'\n\n💬 *Message:*\n'+m;
-  window.open('https://wa.me/'+getWANum()+'?text='+encodeURIComponent(waMsg),'_blank','noopener,noreferrer');
-  ['ct-name','ct-phone','ct-msg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const waMsg=`*New Message — Tote & Tread*\n\n👤 *Name:* ${n}${c?`\n📞 *Contact:* ${c}`:''}${s?`\n📌 *Topic:* ${s}`:''}\n\n💬 *Message:*\n${m}`;
+  const waUrl=`https://wa.me/${getWANum()}?text=${encodeURIComponent(waMsg)}`;
+  window.open(waUrl,'_blank','noopener,noreferrer');
+  ['ct-name','ct-contact','ct-msg'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const sel=document.getElementById('ct-subj');if(sel)sel.value='';
   toast('Opening WhatsApp… 💬','ok');
 }
@@ -5901,10 +5653,10 @@ let fbRatingVal=0;
 function openFB(){document.getElementById('fb-modal').classList.add('on');showOvl();fbRatingVal=0;setRating(0);}
 function closeFB(){document.getElementById('fb-modal')?.classList.remove('on');hideOvl();const t=document.getElementById('fb-txt');if(t)t.value='';}
 function setRating(n){fbRatingVal=n;document.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('on',i<n));}
-async function submitFB(){if(!rateLimit('feedback',60000)){toast('Please wait before submitting feedback','er');return;}if(!fbRatingVal){toast('Please select a rating','er');return;}const txt=document.getElementById('fb-txt')?.value?.trim()||'';if(sb)try{await sb.from('feedback').insert([{rating:fbRatingVal,comment:txt,user_id:user?.id||null}]);}catch(_){}closeFB();toast('Thank you for your feedback! ⭐','ok');}
+async function submitFB(){if(!rateLimit('feedback',60000)){toast('Please wait before submitting feedback','er');return;}if(!fbRatingVal){toast('Please select a rating','er');return;}const txt=document.getElementById('fb-txt')?.value?.trim()||'';if(sb)await sb.from('feedback').insert([{rating:fbRatingVal,comment:txt,user_id:user?.id||null}]).catch(()=>{});closeFB();toast('Thank you for your feedback! ⭐','ok');}
 function openSugg(){document.getElementById('sugg-modal').classList.add('on');showOvl();}
 function closeSugg(){document.getElementById('sugg-modal')?.classList.remove('on');hideOvl();}
-async function submitSugg(){if(!rateLimit('suggestion',60000)){toast('Please wait before submitting again','er');return;}const txt=document.getElementById('sugg-txt')?.value?.trim(),email=document.getElementById('sugg-email')?.value?.trim();if(!txt){toast('Please write your suggestion','er');return;}if(sb)try{await sb.from('suggestions').insert([{suggestion:txt,email:email||null,user_id:user?.id||null}]);}catch(_){}closeSugg();const st=document.getElementById('sugg-txt'),se=document.getElementById('sugg-email');if(st)st.value='';if(se)se.value='';toast('Suggestion sent! 💡','ok');}
+async function submitSugg(){if(!rateLimit('suggestion',60000)){toast('Please wait before submitting again','er');return;}const txt=document.getElementById('sugg-txt')?.value?.trim(),email=document.getElementById('sugg-email')?.value?.trim();if(!txt){toast('Please write your suggestion','er');return;}if(sb)await sb.from('suggestions').insert([{suggestion:txt,email:email||null,user_id:user?.id||null}]).catch(()=>{});closeSugg();const st=document.getElementById('sugg-txt'),se=document.getElementById('sugg-email');if(st)st.value='';if(se)se.value='';toast('Suggestion sent! 💡','ok');}
 
 /* ════════ SHARE ════════ */
 function _shareUrl(){ return socialLinks.site||SITE; }
