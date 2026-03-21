@@ -2595,7 +2595,10 @@ async function saveProfile(){
       ||document.getElementById('ep-avatar-file')?.files[0]
       ||document.getElementById('ep-avatar-camera')?.files[0];
     if(avatarFile){
-      try{ avatarUrl=await uploadAvatarFile(); }catch(_){ avatarUrl=null; }
+      try{
+        const avTimeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Upload timed out')),15000));
+        avatarUrl=await Promise.race([uploadAvatarFile(),avTimeout]);
+      }catch(_){ avatarUrl=null; }
     }
 
     // Build update payload
@@ -2604,7 +2607,7 @@ async function saveProfile(){
 
     // Save to DB with a 10-second timeout so button never stays stuck
     const savePromise=sb.from('profiles').update(updateData).eq('id',user.id);
-    const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Save timed out — check your internet connection')),10000));
+    const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('No response from server. Please check your internet and try again.')),7000));
     const{error}=await Promise.race([savePromise,timeout]);
 
     if(error){
@@ -3489,7 +3492,8 @@ async function doLogin(){
     }
     user=data?.user||null;
     errEl.style.display='none';
-    // Navigate to account tab immediately — no delay
+
+    // ── Navigate immediately — user sees their profile right away ──
     document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
     document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
     const accScr=document.getElementById('scr-acc');
@@ -3497,17 +3501,23 @@ async function doLogin(){
     const accNi=document.querySelector('.ni[data-tab="acc"]');
     if(accNi)accNi.classList.add('on');
     window.scrollTo(0,0);
-    // Fetch role then update UI — if admin open dashboard automatically
-    await fetchRole();
-    renderAcc();
-    if(userRole==='admin'){
-      toast('Welcome back, Admin 🛡','ok');
-      setTimeout(()=>openAdmin(),400);
-    } else if(userRole==='agent'){
-      toast('Welcome back, Agent 🤝','ok');
-    } else {
-      toast('Signed in! ✓','ok');
-    }
+    renderAcc();            // render with basic user data immediately
+    toast('Signed in! ✓','ok');
+
+    // ── fetchRole in background — updates UI once role is known ──
+    // Uses a 6-second timeout so a slow network never blocks the UI
+    const roleTimeout = new Promise(r=>setTimeout(r,6000));
+    Promise.race([fetchRole(), roleTimeout]).then(()=>{
+      renderAcc();   // re-render now that role is known
+      updBadges();
+      loadNotifications();
+      if(userRole==='admin'){
+        toast('Welcome, Admin 🛡','ok');
+        setTimeout(()=>openAdmin(),400);
+      } else if(userRole==='agent'){
+        toast('Welcome, Agent 🤝','ok');
+      }
+    }).catch(()=>{});
   }catch(err){
     console.error('Login error:',err);
     if(!navigator.onLine||String(err.message).includes('fetch')){
@@ -4151,32 +4161,36 @@ async function notifyAllAdmins({type='system',title,body}){
   }catch{}
 }
 
-async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('id,customer_name,customer_phone,delivery_address,items,total,status,notes,user_id,created_at').order('created_at',{ascending:false}).limit(200);el.innerHTML=`<div class="adm-section"><h3>All Orders (${data?.length||0})</h3>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" onclick="admSendOrderWA(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,notes:o.notes,status:o.status,created_at:o.created_at})})" href="#" title="Send order to customer via WhatsApp"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
+async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('id,customer_name,customer_phone,delivery_address,items,total,status,notes,user_id,created_at').order('created_at',{ascending:false}).limit(200);// Populate global map so admSendOrderById can look up any row by id
+  (data||[]).forEach(o=>{ _admOrdersMap[o.id]=o; });
+  el.innerHTML=`<div class="adm-section"><h3>All Orders (${data?.length||0})</h3>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" onclick="admSendOrderById('${esc(o.id)}')" href="#" title="Send order details to customer via WhatsApp"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
+const _admOrdersMap = {};
+function admSendOrderById(id){
+  const o=_admOrdersMap[id];
+  if(!o){toast('Order not found. Refresh the Orders tab.','er');return;}
+  admSendOrderWA(o);
+}
 function admSendOrderWA(o){
-  // Send order summary to the CUSTOMER's own phone number
-  const phone=(o.customer_phone||'').replace(/\D/g,'');
-  if(!phone){toast("No phone number on this order",'er');return;}
-  // Strip leading 0 if needed, add 254 prefix
-  const intlPhone=phone.startsWith('254')?phone:phone.startsWith('0')?'254'+phone.slice(1):'254'+phone;
+  const rawPhone=(o.customer_phone||'').replace(/\D/g,'');
+  if(!rawPhone){toast('No phone number saved for this order','er');return;}
+  const intlPhone=rawPhone.startsWith('254')?rawPhone:rawPhone.startsWith('0')?'254'+rawPhone.slice(1):'254'+rawPhone;
   const items=safeParseItems(o.items);
-  const lines=items.map(i=>`• ${i.qty||1}× ${i.name||''} — KES ${N((i.price||0)*(i.qty||1))}`).join('\n');
-  const statusEmoji={pending:'⏳',confirmed:'✅',processing:'⚙️',shipped:'🚚',completed:'🎉',cancelled:'❌'};
-  const msg=`🛍️ *Tote & Tread — Order Update*
-
-Hi ${o.customer_name||''}! Here's your order summary:
-
-*Ref:* #${(o.id||'').slice(0,8).toUpperCase()}
-*Status:* ${statusEmoji[o.status]||''} ${(o.status||'pending').toUpperCase()}
-*Address:* ${o.delivery_address||''}
-
-*Items:*
-${lines}
-
-*Total: KES ${N(o.total||0)}*
-
-Thank you for shopping with Tote & Tread! 💛
-Queries: wa.me/${getWANum()}`;
-  window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`,'_blank','noopener,noreferrer');
+  const lines=items.length?items.map(i=>'  * '+(i.qty||1)+'x '+(i.name||'Item')+'  -  KES '+N((i.price||0)*(i.qty||1))).join('\n'):'  (no items)';
+  const siteUrl=_shareUrl()||SITE;
+  const em={pending:'Pending',confirmed:'Confirmed',processing:'Processing',shipped:'Shipped',completed:'Delivered',cancelled:'Cancelled'};
+  const msg='Tote & Tread - Order Update'
+    +'\n\nHi '+(o.customer_name||'there')+'!'
+    +'\n\nYour order details:'
+    +'\nRef: #'+(o.id||'').slice(0,8).toUpperCase()
+    +'\nStatus: '+(em[o.status]||o.status||'Pending')
+    +'\nDelivery to: '+(o.delivery_address||'-')
+    +'\n\nItems:\n'+lines
+    +'\n\nTotal: KES '+N(o.total||0)
+    +(o.notes?'\nNotes: '+o.notes:'')
+    +'\n\nThank you for shopping with us!'
+    +'\nShop: '+siteUrl
+    +'\nCall/WA: +'+getWANum();
+  window.open('https://wa.me/'+intlPhone+'?text='+encodeURIComponent(msg),'_blank','noopener,noreferrer');
 }
 async function updateOrderStatus(id,status){
   if(userRole!=='admin'||!sb)return;
