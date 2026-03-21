@@ -2664,7 +2664,7 @@ async function saveProfile(){
     // Update auth metadata (non-blocking — don't let it block the UI)
     const metaUpdate={full_name:name};
     if(avatarUrl) metaUpdate.avatar_url=avatarUrl;
-    sb.auth.updateUser({data:metaUpdate}).catch(()=>{});
+    (async()=>{try{await sb.auth.updateUser({data:metaUpdate});}catch(_){}})();
 
     // Update local user state immediately — renderAcc() uses this
     if(!user.user_metadata)user.user_metadata={};
@@ -2694,7 +2694,7 @@ async function saveProfile(){
 
     // Keep user_contacts in sync (non-blocking)
     if(fullPhone){
-      sb.from('user_contacts').upsert({user_id:user.id,phone:fullPhone,updated_at:new Date().toISOString()},{onConflict:'user_id'}).catch(()=>{});
+      (async()=>{try{await sb.from('user_contacts').upsert({user_id:user.id,phone:fullPhone,updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(_){}})();
     }
 
     // ── SUCCESS: show animation, then go back ──
@@ -3243,7 +3243,7 @@ async function placeOrder() {
     await notifyOrderPlaced(ordId, total);
     // Save contact if user checked the option
     if (user && sb && document.getElementById('co-save-contact')?.checked) {
-      await sb.from('user_contacts').upsert({user_id:user.id, phone:fullPhone, delivery_address:addr, updated_at:new Date().toISOString()},{onConflict:'user_id'}).catch(()=>{});
+      try{await sb.from('user_contacts').upsert({user_id:user.id, phone:fullPhone, delivery_address:addr, updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(_){}
     }
     cart=[]; saveCart(); updBadges(); closeCO(); toast('Order placed successfully! 🎉','ok');
   } catch { toast('Could not place order. Please try again.','er'); btn.disabled=false; btn.innerHTML='<i class="fas fa-lock"></i>Confirm Order via WhatsApp'; }
@@ -3425,7 +3425,7 @@ async function submitNotify() {
   const pid=document.getElementById('notify-pid')?.value, email=document.getElementById('notify-email')?.value?.trim();
   if (!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Enter a valid email','er');return;}
   const p=products.find(x=>x.id===pid);
-  if (sb) await sb.from('restock_notifications').insert([{product_id:pid,email,product_name:p?.name||''}]).catch(()=>{});
+  if (sb) try{await sb.from('restock_notifications').insert([{product_id:pid,email,product_name:p?.name||''}]);}catch(_){}
   closeNotify(); toast("We'll notify you when it's back!",'ok');
 }
 
@@ -3463,13 +3463,13 @@ async function readNotif(id){
   if(!sb||!user)return;
   _notifCache=_notifCache.map(n=>n.id===id?{...n,read:true}:n);
   renderNotifications();updNotifBadge();
-  await sb.from('notifications').update({read:true}).eq('id',id).eq('user_id',user.id).catch(()=>{});
+  try{await sb.from('notifications').update({read:true}).eq('id',id).eq('user_id',user.id);}catch(_){}
 }
 async function markAllRead(){
   if(!sb||!user)return;
   _notifCache=_notifCache.map(n=>({...n,read:true}));
   renderNotifications();updNotifBadge();
-  await sb.from('notifications').update({read:true}).eq('user_id',user.id).catch(()=>{});
+  try{await sb.from('notifications').update({read:true}).eq('user_id',user.id);}catch(_){}
 }
 async function notifyOrderPlaced(orderId,total){
   // Notify the customer
@@ -3597,7 +3597,7 @@ async function doLogin(){
 }
 async function doPhoneLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('li-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('li-ph-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('li-otp-wrap').style.display='';document.getElementById('li-otp-send-wrap').style.display='none';toast('OTP sent to '+fullPhone,'ok');}
 async function doPhoneVerify(){if(!sb)return;const ph=document.getElementById('li-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('otp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('otp-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify OTP';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}toast('Signed in successfully! 👋','ok');}
-async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const redirectUrl=(SITE&&SITE.startsWith('https://'))?SITE+'?tab=acc':(window.location.origin+window.location.pathname+'?tab=acc');const{data:_suData,error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:redirectUrl}});if(!error&&_suData?.user?.identities?.length===0){btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';const ew=document.getElementById('su-err');ew.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">'+esc(e)+'</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');setTimeout(()=>{const li=document.getElementById(\'li-e\');if(li)li.value=\''+e+'\';},150)"><i class="fas fa-sign-in-alt"></i>Sign In Instead</button></div></div>';ew.style.display='';return;}if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?null:error.message;if(!msg){const errWrap=document.getElementById('su-err');errWrap.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px;margin-bottom:4px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">' + esc(e) + '</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');document.getElementById(\'li-e\')&&(document.getElementById(\'li-e\').value=\'' + e.replace(/'/g,"\\'")+'\')"><i class="fas fa-sign-in-alt"></i>Sign In</button><button class="btn btn-ghost" style="flex:1;font-size:.72rem" onclick="this.closest(\'[id=su-err]\').style.display=\'none\';"><i class="fas fa-times"></i>Cancel</button></div></div>';errWrap.style.display='';return;}setErr(errEl,msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','We\'ve sent a confirmation link to '+e+'. Click the link in your email to activate your account — it will bring you straight to your profile.');notifyAllAdmins({type:'user',title:'New User Registered',body:`${esc(n)} (${esc(e)}) just created an account.`}).catch(()=>{});}
+async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const redirectUrl=(SITE&&SITE.startsWith('https://'))?SITE+'?tab=acc':(window.location.origin+window.location.pathname+'?tab=acc');const{data:_suData,error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:redirectUrl}});if(!error&&_suData?.user?.identities?.length===0){btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';const ew=document.getElementById('su-err');ew.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">'+esc(e)+'</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');setTimeout(()=>{const li=document.getElementById(\'li-e\');if(li)li.value=\''+e+'\';},150)"><i class="fas fa-sign-in-alt"></i>Sign In Instead</button></div></div>';ew.style.display='';return;}if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)try{await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e});}catch(_){}},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?null:error.message;if(!msg){const errWrap=document.getElementById('su-err');errWrap.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px;margin-bottom:4px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">' + esc(e) + '</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');document.getElementById(\'li-e\')&&(document.getElementById(\'li-e\').value=\'' + e.replace(/'/g,"\\'")+'\')"><i class="fas fa-sign-in-alt"></i>Sign In</button><button class="btn btn-ghost" style="flex:1;font-size:.72rem" onclick="this.closest(\'[id=su-err]\').style.display=\'none\';"><i class="fas fa-times"></i>Cancel</button></div></div>';errWrap.style.display='';return;}setErr(errEl,msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','We\'ve sent a confirmation link to '+e+'. Click the link in your email to activate your account — it will bring you straight to your profile.');notifyAllAdmins({type:'user',title:'New User Registered',body:`${esc(n)} (${esc(e)}) just created an account.`}).catch(()=>{});}
 async function showReset(){
   const el=document.getElementById('acc-body');
   if(!el)return;
@@ -4205,11 +4205,11 @@ async function admReadNotif(id, rowEl){
     const dot=rowEl.querySelector('[style*="background:var(--gold)"]');
     if(dot)dot.remove();
   }
-  await sb.from('notifications').update({read:true}).eq('id',id).catch(()=>{});
+  try{await sb.from('notifications').update({read:true}).eq('id',id);}catch(_){}
 }
 async function admMarkAllNotifsRead(){
   if(!sb||!user)return;
-  await sb.from('notifications').update({read:true}).eq('user_id',user.id).catch(()=>{});
+  try{await sb.from('notifications').update({read:true}).eq('user_id',user.id);}catch(_){}
   toast('All notifications marked as read','ok');
   renderAdmNotifications();
 }
@@ -4220,7 +4220,7 @@ async function notifyAllAdmins({type='system',title,body}){
   try{
     const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');
     for(const a of(admins||[])){
-      await sb.from('notifications').insert([{user_id:a.id,type,title,body,read:false}]).catch(()=>{});
+      try{await sb.from('notifications').insert([{user_id:a.id,type,title,body,read:false}]);}catch(_){}
     }
   }catch{}
 }
@@ -4383,7 +4383,7 @@ async function admCreateUser(){
     // Set role in profile (trigger creates it automatically)
     if(data?.user){
       await new Promise(r=>setTimeout(r,1000)); // wait for trigger
-      await sb.from('profiles').update({role,full_name:name}).eq('id',data.user.id).catch(()=>{});
+      try{await sb.from('profiles').update({role,full_name:name}).eq('id',data.user.id);}catch(_){}
       await pushDBNotif({type:'welcome',title:'Welcome to Tote & Tread!',body:`Hi ${name}, your account has been created. Start exploring our collection.`,targetUserId:data.user.id});
     }
     ['nu-name','nu-email','nu-pw'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
@@ -4391,9 +4391,9 @@ async function admCreateUser(){
     // If created as agent, auto-create approved application record
     if(role==='agent'&&data?.user){
       await new Promise(r=>setTimeout(r,1500));
-      await sb.from('agent_applications').insert([{
+      try{await sb.from('agent_applications').insert([{
         user_id:data.user.id,name,email,phone:'',location:'Kenya',status:'approved'
-      }]).catch(()=>{});
+      }]);}catch(_){}
       await pushDBNotif({type:'welcome',title:'Agent Account Created! 🎉',body:'Your account has been set up with agent access. Open your Agent Dashboard in the Account tab.',targetUserId:data.user.id}).catch(()=>{});
     }
     renderAdmUsers();
@@ -4419,14 +4419,14 @@ async function setUserRole(userId, newRole, selectEl){
     const{data:existingApp}=await sb.from('agent_applications').select('id,status').eq('user_id',userId).maybeSingle();
     if(existingApp){
       // Update existing to approved
-      await sb.from('agent_applications').update({status:'approved'}).eq('user_id',userId).catch(()=>{});
+      try{await sb.from('agent_applications').update({status:'approved'}).eq('user_id',userId);}catch(_){}
     } else {
       // Get their profile info to create an application record
-      const{data:prof}=await sb.from('profiles').select('full_name,email,phone').eq('id',userId).single().catch(()=>({data:null}));
-      await sb.from('agent_applications').insert([{
+      let prof={data:null};try{prof=await sb.from('profiles').select('full_name,email,phone').eq('id',userId).single();}catch(_){}
+      try{await sb.from('agent_applications').insert([{
         user_id:userId, name:prof?.full_name||'Agent', email:prof?.email||'',
         phone:prof?.phone||'', location:'Kenya', status:'approved'
-      }]).catch(()=>{});
+      }]);}catch(_){}
     }
     // Notify the user
     await pushDBNotif({type:'welcome',title:'You are now an Agent! 🎉',body:'Your account has been upgraded to Agent. Open your Agent Dashboard in the Account tab to get started.',targetUserId:userId}).catch(()=>{});
@@ -4441,7 +4441,7 @@ function closeEditUser(){document.getElementById('edit-user-modal')?.classList.r
 async function saveEditUser(){if(!editingUser||userRole!=='admin'||!sb)return;const name=document.getElementById('eu-name')?.value?.trim(),phone=document.getElementById('eu-phone')?.value?.trim(),role=document.getElementById('eu-role')?.value;const{error}=await sb.from('profiles').update({full_name:name,phone:phone||null,role}).eq('id',editingUser.id);if(error){toast(error.message,'er');return;}toast('User updated!','ok');closeEditUser();renderAdmUsers();}
 function openSendRecovery(u){const body=document.getElementById('recovery-body');const code=Array.from(crypto.getRandomValues(new Uint8Array(6))).map(b=>(b%36).toString(36)).join('').toUpperCase().slice(0,8);body.innerHTML=`<p style="font-size:.78rem;color:var(--t3);margin-bottom:14px;line-height:1.65">Generate a temporary recovery code for <strong style="color:var(--t1)">${esc(u.name||u.email||'this user')}</strong>.</p><div class="card card-p" style="margin-bottom:14px;text-align:center"><span class="sec-eyebrow">Recovery Code</span><div style="font-family:var(--fd);font-size:2rem;color:var(--gold);letter-spacing:.18em;margin:10px 0">${code}</div><p style="font-size:.66rem;color:var(--t3)">Expires in 48 hours</p></div><button class="btn btn-gold btn-full" onclick="sendRecoveryCode('${esc(u.id)}','${esc(u.email)}','${code}')"><i class="fas fa-paper-plane"></i>Store &amp; Copy Code</button><button class="btn btn-ghost btn-full btn-sm" onclick="copyText('${code}')" style="margin-top:8px"><i class="fas fa-copy"></i>Copy Code</button>`;document.getElementById('recovery-modal').classList.add('on');showOvl();}
 function closeRecovery(){document.getElementById('recovery-modal')?.classList.remove('on');hideOvl();}
-async function sendRecoveryCode(userId,email,code){if(userRole!=='admin')return;if(sb)await sb.from('recovery_codes').insert([{user_id:userId,email,code}]).catch(()=>{});copyText(code);closeRecovery();toast('Code stored & copied to clipboard!','ok');}
+async function sendRecoveryCode(userId,email,code){if(userRole!=='admin')return;if(sb)try{await sb.from('recovery_codes').insert([{user_id:userId,email,code}]);}catch(_){}copyText(code);closeRecovery();toast('Code stored & copied to clipboard!','ok');}
 async function renderAdmMessages(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const[{data:msgs},{data:fb},{data:sugg}]=await Promise.all([sb.from('contact_messages').select('*').order('created_at',{ascending:false}),sb.from('feedback').select('*').order('created_at',{ascending:false}),sb.from('suggestions').select('*').order('created_at',{ascending:false})]);el.innerHTML=`<div class="adm-section"><h3>Contact (${(msgs||[]).length})</h3>${(msgs||[]).length?msgs.map(m=>`<div class="card card-p" style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(m.name||'—')}</span><span style="font-size:.6rem;color:var(--t3)">${D(m.created_at)}</span></div><div style="font-size:.7rem;color:var(--t3);margin-bottom:4px">${esc(m.email||'')}${m.phone?' · '+esc(m.phone):''}</div>${m.subject?`<div style="font-size:.72rem;font-weight:500;color:var(--gold);margin-bottom:4px">${esc(m.subject)}</div>`:''}<p style="font-size:.76rem;color:var(--t2);line-height:1.6">${esc(m.message)}</p><a href="mailto:${esc(m.email||'')}" class="btn btn-ghost btn-xs" style="margin-top:8px">Reply</a></div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No messages.</p>'}</div><div class="adm-section"><h3>Feedback (${(fb||[]).length})</h3>${(fb||[]).length?fb.map(f=>`<div style="display:flex;align-items:center;gap:10px;padding:9px;border-bottom:1px solid var(--bd)"><span style="color:var(--gold)">${'★'.repeat(f.rating||0)}${'☆'.repeat(5-(f.rating||0))}</span><span style="font-size:.76rem;color:var(--t2);flex:1">${esc(f.comment||'')}</span><span style="font-size:.6rem;color:var(--t3)">${D(f.created_at).split(',')[0]}</span></div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No feedback.</p>'}</div><div class="adm-section"><h3>Suggestions (${(sugg||[]).length})</h3>${(sugg||[]).length?sugg.map(s=>`<div class="card card-p" style="margin-bottom:9px"><p style="font-size:.78rem;color:var(--t2);line-height:1.65;margin-bottom:4px">${esc(s.suggestion)}</p>${s.email?`<div style="font-size:.66rem;color:var(--t3)">${esc(s.email)}</div>`:''}</div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No suggestions.</p>'}</div>`;}
 async function renderAdmSettings(){
   const el=document.getElementById('adm-content');
@@ -4574,7 +4574,7 @@ async function bcSendNotifications(){
     try{await sb.from('notifications').insert([{user_id:uid,type,title:subject,body,read:false}]);sent++;}catch{}
   }
   // Log broadcast
-  await sb.from('broadcast_emails').insert([{subject,body,type,recipient_ids:selected,sent_count:sent,sent_by:user.id}]).catch(()=>{});
+  try{await sb.from('broadcast_emails').insert([{subject,body,type,recipient_ids:selected,sent_count:sent,sent_by:user.id}]);}catch(_){}
   btn.disabled=false;btn.innerHTML='<i class="fas fa-bell"></i>Send In-App';
   toast(`Notification sent to ${sent} users! 🔔`,'ok');
   renderAdmBroadcast();
@@ -5284,7 +5284,7 @@ async function loadAndRenderAdverts(){
     // Auto-clean expired
     const expired=(data||[]).map(r=>{try{return{...JSON.parse(r.value),_key:r.key};}catch{return null;}})
       .filter(av=>av&&av.expires_at&&new Date(av.expires_at)<=now);
-    expired.forEach(av=>sb.from('app_settings').delete().eq('key',av._key).catch(()=>{}));
+    expired.forEach(av=>{(async()=>{try{await sb.from('app_settings').delete().eq('key',av._key);}catch(_){}})();});
     // Render in each slot
     renderAdvertSlot('advert-banner-home',   active.filter(av=>av.placement==='home'||av.placement==='all'));
     renderAdvertSlot('advert-banner-shop',   active.filter(av=>av.placement==='shop'||av.placement==='all'));
@@ -5518,10 +5518,10 @@ let fbRatingVal=0;
 function openFB(){document.getElementById('fb-modal').classList.add('on');showOvl();fbRatingVal=0;setRating(0);}
 function closeFB(){document.getElementById('fb-modal')?.classList.remove('on');hideOvl();const t=document.getElementById('fb-txt');if(t)t.value='';}
 function setRating(n){fbRatingVal=n;document.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('on',i<n));}
-async function submitFB(){if(!rateLimit('feedback',60000)){toast('Please wait before submitting feedback','er');return;}if(!fbRatingVal){toast('Please select a rating','er');return;}const txt=document.getElementById('fb-txt')?.value?.trim()||'';if(sb)await sb.from('feedback').insert([{rating:fbRatingVal,comment:txt,user_id:user?.id||null}]).catch(()=>{});closeFB();toast('Thank you for your feedback! ⭐','ok');}
+async function submitFB(){if(!rateLimit('feedback',60000)){toast('Please wait before submitting feedback','er');return;}if(!fbRatingVal){toast('Please select a rating','er');return;}const txt=document.getElementById('fb-txt')?.value?.trim()||'';if(sb)try{await sb.from('feedback').insert([{rating:fbRatingVal,comment:txt,user_id:user?.id||null}]);}catch(_){}closeFB();toast('Thank you for your feedback! ⭐','ok');}
 function openSugg(){document.getElementById('sugg-modal').classList.add('on');showOvl();}
 function closeSugg(){document.getElementById('sugg-modal')?.classList.remove('on');hideOvl();}
-async function submitSugg(){if(!rateLimit('suggestion',60000)){toast('Please wait before submitting again','er');return;}const txt=document.getElementById('sugg-txt')?.value?.trim(),email=document.getElementById('sugg-email')?.value?.trim();if(!txt){toast('Please write your suggestion','er');return;}if(sb)await sb.from('suggestions').insert([{suggestion:txt,email:email||null,user_id:user?.id||null}]).catch(()=>{});closeSugg();const st=document.getElementById('sugg-txt'),se=document.getElementById('sugg-email');if(st)st.value='';if(se)se.value='';toast('Suggestion sent! 💡','ok');}
+async function submitSugg(){if(!rateLimit('suggestion',60000)){toast('Please wait before submitting again','er');return;}const txt=document.getElementById('sugg-txt')?.value?.trim(),email=document.getElementById('sugg-email')?.value?.trim();if(!txt){toast('Please write your suggestion','er');return;}if(sb)try{await sb.from('suggestions').insert([{suggestion:txt,email:email||null,user_id:user?.id||null}]);}catch(_){}closeSugg();const st=document.getElementById('sugg-txt'),se=document.getElementById('sugg-email');if(st)st.value='';if(se)se.value='';toast('Suggestion sent! 💡','ok');}
 
 /* ════════ SHARE ════════ */
 function _shareUrl(){ return socialLinks.site||SITE; }
