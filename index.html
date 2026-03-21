@@ -1688,6 +1688,16 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 </div>
 
 <div id="edit-prod-modal" class="modal"><div class="sheet-pull"></div><div class="sheet-hdr"><span class="sheet-title">Edit Product</span><button class="sheet-cls" onclick="closeEditProd()"><i class="fas fa-times"></i></button></div><div class="modal-body" id="edit-prod-body"></div></div>
+<!-- View User Modal -->
+<div id="view-user-modal" class="modal" style="max-height:92vh;overflow-y:auto">
+  <div class="sheet-pull"></div>
+  <div class="sheet-hdr" style="position:sticky;top:0;z-index:2;background:var(--bg2)">
+    <span class="sheet-title"><i class="fas fa-user-circle" style="margin-right:8px;color:var(--gold)"></i>User Profile</span>
+    <button class="sheet-cls" onclick="closeViewUser()"><i class="fas fa-times"></i></button>
+  </div>
+  <div id="view-user-body"></div>
+</div>
+
 <div id="edit-user-modal" class="modal"><div class="sheet-pull"></div><div class="sheet-hdr"><span class="sheet-title">Edit User</span><button class="sheet-cls" onclick="closeEditUser()"><i class="fas fa-times"></i></button></div><div class="modal-body" id="edit-user-body"></div></div>
 <div id="recovery-modal" class="modal"><div class="sheet-pull"></div><div class="sheet-hdr"><span class="sheet-title">Recovery Code</span><button class="sheet-cls" onclick="closeRecovery()"><i class="fas fa-times"></i></button></div><div class="modal-body" id="recovery-body"></div></div>
 
@@ -3577,6 +3587,7 @@ async function doLogin(){
     if(userRole==='admin'){
       toast('Welcome back, Admin 🛡','ok');
       setTimeout(()=>openAdmin(),400);
+      writeAdminLog('Admin Sign In','Signed in at '+new Date().toLocaleString('en-KE'));
     } else if(userRole==='agent'){
       toast('Welcome back, Agent 🤝','ok');
     } else {
@@ -3818,6 +3829,9 @@ async function doLogout(){
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(224,80,80,.25);border-top-color:var(--red);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span><span style="color:var(--red)">Signing out…</span>'; }
 
   // Clear all local state immediately so UI feels instant
+  if(userRole==='admin'){
+    writeAdminLog('Admin Sign Out','Signed out at '+new Date().toLocaleString('en-KE'));
+  }
   user = null; userRole = null; isGuest = false;
   cart = []; saveCart();
   wish = []; try{ localStorage.removeItem('tt_wish'); }catch{}
@@ -4109,55 +4123,163 @@ async function admUploadProductImg(input, targetId){
     if(url){const inp=document.getElementById(targetId);if(inp)inp.value=url;admShowImgPreview(targetId,targetId+'-preview');toast('Image uploaded! ✓','ok');}
   }catch(e){if(progressEl)progressEl.style.display='none';toast('Upload error','er');}
 }
-async function admAddProd(){if(userRole!=='admin'||!sb)return;const n=document.getElementById('ap-n')?.value?.trim(),cat=document.getElementById('ap-c')?.value,price=parseFloat(document.getElementById('ap-p')?.value),cp=parseFloat(document.getElementById('ap-cp')?.value)||null,stock=parseInt(document.getElementById('ap-s')?.value)||0,desc=document.getElementById('ap-d')?.value?.trim(),img=document.getElementById('ap-i')?.value?.trim(),img2=document.getElementById('ap-i2')?.value?.trim();if(!n||!cat||!price||isNaN(price)||price<0){toast('Fill required fields','er');return;}if(img&&!safeImgSrc(img)){toast('Primary image must be https:// URL','er');return;}const flags={is_featured:!!document.getElementById('ap-feat')?.checked,is_trending:!!document.getElementById('ap-trend')?.checked,is_bestseller:!!document.getElementById('ap-best')?.checked,is_premium:!!document.getElementById('ap-prem')?.checked,is_new:!!document.getElementById('ap-new')?.checked};const{error}=await sb.from('products').insert([{name:n,category:cat,price,compare_price:cp,stock,description:desc,image_url:img||null,image_url_2:img2||null,...flags}]);if(error){toast(error.message,'er');return;}toast('Product added!','ok');await loadProducts();try{const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');for(const a of(admins||[])){await pushDBNotif({type:'product',title:'Product Added',body:`New product "${n}" added to the catalogue at KES ${N(price)}.`,targetUserId:a.id}).catch(()=>{});}}catch{}['ap-n','ap-p','ap-cp','ap-s','ap-d','ap-i','ap-i2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});loadAdmProducts();}
+async function admAddProd(){if(userRole!=='admin'||!sb)return;const n=document.getElementById('ap-n')?.value?.trim(),cat=document.getElementById('ap-c')?.value,price=parseFloat(document.getElementById('ap-p')?.value),cp=parseFloat(document.getElementById('ap-cp')?.value)||null,stock=parseInt(document.getElementById('ap-s')?.value)||0,desc=document.getElementById('ap-d')?.value?.trim(),img=document.getElementById('ap-i')?.value?.trim(),img2=document.getElementById('ap-i2')?.value?.trim();if(!n||!cat||!price||isNaN(price)||price<0){toast('Fill required fields','er');return;}if(img&&!safeImgSrc(img)){toast('Primary image must be https:// URL','er');return;}const flags={is_featured:!!document.getElementById('ap-feat')?.checked,is_trending:!!document.getElementById('ap-trend')?.checked,is_bestseller:!!document.getElementById('ap-best')?.checked,is_premium:!!document.getElementById('ap-prem')?.checked,is_new:!!document.getElementById('ap-new')?.checked};const{error}=await sb.from('products').insert([{name:n,category:cat,price,compare_price:cp,stock,description:desc,image_url:img||null,image_url_2:img2||null,...flags}]);if(error){toast(error.message,'er');return;}toast('Product added!','ok');
+  writeAdminLog('Product Added',`Added on ${new Date().toLocaleString('en-KE')}`);await loadProducts();try{const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');for(const a of(admins||[])){await pushDBNotif({type:'product',title:'Product Added',body:`New product "${n}" added to the catalogue at KES ${N(price)}.`,targetUserId:a.id}).catch(()=>{});}}catch{}['ap-n','ap-p','ap-cp','ap-s','ap-d','ap-i','ap-i2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});loadAdmProducts();}
 let editingProd=null;
 function openEditProd(p){editingProd=p;const body=document.getElementById('edit-prod-body');body.innerHTML=`<div class="fg"><label class="flbl">Name *</label><input type="text" class="fi" id="ep-n" value="${esc(p.name)}" maxlength="200"></div><div class="form-row"><div class="fg"><label class="flbl">Category</label><select class="fsel" id="ep-c"><option value="tote-bags" ${p.category==='tote-bags'?'selected':''}>Tote Bags</option><option value="footwear" ${p.category==='footwear'?'selected':''}>Footwear</option><option value="accessories" ${p.category==='accessories'?'selected':''}>Accessories</option></select></div><div class="fg"><label class="flbl">Price</label><input type="number" class="fi" id="ep-p" value="${p.price}" min="0"></div></div><div class="form-row"><div class="fg"><label class="flbl">Compare Price</label><input type="number" class="fi" id="ep-cp" value="${p.compare_price||''}" min="0"></div><div class="fg"><label class="flbl">Stock</label><input type="number" class="fi" id="ep-s" value="${p.stock||0}" min="0"></div></div><div class="fg"><label class="flbl">Description</label><textarea class="fta" id="ep-d" maxlength="1000" style="min-height:70px">${esc(p.description||'')}</textarea></div><div class="fg"><label class="flbl">Primary Image URL</label><input type="url" class="fi" id="ep-i" value="${esc(p.image_url||'')}" maxlength="500"></div><div class="fg"><label class="flbl">Secondary Image URL</label><input type="url" class="fi" id="ep-i2" value="${esc(p.image_url_2||'')}" maxlength="500"></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">${[['feat','Featured',p.is_featured],['trend','Trending',p.is_trending],['best','Best Seller',p.is_bestseller],['prem','Premium',p.is_premium],['new','New',p.is_new]].map(([k,l,v])=>`<label class="flag-btn${v?' on':''}" id="ep-${k}-btn" onclick="this.classList.toggle('on');document.getElementById('ep-${k}').checked=!document.getElementById('ep-${k}').checked"><input type="checkbox" id="ep-${k}" style="display:none" ${v?'checked':''}> ${l}</label>`).join('')}</div><button class="btn btn-gold btn-full" onclick="saveEditProd()"><i class="fas fa-save"></i>Save Changes</button>`;document.getElementById('edit-prod-modal').classList.add('on');showOvl();}
 function closeEditProd(){document.getElementById('edit-prod-modal')?.classList.remove('on');hideOvl();editingProd=null;}
-async function saveEditProd(){if(!editingProd||userRole!=='admin'||!sb)return;const n=document.getElementById('ep-n')?.value?.trim(),cat=document.getElementById('ep-c')?.value,pr=parseFloat(document.getElementById('ep-p')?.value),cp=parseFloat(document.getElementById('ep-cp')?.value)||null,stk=parseInt(document.getElementById('ep-s')?.value)||0,dsc=document.getElementById('ep-d')?.value?.trim(),img=document.getElementById('ep-i')?.value?.trim(),img2=document.getElementById('ep-i2')?.value?.trim();if(!n||isNaN(pr)||pr<0){toast('Fill required fields','er');return;}const flags={is_featured:!!document.getElementById('ep-feat')?.checked,is_trending:!!document.getElementById('ep-trend')?.checked,is_bestseller:!!document.getElementById('ep-best')?.checked,is_premium:!!document.getElementById('ep-prem')?.checked,is_new:!!document.getElementById('ep-new')?.checked};const{error}=await sb.from('products').update({name:n,category:cat,price:pr,compare_price:cp,stock:stk,description:dsc,image_url:img||null,image_url_2:img2||null,...flags}).eq('id',editingProd.id);if(error){toast(error.message,'er');return;}toast('Product updated!','ok');closeEditProd();await loadProducts();loadAdmProducts();}
-async function delProduct(id){if(userRole!=='admin'||!sb)return;const confirmed=await popupConfirm('Delete Product','Are you sure you want to permanently delete this product? This cannot be undone.','Delete','Cancel');if(!confirmed)return;await sb.from('products').delete().eq('id',id);await loadProducts();loadAdmProducts();toast('Product deleted','nf');}
+async function saveEditProd(){if(!editingProd||userRole!=='admin'||!sb)return;const n=document.getElementById('ep-n')?.value?.trim(),cat=document.getElementById('ep-c')?.value,pr=parseFloat(document.getElementById('ep-p')?.value),cp=parseFloat(document.getElementById('ep-cp')?.value)||null,stk=parseInt(document.getElementById('ep-s')?.value)||0,dsc=document.getElementById('ep-d')?.value?.trim(),img=document.getElementById('ep-i')?.value?.trim(),img2=document.getElementById('ep-i2')?.value?.trim();if(!n||isNaN(pr)||pr<0){toast('Fill required fields','er');return;}const flags={is_featured:!!document.getElementById('ep-feat')?.checked,is_trending:!!document.getElementById('ep-trend')?.checked,is_bestseller:!!document.getElementById('ep-best')?.checked,is_premium:!!document.getElementById('ep-prem')?.checked,is_new:!!document.getElementById('ep-new')?.checked};const{error}=await sb.from('products').update({name:n,category:cat,price:pr,compare_price:cp,stock:stk,description:dsc,image_url:img||null,image_url_2:img2||null,...flags}).eq('id',editingProd.id);if(error){toast(error.message,'er');return;}toast('Product updated!','ok');
+  writeAdminLog('Product Edited',`Edited on ${new Date().toLocaleString('en-KE')}`);
+  closeEditProd();await loadProducts();loadAdmProducts();}
+async function delProduct(id){if(userRole!=='admin'||!sb)return;const confirmed=await popupConfirm('Delete Product','Are you sure you want to permanently delete this product? This cannot be undone.','Delete','Cancel');if(!confirmed)return;await sb.from('products').delete().eq('id',id);await loadProducts();loadAdmProducts();toast('Product deleted','nf');
+  writeAdminLog('Product Deleted',`Product deleted on ${new Date().toLocaleString('en-KE')}`);}
 /* ════════ ADMIN LOGS ════════ */
+
+// Write a structured admin activity log entry to the notifications table
+async function writeAdminLog(action, detail=''){
+  if(!sb||!user)return;
+  const adminName=user.user_metadata?.full_name||user.email||'Admin';
+  const ts=new Date().toISOString();
+  try{
+    await sb.from('notifications').insert([{
+      user_id:user.id,
+      type:'admin_log',
+      title:action,
+      body:detail||adminName,
+      read:false,
+      created_at:ts
+    }]);
+  }catch(_){}
+}
+
 async function renderAdmLogs(){
   const el=document.getElementById('adm-content');
   if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
   el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
-  const[{data:notifs},{data:allUsers}]=await Promise.all([
-    sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(300),
+
+  // Fetch admin logs (type=admin_log) AND all other notification events together
+  const[adminLogsRes, allNotifsRes, allUsersRes]=await Promise.allSettled([
+    sb.from('notifications').select('*').eq('type','admin_log').order('created_at',{ascending:false}).limit(200),
+    sb.from('notifications').select('*').neq('type','admin_log').order('created_at',{ascending:false}).limit(200),
     sb.from('profiles').select('id,full_name,email,role')
   ]);
-  const userMap={};(allUsers||[]).forEach(u=>userMap[u.id]=u);
-  const logs=notifs||[];
-  const typeIcons={order:'fa-receipt',user:'fa-user-plus',welcome:'fa-gift',warning:'fa-exclamation-triangle',product:'fa-box',admin:'fa-shield-alt',system:'fa-info-circle',promo:'fa-tag'};
-  const typeColors={order:'var(--gold)',user:'#32C864',welcome:'#32C864',warning:'var(--red)',product:'var(--gold)',admin:'#9B8AF0',system:'var(--t3)',promo:'#FF8C42'};
+  const adminLogs = adminLogsRes.status==='fulfilled'  ? adminLogsRes.value.data||[]  : [];
+  const allNotifs = allNotifsRes.status==='fulfilled'  ? allNotifsRes.value.data||[]  : [];
+  const allUsers  = allUsersRes.status==='fulfilled'   ? allUsersRes.value.data||[]   : [];
+
+  const userMap={};allUsers.forEach(u=>userMap[u.id]=u);
+
+  // Tab state
+  const activeTab = window._logsTab||'admin';
+
+  const tabBtn=(t,label,count)=>`
+    <button onclick="window._logsTab='${t}';renderAdmLogs()" style="flex:1;padding:7px;font-size:.66rem;font-family:var(--fb);border:none;border-radius:6px;cursor:pointer;transition:all .2s;${activeTab===t?'background:var(--gold);color:#000;font-weight:700':'background:transparent;color:var(--t3)'}">
+      ${label} <span style="font-size:.58rem;opacity:.7">(${count})</span>
+    </button>`;
+
+  const typeIcons={order:'fa-receipt',user:'fa-user-plus',welcome:'fa-gift',warning:'fa-exclamation-triangle',product:'fa-box',admin:'fa-shield-alt',system:'fa-info-circle',promo:'fa-tag',admin_log:'fa-history'};
+  const typeColors={order:'var(--gold)',user:'#32C864',welcome:'#32C864',warning:'var(--red)',product:'var(--gold)',admin:'#9B8AF0',system:'var(--t3)',promo:'#FF8C42',admin_log:'#4DBBFF'};
+
+  // Admin log icons by action
+  const logIcons={
+    'Admin Sign In':   'fa-sign-in-alt',
+    'Admin Sign Out':  'fa-sign-out-alt',
+    'Order Updated':   'fa-receipt',
+    'Product Added':   'fa-box',
+    'Product Edited':  'fa-edit',
+    'Product Deleted': 'fa-trash',
+    'User Created':    'fa-user-plus',
+    'User Deleted':    'fa-user-times',
+    'Role Changed':    'fa-user-shield',
+    'Agent Approved':  'fa-handshake',
+    'Agent Denied':    'fa-user-slash',
+    'Agent Suspended': 'fa-ban',
+    'Settings Saved':  'fa-cog',
+    'Announcement':    'fa-bullhorn',
+  };
+  const logColors={
+    'Admin Sign In':   '#32C864',
+    'Admin Sign Out':  'var(--t3)',
+    'Order Updated':   'var(--gold)',
+    'Product Added':   'var(--gold)',
+    'Product Edited':  '#4DBBFF',
+    'Product Deleted': 'var(--red)',
+    'User Created':    '#32C864',
+    'User Deleted':    'var(--red)',
+    'Role Changed':    '#9B8AF0',
+    'Agent Approved':  '#32C864',
+    'Agent Denied':    'var(--red)',
+    'Agent Suspended': '#FFA032',
+    'Settings Saved':  'var(--t3)',
+    'Announcement':    'var(--gold)',
+  };
+
+  const renderAdminLogRow = (log) => {
+    const u=userMap[log.user_id];
+    const adminName=u?esc(u.full_name||u.email||'Admin'):'Admin';
+    const ico=logIcons[log.title]||'fa-history';
+    const col=logColors[log.title]||'#4DBBFF';
+    const dt=new Date(log.created_at);
+    return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">
+      <div style="width:34px;height:34px;border-radius:8px;background:rgba(77,187,255,.08);border:1px solid rgba(77,187,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${col}">
+        <i class="fas ${ico}" style="font-size:.72rem"></i>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.8rem;font-weight:600;color:var(--t1)">${esc(log.title||'')}</div>
+        <div style="font-size:.7rem;color:var(--t2);margin-top:2px">${esc(log.body||'')}</div>
+        <div style="font-size:.6rem;color:var(--t4);margin-top:4px;display:flex;align-items:center;gap:5px">
+          <i class="fas fa-user-shield" style="color:var(--gold);font-size:.55rem"></i>${adminName}
+        </div>
+      </div>
+      <div style="flex-shrink:0;text-align:right;min-width:68px">
+        <div style="font-size:.62rem;color:var(--t2)">${dt.toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}</div>
+        <div style="font-size:.6rem;color:var(--t4);margin-top:2px">${dt.toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div>
+      </div>
+    </div>`;
+  };
+
+  const renderEventRow = (log) => {
+    const u=userMap[log.user_id];
+    const uName=u?`${esc(u.full_name||u.email||'?')} (${esc(u.role||'?')})`:'System';
+    const icon=typeIcons[log.type]||'fa-info-circle';
+    const color=typeColors[log.type]||'var(--t3)';
+    const dt=new Date(log.created_at);
+    return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">
+      <div style="width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${color}">
+        <i class="fas ${icon}" style="font-size:.72rem"></i>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(log.title||'')}</div>
+        <div style="font-size:.68rem;color:var(--t3);margin-top:2px;line-height:1.5">${esc(log.body||'')}</div>
+        <div style="font-size:.6rem;color:var(--t4);margin-top:4px"><i class="fas fa-user" style="margin-right:3px"></i>${uName}</div>
+      </div>
+      <div style="flex-shrink:0;text-align:right;min-width:68px">
+        <div style="font-size:.62rem;color:var(--t2)">${dt.toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}</div>
+        <div style="font-size:.6rem;color:var(--t4);margin-top:2px">${dt.toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</div>
+        <div style="font-size:.55rem;background:rgba(255,255,255,.05);border-radius:4px;padding:2px 5px;margin-top:4px;color:${color}">${esc(log.type||'system')}</div>
+      </div>
+    </div>`;
+  };
+
+  const logsToShow  = activeTab==='admin' ? adminLogs : allNotifs;
+  const emptyMsg    = activeTab==='admin'
+    ? 'No admin activity logged yet. Actions like sign-in, order updates, and product changes will appear here.'
+    : 'No system events yet.';
+
   el.innerHTML=`
   <div class="adm-section">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div><h3 style="margin:0">Activity Logs</h3><div style="font-size:.66rem;color:var(--t3);margin-top:2px">${logs.length} events</div></div>
-      <button class="btn btn-ghost btn-xs" onclick="renderAdmLogs()"><i class="fas fa-sync"></i> Refresh</button>
+      <h3 style="margin:0">Activity Logs</h3>
+      <button class="btn btn-ghost btn-xs" onclick="renderAdmLogs()"><i class="fas fa-sync"></i></button>
     </div>
-    ${!logs.length?'<p style="font-size:.76rem;color:var(--t3)">No activity yet.</p>':logs.map(log=>{
-      const u=userMap[log.user_id];
-      const uName=u?`${esc(u.full_name||u.email||'?')} (${esc(u.role||'?')})`:'System';
-      const icon=typeIcons[log.type]||'fa-info-circle';
-      const color=typeColors[log.type]||'var(--t3)';
-      const dt=new Date(log.created_at);
-      const dateStr=dt.toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'});
-      const timeStr=dt.toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">
-        <div style="width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${color}">
-          <i class="fas ${icon}" style="font-size:.72rem"></i>
-        </div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(log.title||'')}</div>
-          <div style="font-size:.68rem;color:var(--t3);margin-top:2px;line-height:1.5">${esc(log.body||'')}</div>
-          <div style="font-size:.6rem;color:var(--t4);margin-top:4px"><i class="fas fa-user" style="margin-right:3px"></i>${uName}</div>
-        </div>
-        <div style="flex-shrink:0;text-align:right;min-width:70px">
-          <div style="font-size:.62rem;color:var(--t3)">${dateStr}</div>
-          <div style="font-size:.58rem;color:var(--t4);margin-top:2px">${timeStr}</div>
-          <div style="font-size:.55rem;background:rgba(255,255,255,.05);border-radius:4px;padding:2px 5px;margin-top:4px;color:${color}">${esc(log.type||'system')}</div>
-        </div>
-      </div>`;
-    }).join('')}
+    <!-- Tabs -->
+    <div style="display:flex;gap:4px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:4px;margin-bottom:14px">
+      ${tabBtn('admin','🛡 Admin Actions',adminLogs.length)}
+      ${tabBtn('events','⚡ All Events',allNotifs.length)}
+    </div>
+    ${!logsToShow.length
+      ? `<div style="text-align:center;padding:32px 16px"><i class="fas fa-history" style="font-size:2rem;color:var(--bd2);margin-bottom:12px;display:block"></i><p style="font-size:.76rem;color:var(--t3);line-height:1.7">${emptyMsg}</p></div>`
+      : logsToShow.map(log=>activeTab==='admin'?renderAdminLogRow(log):renderEventRow(log)).join('')}
   </div>`;
 }
 
@@ -4225,7 +4347,13 @@ async function notifyAllAdmins({type='system',title,body}){
   }catch{}
 }
 
-async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('id,customer_name,customer_phone,delivery_address,items,total,status,notes,user_id,created_at').order('created_at',{ascending:false}).limit(200);el.innerHTML=`<div class="adm-section"><h3>All Orders (${data?.length||0})</h3>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" onclick="admSendOrderWA(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,notes:o.notes,status:o.status,created_at:o.created_at})})" href="#" title="Send order to customer via WhatsApp"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
+async function renderAdmOrders(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const{data}=await sb.from('orders').select('id,customer_name,customer_phone,delivery_address,items,total,status,notes,user_id,created_at').order('created_at',{ascending:false}).limit(200);// Store orders for analytics
+  (data||[]).forEach(o=>{ _admOrdersMap[o.id]=o; });
+  el.innerHTML=`<div class="adm-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h3 style="margin:0">All Orders (${data?.length||0})</h3>
+      <button class="btn btn-outline btn-sm" onclick="renderAdmOrderAnalytics()" style="gap:5px"><i class="fas fa-chart-bar" style="color:var(--gold)"></i>Analytics</button>
+    </div>${!data?.length?'<p style="font-size:.76rem;color:var(--t3)">No orders yet.</p>':`<table><thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${data.map(o=>`<tr><td class="td-sm">#${esc(o.id.slice(0,6))}</td><td class="td-name">${esc(o.customer_name||'—')}</td><td class="td-gold">KES ${N(o.total||0)}</td><td><select style="background:transparent;border:1px solid var(--bd);border-radius:4px;font-size:.6rem;color:var(--t2);padding:2px 4px" onchange="updateOrderStatus('${esc(o.id)}',this.value)">${['pending','confirmed','processing','shipped','completed','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='dlReceipt(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,created_at:o.created_at})})'><i class="fas fa-download"></i></button><a class="btn btn-green btn-xs" onclick="admSendOrderWA(${JSON.stringify({id:o.id,customer_name:o.customer_name,customer_phone:o.customer_phone,delivery_address:o.delivery_address,items:o.items,total:o.total,notes:o.notes,status:o.status,created_at:o.created_at})})" href="#" title="Send order to customer via WhatsApp"><i class="fab fa-whatsapp"></i></a></td></tr>`).join('')}</tbody></table>`}</div>`;}
 function admSendOrderWA(o){
   // Send order summary to the CUSTOMER's own phone number
   const phone=(o.customer_phone||'').replace(/\D/g,'');
@@ -4252,11 +4380,136 @@ Thank you for shopping with Tote & Tread! 💛
 Queries: wa.me/${getWANum()}`;
   window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`,'_blank','noopener,noreferrer');
 }
+async function renderAdmOrderAnalytics(){
+  const el=document.getElementById('adm-content');
+  el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+
+  // Fetch all orders with items
+  const{data}=await sb.from('orders')
+    .select('id,customer_name,customer_phone,user_id,items,total,status,created_at')
+    .order('created_at',{ascending:false})
+    .limit(500);
+  const orders=data||[];
+
+  // ── Top Products: parse all items, count qty sold ──
+  const productSales={};  // name → {qty, revenue}
+  orders.filter(o=>o.status!=='cancelled').forEach(o=>{
+    safeParseItems(o.items).forEach(item=>{
+      const k=item.name||'Unknown';
+      if(!productSales[k])productSales[k]={qty:0,revenue:0};
+      productSales[k].qty    += (item.qty||1);
+      productSales[k].revenue+= (item.price||0)*(item.qty||1);
+    });
+  });
+  const topProducts=Object.entries(productSales)
+    .sort((a,b)=>b[1].qty-a[1].qty)
+    .slice(0,10);
+  const maxQty=topProducts[0]?.[1]?.qty||1;
+
+  // ── Top Customers: group by customer name+phone ──
+  const custMap={};
+  orders.forEach(o=>{
+    const k=(o.customer_name||'Unknown')+'|'+(o.customer_phone||'');
+    if(!custMap[k])custMap[k]={name:o.customer_name||'Unknown',phone:o.customer_phone||'—',orders:0,spend:0,lastOrder:o.created_at};
+    custMap[k].orders++;
+    if(o.status!=='cancelled')custMap[k].spend+=(o.total||0);
+    if(o.created_at>custMap[k].lastOrder)custMap[k].lastOrder=o.created_at;
+  });
+  const topCustomers=Object.values(custMap)
+    .sort((a,b)=>b.spend-a.spend)
+    .slice(0,10);
+
+  // ── Revenue by status ──
+  const statuses=['pending','confirmed','processing','shipped','completed','cancelled'];
+  const byStatus={};
+  statuses.forEach(s=>{ byStatus[s]=orders.filter(o=>o.status===s).reduce((sum,o)=>sum+(o.total||0),0); });
+  const totalRev=orders.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.total||0),0);
+
+  const statusColors={pending:'#FFA032',confirmed:'#32C864',processing:'#9B8AF0',shipped:'#4DBBFF',completed:'var(--gold)',cancelled:'var(--red)'};
+
+  el.innerHTML=`
+  <!-- Back button -->
+  <div style="padding:12px 14px 0">
+    <button class="btn btn-ghost btn-sm" onclick="renderAdmOrders()"><i class="fas fa-arrow-left"></i>Back to Orders</button>
+  </div>
+
+  <!-- Revenue breakdown -->
+  <div class="adm-section">
+    <h3>Revenue Breakdown</h3>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px">
+      <div style="font-family:var(--fd);font-size:2rem;color:var(--gold)">KES ${N(totalRev)}</div>
+      <div style="font-size:.7rem;color:var(--t3)">${orders.length} total orders</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      ${statuses.map(s=>{
+        const cnt=orders.filter(o=>o.status===s).length;
+        const rev=byStatus[s];
+        const pct=totalRev>0?Math.round((rev/totalRev)*100):0;
+        return cnt>0?`
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--t2);margin-bottom:4px">
+            <span style="text-transform:capitalize">${s} <span style="color:var(--t3)">(${cnt})</span></span>
+            <span style="color:${statusColors[s]||'var(--t2)'}">KES ${N(rev)}</span>
+          </div>
+          <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${Math.max(3,pct)}%;background:${statusColors[s]||'var(--bd)'};border-radius:3px;transition:width .4s"></div>
+          </div>
+        </div>`:'';
+      }).join('')}
+    </div>
+  </div>
+
+  <!-- Top Products -->
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
+    <h3>🏆 Top Selling Products</h3>
+    <p style="font-size:.7rem;color:var(--t3);margin-bottom:12px">Based on quantity sold across non-cancelled orders.</p>
+    ${!topProducts.length?'<p style="font-size:.76rem;color:var(--t3)">No data yet.</p>':
+    topProducts.map(([name,stats],i)=>{
+      const pct=Math.round((stats.qty/maxQty)*100);
+      return `<div style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:22px;height:22px;border-radius:50%;background:${i===0?'var(--gold-a15)':i===1?'rgba(180,180,180,.1)':'rgba(160,100,20,.1)'};border:1px solid ${i===0?'var(--gold)':i===1?'rgba(180,180,180,.3)':'rgba(160,100,20,.3)'};display:flex;align-items:center;justify-content:center;font-size:.62rem;color:${i===0?'var(--gold)':i===1?'#aaa':'#a06414'};flex-shrink:0">${i+1}</div>
+            <span style="font-size:.78rem;color:var(--t1);font-weight:500">${esc(name)}</span>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:.74rem;color:var(--gold);font-weight:600">${stats.qty} sold</div>
+            <div style="font-size:.62rem;color:var(--t3)">KES ${N(stats.revenue)}</div>
+          </div>
+        </div>
+        <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${i===0?'var(--gold)':'rgba(201,168,76,.4)'};border-radius:3px"></div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <!-- Top Customers -->
+  <div class="adm-section" style="border-top:1px solid var(--bd);padding-top:16px">
+    <h3>👑 Top Customers</h3>
+    <p style="font-size:.7rem;color:var(--t3);margin-bottom:12px">Ranked by total spend (excluding cancelled orders).</p>
+    ${!topCustomers.length?'<p style="font-size:.76rem;color:var(--t3)">No data yet.</p>':`
+    <table><thead><tr><th>#</th><th>Customer</th><th>Orders</th><th>Spent</th><th>Last Order</th></tr></thead><tbody>
+    ${topCustomers.map((c,i)=>`<tr>
+      <td style="font-size:.7rem;color:var(--gold);font-weight:700">${i+1}</td>
+      <td>
+        <div style="font-size:.76rem;color:var(--t1);font-weight:500">${esc(c.name)}</div>
+        <div style="font-size:.62rem;color:var(--t3)">${esc(c.phone)}</div>
+      </td>
+      <td style="text-align:center;font-size:.78rem;color:var(--t2)">${c.orders}</td>
+      <td style="font-size:.78rem;color:var(--gold);font-weight:600">KES ${N(c.spend)}</td>
+      <td style="font-size:.6rem;color:var(--t3)">${D(c.lastOrder).split(',')[0]}</td>
+    </tr>`).join('')}
+    </tbody></table>`}
+  </div>`;
+}
+
 async function updateOrderStatus(id,status){
   if(userRole!=='admin'||!sb)return;
   const{data:ord,error}=await sb.from('orders').update({status}).eq('id',id).select('user_id,customer_name,total').single();
   if(error){toast(error.message,'er');return;}
   toast('Status updated','ok');
+  writeAdminLog('Order Updated',`Order #${id.slice(0,8).toUpperCase()} → ${status} at ${new Date().toLocaleString('en-KE')}`);
   // Notify the customer
   if(ord?.user_id){
     const msgs={confirmed:'Your order has been confirmed! We are preparing it.',processing:'Your order is being processed and packed.',shipped:'Your order is on the way! 🚚',completed:'Your order has been delivered. Thank you for shopping with us! 🎉',cancelled:'Your order has been cancelled. Contact us for more info.'};
@@ -4274,6 +4527,8 @@ async function renderAdmUsers(){
   ]);
   const contactMap={};(contacts||[]).forEach(c=>contactMap[c.user_id]=c);
   const users=data||[];
+  // Populate lookup map so openViewUser can fallback without a DB call
+  users.forEach(u=>{ _admUserMap[u.id]=u; });
   el.innerHTML=`
   <div class="adm-section" style="display:flex;gap:8px;margin-bottom:0;padding-bottom:0">
     <button class="btn btn-gold btn-sm" onclick="renderAdmUsers()" style="flex:1"><i class="fas fa-users"></i>Users</button>
@@ -4321,6 +4576,7 @@ async function renderAdmUsers(){
         <td style="font-size:.62rem;color:var(--t3)">${lastSeen}</td>
         <td style="font-size:.62rem;color:var(--t2)">${esc(contactMap[u.id]?.phone||u.phone||'—')}</td>
         <td style="display:flex;gap:4px;align-items:center">
+          <button class="btn btn-gold btn-xs" onclick="openViewUser('${esc(u.id)}')" title="View Profile"><i class="fas fa-eye"></i></button>
           <button class="btn btn-ghost btn-xs" onclick='openEditUser(${JSON.stringify(u)})' title="Edit"><i class="fas fa-edit"></i></button>
           <button class="btn btn-outline btn-xs" onclick='openSendRecovery(${JSON.stringify({id:u.id,email:u.email,name:u.full_name})})' title="Recovery code"><i class="fas fa-key"></i></button>
           ${isSelf?'':`<button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="admDeleteUser('${esc(u.id)}','${esc(u.full_name||u.email||'')}','${esc(u.email||'')}')" title="Delete"><i class="fas fa-trash"></i></button>`}
@@ -4387,7 +4643,9 @@ async function admCreateUser(){
       await pushDBNotif({type:'welcome',title:'Welcome to Tote & Tread!',body:`Hi ${name}, your account has been created. Start exploring our collection.`,targetUserId:data.user.id});
     }
     ['nu-name','nu-email','nu-pw'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-    toast('User created! Confirmation email sent.','ok');notifyAllAdmins({type:'user',title:'User Created by Admin',body:`Admin created account for ${name} (${email}) with role: ${role}.`}).catch(()=>{});
+    toast('User created! Confirmation email sent.','ok');
+  writeAdminLog('User Created',`Account created for ${name} (${email}) as ${role} on ${new Date().toLocaleString('en-KE')}`);
+  notifyAllAdmins({type:'user',title:'User Created by Admin',body:`Admin created account for ${name} (${email}) with role: ${role}.`}).catch(()=>{});
     // If created as agent, auto-create approved application record
     if(role==='agent'&&data?.user){
       await new Promise(r=>setTimeout(r,1500));
@@ -4406,13 +4664,16 @@ async function admDeleteUser(userId,name,email){
   const{error}=await sb.from('profiles').delete().eq('id',userId);
   if(error){toast(error.message,'er');return;}
   toast('User profile removed','ok');
+  writeAdminLog('User Deleted',`Profile for ${name||email} removed on ${new Date().toLocaleString('en-KE')}`);
   renderAdmUsers();
 }
 async function setUserRole(userId, newRole, selectEl){
   if(userRole!=='admin'||!sb)return;
   const{error}=await sb.from('profiles').update({role:newRole}).eq('id',userId);
   if(error){toast(error.message,'er');if(selectEl)selectEl.value='customer';return;}
-  toast(`Role updated to ${newRole} ✓`,'ok');notifyAllAdmins({type:'admin',title:'User Role Changed',body:`A user's role was updated to ${newRole}.`}).catch(()=>{});
+  toast(`Role updated to ${newRole} ✓`,'ok');
+  writeAdminLog('Role Changed',`User role changed to ${newRole} on ${new Date().toLocaleString('en-KE')}`);
+  notifyAllAdmins({type:'admin',title:'User Role Changed',body:`A user's role was updated to ${newRole}.`}).catch(()=>{});
   // If upgrading to agent, auto-create/approve their agent application
   if(newRole==='agent'){
     // Check if they already have an application
@@ -4435,6 +4696,127 @@ async function setUserRole(userId, newRole, selectEl){
     await pushDBNotif({type:'warning',title:'Agent Account Suspended',body:'Your agent account has been suspended. Contact support if you believe this is an error.',targetUserId:userId}).catch(()=>{});
   }
 }
+// ── View User Profile ──────────────────────────────────────────
+const _admUserMap = {}; // populated when users table renders
+
+async function openViewUser(uid){
+  const modal=document.getElementById('view-user-modal');
+  const body=document.getElementById('view-user-body');
+  if(!modal||!body)return;
+  body.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+  modal.classList.add('on'); showOvl();
+
+  // Fetch all user data in parallel
+  const [profRes, contactRes, orderRes, notifRes] = await Promise.allSettled([
+    sb.from('profiles').select('*').eq('id',uid).single(),
+    sb.from('user_contacts').select('*').eq('user_id',uid).maybeSingle(),
+    sb.from('orders').select('id,total,status,created_at').eq('user_id',uid).order('created_at',{ascending:false}).limit(50),
+    sb.from('notifications').select('id,title,body,type,read,created_at').eq('user_id',uid).order('created_at',{ascending:false}).limit(10)
+  ]);
+
+  const u   = profRes.status==='fulfilled'    ? profRes.value.data    : (_admUserMap[uid]||{});
+  const c   = contactRes.status==='fulfilled' ? contactRes.value.data : null;
+  const ords= orderRes.status==='fulfilled'   ? orderRes.value.data||[] : [];
+  const nots= notifRes.status==='fulfilled'   ? notifRes.value.data||[] : [];
+
+  const totalSpend = ords.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+(o.total||0),0);
+  const roleColors = {admin:'badge-purple',agent:'badge-green',customer:'badge-amber',banned_agent:'badge-red'};
+  const statusColors = {completed:'badge-green',pending:'badge-amber',cancelled:'badge-red',shipped:'badge-blue',confirmed:'badge-green',processing:'badge-amber'};
+
+  body.innerHTML = `
+    <!-- Header with avatar -->
+    <div style="display:flex;align-items:center;gap:14px;padding:16px 16px 12px;border-bottom:1px solid var(--bd)">
+      <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--gold-a8);border:2px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--gold)">
+        ${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<i class=\"fas fa-user\"></i>'">`:
+        '<i class="fas fa-user"></i>'}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--fd);font-size:1.2rem;color:var(--t1)">${esc(u.full_name||'—')}</div>
+        <div style="font-size:.72rem;color:var(--t3);margin-top:2px">${esc(u.email||u.phone||'—')}</div>
+        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px">
+          <span class="badge ${roleColors[u.role]||'badge-amber'}">${esc(u.role||'customer')}</span>
+          ${u.last_visit?`<span style="font-size:.58rem;color:var(--t3);background:var(--bg4);padding:2px 7px;border-radius:20px">Last seen ${D(u.last_visit).split(',')[0]}</span>`:''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Info grid -->
+    <div style="padding:12px 16px;border-bottom:1px solid var(--bd)">
+      <div style="font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Profile Info</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${[
+          ['User ID',      (u.id||'—').slice(0,12)+'…'],
+          ['Phone',        esc(c?.phone||u.phone||'—')],
+          ['Joined',       u.created_at?D(u.created_at).split(',')[0]:'—'],
+          ['Visits',       (u.visit_count||0)+' times'],
+          ['Delivery Addr',esc(c?.delivery_address||'—')],
+          ['Auth Provider',esc(u.provider||'email')],
+        ].map(([k,v])=>`
+          <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:8px 10px">
+            <div style="font-size:.54rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:3px">${k}</div>
+            <div style="font-size:.76rem;color:var(--t1);word-break:break-all">${v}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Order stats -->
+    <div style="padding:12px 16px;border-bottom:1px solid var(--bd)">
+      <div style="font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Order Summary</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
+        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:10px;text-align:center">
+          <div style="font-family:var(--fd);font-size:1.4rem;color:var(--gold)">${ords.length}</div>
+          <div style="font-size:.52rem;text-transform:uppercase;color:var(--t3);margin-top:2px">Orders</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:10px;text-align:center">
+          <div style="font-family:var(--fd);font-size:1rem;color:var(--gold);margin-top:4px">KES ${N(totalSpend)}</div>
+          <div style="font-size:.52rem;text-transform:uppercase;color:var(--t3);margin-top:2px">Total Spent</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:10px;text-align:center">
+          <div style="font-family:var(--fd);font-size:1.4rem;color:${ords.filter(o=>o.status==='completed').length>0?'#32C864':'var(--t3)'}">
+            ${ords.filter(o=>o.status==='completed').length}</div>
+          <div style="font-size:.52rem;text-transform:uppercase;color:var(--t3);margin-top:2px">Completed</div>
+        </div>
+      </div>
+      ${ords.length?`
+      <div style="display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto">
+        ${ords.slice(0,8).map(o=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r)">
+            <div>
+              <span style="font-size:.68rem;color:var(--gold)">#${(o.id||'').slice(0,8).toUpperCase()}</span>
+              <span style="font-size:.6rem;color:var(--t3);margin-left:6px">${D(o.created_at).split(',')[0]}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:.7rem;color:var(--t1)">KES ${N(o.total||0)}</span>
+              <span class="badge ${statusColors[o.status]||'badge-amber'}" style="font-size:.52rem">${o.status}</span>
+            </div>
+          </div>`).join('')}
+      </div>`:'<p style="font-size:.74rem;color:var(--t3)">No orders yet.</p>'}
+    </div>
+
+    <!-- Recent notifications -->
+    <div style="padding:12px 16px">
+      <div style="font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Recent Notifications (${nots.length})</div>
+      ${nots.length?nots.map(n=>`
+        <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd)">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.74rem;font-weight:${n.read?'400':'600'};color:${n.read?'var(--t2)':'var(--t1)'}">${esc(n.title||'')}</div>
+            <div style="font-size:.64rem;color:var(--t3)">${esc(n.body||'')}</div>
+          </div>
+          <div style="font-size:.58rem;color:var(--t4);flex-shrink:0">${D(n.created_at).split(',')[0]}</div>
+        </div>`).join(''):
+        '<p style="font-size:.74rem;color:var(--t3)">No notifications.</p>'}
+    </div>
+
+    <!-- Actions -->
+    <div style="padding:12px 16px;display:flex;gap:8px;border-top:1px solid var(--bd)">
+      <button class="btn btn-gold btn-sm" style="flex:1" onclick="closeViewUser();setTimeout(()=>openEditUser(${JSON.stringify(u)}),100)">
+        <i class="fas fa-edit"></i>Edit Profile
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="closeViewUser()"><i class="fas fa-times"></i>Close</button>
+    </div>`;
+}
+function closeViewUser(){document.getElementById('view-user-modal')?.classList.remove('on');hideOvl();}
+
 let editingUser=null;
 function openEditUser(u){editingUser=u;const body=document.getElementById('edit-user-body');body.innerHTML=`<div class="fg"><label class="flbl">Full Name</label><input type="text" class="fi" id="eu-name" value="${esc(u.full_name||'')}" maxlength="100"></div><div class="fg"><label class="flbl">Email</label><input type="email" class="fi" id="eu-email" value="${esc(u.email||'')}" maxlength="200" disabled style="opacity:.5"></div><div class="fg"><label class="flbl">Phone</label><input type="tel" class="fi" id="eu-phone" value="${esc(u.phone||'')}" maxlength="20"></div><div class="fg"><label class="flbl">Role</label><select class="fsel" id="eu-role"><option value="customer" ${u.role==='customer'?'selected':''}>Customer</option><option value="agent" ${u.role==='agent'?'selected':''}>Agent</option><option value="banned_agent" ${u.role==='banned_agent'?'selected':''}>Suspended Agent</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select></div><button class="btn btn-gold btn-full" onclick="saveEditUser()"><i class="fas fa-save"></i>Save Changes</button>`;document.getElementById('edit-user-modal').classList.add('on');showOvl();}
 function closeEditUser(){document.getElementById('edit-user-modal')?.classList.remove('on');hideOvl();editingUser=null;}
@@ -5385,7 +5767,8 @@ function dismissAdvert(slotId){
   const el=document.getElementById(slotId);
   if(el){el.style.display='none';el.innerHTML='';}
 }
-async function saveAnn(){if(userRole!=='admin'||!sb)return;const txt=document.getElementById('ann-txt')?.value?.trim()||'';const{error}=await sb.from('app_settings').upsert({key:'announcement',value:txt,updated_at:new Date().toISOString()});if(error){toast(error.message,'er');return;}showAnnouncement(txt);toast('Announcement published! 📢','ok');}
+async function saveAnn(){if(userRole!=='admin'||!sb)return;const txt=document.getElementById('ann-txt')?.value?.trim()||'';const{error}=await sb.from('app_settings').upsert({key:'announcement',value:txt,updated_at:new Date().toISOString()});if(error){toast(error.message,'er');return;}showAnnouncement(txt);toast('Announcement published! 📢','ok');
+  writeAdminLog('Announcement',`Banner updated on ${new Date().toLocaleString('en-KE')}`);}
 
 async function saveSocialLinks(){
   if(userRole!=='admin'||!sb)return;
