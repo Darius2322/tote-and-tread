@@ -641,6 +641,9 @@ body:has(#splash:not(.gone)) #notif {
 /* SPINNER */
 .spin{width:18px;height:18px;border:2px solid var(--gold-a25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;display:inline-block}
 @keyframes ro{to{transform:rotate(360deg)}}
+@keyframes pulseRing{0%{transform:scale(.95);opacity:.7}70%{transform:scale(1.08);opacity:0}100%{transform:scale(1.08);opacity:0}}
+@keyframes popIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes fadeUp{0%{transform:translateY(16px);opacity:0}100%{transform:translateY(0);opacity:1}}
 .load-center{display:flex;align-items:center;justify-content:center;padding:56px;gap:10px;font-size:.8rem;color:var(--t3)}
 .empty-state{text-align:center;padding:52px 20px;color:var(--t3);font-size:.82rem}
 .empty-state i{font-size:2.2rem;color:var(--bd2);display:block;margin-bottom:12px}
@@ -1979,6 +1982,7 @@ async function init() {
      sb.auth.onAuthStateChange(async (_e, session) => {
   user = session?.user || null;
   if (user) {
+    // Skip if doLogin/doUpdatePassword is already handling the UI (success screen showing)
     await fetchRole();
     renderAcc();
     loadNotifications();
@@ -3330,16 +3334,12 @@ function renderAuthForms(el,tab){
 }
 function switchLoginMethod(m){const ef=document.getElementById('login-email-form'),pf=document.getElementById('login-phone-form'),et=document.getElementById('lm-email-tab'),pt=document.getElementById('lm-phone-tab');if(m==='email'){if(ef)ef.style.display='';if(pf)pf.style.display='none';et?.classList.add('on');pt?.classList.remove('on');}else{if(ef)ef.style.display='none';if(pf)pf.style.display='';pt?.classList.add('on');et?.classList.remove('on');}}
 function otpNext(el,nextId){el.value=el.value.replace(/\D/g,'');if(el.value&&nextId)document.getElementById(nextId)?.focus();}
+
+
 async function doLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const e=document.getElementById('li-e')?.value?.trim(),p=document.getElementById('li-pw')?.value||'',errEl=document.getElementById('li-err'),btn=document.getElementById('li-btn');if(!e||!p){setErr(errEl,'Please enter email and password');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Please enter a valid email address');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Signing in…';const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});btn.disabled=false;btn.innerHTML='<i class="fas fa-sign-in-alt"></i>Sign In';if(error){errEl.style.display='none';const msg=error.message.includes('Invalid login credentials')||error.message.includes('invalid_credentials')?'Wrong email or password. Please check your details and try again.':error.message.includes('Email not confirmed')?'Please check your inbox and confirm your email address before signing in.':error.message.includes('too many')?'Too many sign-in attempts. Please wait a few minutes and try again.':error.message;popupErr('Sign In Failed',msg);return;}errEl.style.display='none';
   user = data?.user || null;
-  // Render account immediately — don't block on fetchRole
-  updBadges();
-  renderAcc(); // shows profile instantly with current role (may still be null)
-  toast('Welcome back! 👋','ok');
-  // Fetch role in background — re-render once role is known
-  await fetchRole();
-  updBadges();
-  renderAcc(); // re-render with correct role (admin badge, agent badge, etc.)
+  toast('Signed in! ✓','ok');
+  setTimeout(()=>{ showTab('acc'); }, 1000);
 }
 async function doPhoneLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('li-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('li-ph-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('li-otp-wrap').style.display='';document.getElementById('li-otp-send-wrap').style.display='none';toast('OTP sent to '+fullPhone,'ok');}
 async function doPhoneVerify(){if(!sb)return;const ph=document.getElementById('li-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('otp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('otp-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify OTP';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}toast('Signed in successfully! 👋','ok');}
@@ -3366,11 +3366,8 @@ async function doUpdatePassword(){
   document.getElementById('reset-pw-overlay').classList.remove('on');
   history.replaceState(null,'',location.pathname);
   if(user){
-    await fetchRole();
-    updBadges();
-    renderAcc();
-    toast('Password saved! You are now signed in 🔐','ok');
-    showTab('home');
+    toast('Password saved! ✓','ok');
+    setTimeout(()=>{ showTab('acc'); }, 1000);
   } else {
     toast('Password updated! Please sign in.','ok');
     showTab('acc');
@@ -3712,8 +3709,20 @@ async function renderAdmOverview(){
   </div>`:''}
   `;
 }
-async function renderAdmProducts(){const el=document.getElementById('adm-content');el.innerHTML=`<div class="adm-section"><h3>Add Product</h3><div class="fg"><label class="flbl">Name *</label><input type="text" class="fi" id="ap-n" placeholder="Product name" maxlength="200"></div><div class="form-row"><div class="fg"><label class="flbl">Category *</label><select class="fsel" id="ap-c"><option value="">Category…</option><option value="tote-bags">Tote Bags</option><option value="footwear">Footwear</option><option value="accessories">Accessories</option></select></div><div class="fg"><label class="flbl">Price (KES) *</label><input type="number" class="fi" id="ap-p" min="0"></div></div><div class="form-row"><div class="fg"><label class="flbl">Compare Price</label><input type="number" class="fi" id="ap-cp" min="0"></div><div class="fg"><label class="flbl">Stock *</label><input type="number" class="fi" id="ap-s" min="0" value="0"></div></div><div class="fg"><label class="flbl">Description</label><textarea class="fta" id="ap-d" maxlength="1000" style="min-height:70px"></textarea></div><div class="fg"><label class="flbl">Primary Image</label><div style="display:flex;gap:8px;align-items:center"><input type="url" class="fi" id="ap-i" placeholder="https://… or upload below" maxlength="500" style="flex:1"><label for="ap-i-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label></div><input type="file" id="ap-i-file" accept="image/*" style="display:none" onchange="admUploadProductImg(this,'ap-i')"><div id="ap-i-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div></div><div class="fg"><label class="flbl">Secondary Image</label><div style="display:flex;gap:8px;align-items:center"><input type="url" class="fi" id="ap-i2" placeholder="https://… or upload below" maxlength="500" style="flex:1"><label for="ap-i2-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label></div><input type="file" id="ap-i2-file" accept="image/*" style="display:none" onchange="admUploadProductImg(this,'ap-i2')"><div id="ap-i2-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">${[['feat','Featured'],['trend','Trending'],['best','Best Seller'],['prem','Premium'],['new','New']].map(([k,l])=>`<label class="flag-btn" id="ap-${k}-btn" onclick="this.classList.toggle('on');document.getElementById('ap-${k}').checked=!document.getElementById('ap-${k}').checked"><input type="checkbox" id="ap-${k}" style="display:none"> ${l}</label>`).join('')}</div><button class="btn btn-gold btn-full" onclick="admAddProd()"><i class="fas fa-plus"></i>Add Product</button></div><div class="adm-section"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px"><h3 style="margin-bottom:0">All Products</h3><span id="adm-prod-count" style="font-size:.66rem;color:var(--t3)"></span></div><div id="adm-ptbl"><div class="load-center"><div class="spin"></div></div></div></div>`;loadAdmProducts();}
+async function renderAdmProducts(){const el=document.getElementById('adm-content');el.innerHTML=`<div class="adm-section"><h3>Add Product</h3><div class="fg"><label class="flbl">Name *</label><input type="text" class="fi" id="ap-n" placeholder="Product name" maxlength="200"></div><div class="form-row"><div class="fg"><label class="flbl">Category *</label><select class="fsel" id="ap-c"><option value="">Category…</option><option value="tote-bags">Tote Bags</option><option value="footwear">Footwear</option><option value="accessories">Accessories</option></select></div><div class="fg"><label class="flbl">Price (KES) *</label><input type="number" class="fi" id="ap-p" min="0"></div></div><div class="form-row"><div class="fg"><label class="flbl">Compare Price</label><input type="number" class="fi" id="ap-cp" min="0"></div><div class="fg"><label class="flbl">Stock *</label><input type="number" class="fi" id="ap-s" min="0" value="0"></div></div><div class="fg"><label class="flbl">Description</label><textarea class="fta" id="ap-d" maxlength="1000" style="min-height:70px"></textarea></div><div class="fg"><label class="flbl">Primary Image</label><div style="display:flex;gap:8px;align-items:center"><input type="url" class="fi" id="ap-i" placeholder="https://… or upload below" maxlength="500" style="flex:1" oninput="admShowImgPreview('ap-i','ap-i-preview')"><label for="ap-i-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label></div><input type="file" id="ap-i-file" accept="image/*" style="display:none" onchange="admUploadProductImg(this,'ap-i')"><div id="ap-i-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div><img id="ap-i-preview" src="" style="display:none;width:100%;height:120px;object-fit:cover;border-radius:var(--rl);margin-top:8px;border:1px solid var(--bd)"></div><div class="fg"><label class="flbl">Secondary Image</label><div style="display:flex;gap:8px;align-items:center"><input type="url" class="fi" id="ap-i2" placeholder="https://… or upload below" maxlength="500" style="flex:1" oninput="admShowImgPreview('ap-i2','ap-i2-preview')"><label for="ap-i2-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label></div><input type="file" id="ap-i2-file" accept="image/*" style="display:none" onchange="admUploadProductImg(this,'ap-i2')"><div id="ap-i2-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div><img id="ap-i2-preview" src="" style="display:none;width:100%;height:120px;object-fit:cover;border-radius:var(--rl);margin-top:8px;border:1px solid var(--bd)"></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">${[['feat','Featured'],['trend','Trending'],['best','Best Seller'],['prem','Premium'],['new','New']].map(([k,l])=>`<label class="flag-btn" id="ap-${k}-btn" onclick="this.classList.toggle('on');document.getElementById('ap-${k}').checked=!document.getElementById('ap-${k}').checked"><input type="checkbox" id="ap-${k}" style="display:none"> ${l}</label>`).join('')}</div><button class="btn btn-gold btn-full" onclick="admAddProd()"><i class="fas fa-plus"></i>Add Product</button></div><div class="adm-section"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px"><h3 style="margin-bottom:0">All Products</h3><span id="adm-prod-count" style="font-size:.66rem;color:var(--t3)"></span></div><div id="adm-ptbl"><div class="load-center"><div class="spin"></div></div></div></div>`;loadAdmProducts();}
 async function loadAdmProducts(){const el=document.getElementById('adm-ptbl');if(!el)return;let list=products;if(sb)try{const{data}=await sb.from('products').select(PRODUCTS_COLS+',description').order('created_at',{ascending:false});list=data||products;}catch{}const cnt=document.getElementById('adm-prod-count');if(cnt)cnt.textContent=list.length+' products';if(!list.length){el.innerHTML='<p style="padding:12px;font-size:.76rem;color:var(--t3)">No products.</p>';return;}el.innerHTML=`<table><thead><tr><th>Name</th><th>Price</th><th>Stk</th><th></th></tr></thead><tbody>${list.map(p=>`<tr><td class="td-name">${esc(p.name)}</td><td class="td-gold">KES ${N(p.price)}</td><td class="${p.stock<=0?'pcard-stk out':p.stock<=LOW_STK?'pcard-stk low':'td-sm'}">${p.stock<=0?'Out':p.stock}</td><td style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick='openEditProd(${JSON.stringify(p)})'><i class="fas fa-edit"></i></button><button class="btn btn-red btn-xs" onclick="delProduct('${esc(p.id)}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table>`;}
+function admShowImgPreview(inputId, previewId){
+  const inp=document.getElementById(inputId);
+  const img=document.getElementById(previewId);
+  if(!inp||!img)return;
+  const url=inp.value.trim();
+  if(url&&(url.startsWith('https://')||url.startsWith('http://'))){
+    img.src=url;img.style.display='block';
+    img.onerror=()=>{img.style.display='none';};
+  } else {
+    img.style.display='none';img.src='';
+  }
+}
 async function admUploadProductImg(input, targetId){
   const file=input.files[0];if(!file||!sb)return;
   if(file.size>5*1024*1024){toast('Image too large (max 5MB)','er');return;}
@@ -3727,7 +3736,7 @@ async function admUploadProductImg(input, targetId){
     if(error){toast('Upload failed: '+error.message,'er');return;}
     const{data}=sb.storage.from('products').getPublicUrl(path);
     const url=data?.publicUrl;
-    if(url){const inp=document.getElementById(targetId);if(inp)inp.value=url;toast('Image uploaded! ✓','ok');}
+    if(url){const inp=document.getElementById(targetId);if(inp)inp.value=url;admShowImgPreview(targetId,targetId+'-preview');toast('Image uploaded! ✓','ok');}
   }catch(e){if(progressEl)progressEl.style.display='none';toast('Upload error','er');}
 }
 async function admAddProd(){if(userRole!=='admin'||!sb)return;const n=document.getElementById('ap-n')?.value?.trim(),cat=document.getElementById('ap-c')?.value,price=parseFloat(document.getElementById('ap-p')?.value),cp=parseFloat(document.getElementById('ap-cp')?.value)||null,stock=parseInt(document.getElementById('ap-s')?.value)||0,desc=document.getElementById('ap-d')?.value?.trim(),img=document.getElementById('ap-i')?.value?.trim(),img2=document.getElementById('ap-i2')?.value?.trim();if(!n||!cat||!price||isNaN(price)||price<0){toast('Fill required fields','er');return;}if(img&&!safeImgSrc(img)){toast('Primary image must be https:// URL','er');return;}const flags={is_featured:!!document.getElementById('ap-feat')?.checked,is_trending:!!document.getElementById('ap-trend')?.checked,is_bestseller:!!document.getElementById('ap-best')?.checked,is_premium:!!document.getElementById('ap-prem')?.checked,is_new:!!document.getElementById('ap-new')?.checked};const{error}=await sb.from('products').insert([{name:n,category:cat,price,compare_price:cp,stock,description:desc,image_url:img||null,image_url_2:img2||null,...flags}]);if(error){toast(error.message,'er');return;}toast('Product added!','ok');await loadProducts();try{const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');for(const a of(admins||[])){await pushDBNotif({type:'product',title:'Product Added',body:`New product "${n}" added to the catalogue at KES ${N(price)}.`,targetUserId:a.id}).catch(()=>{});}}catch{}['ap-n','ap-p','ap-cp','ap-s','ap-d','ap-i','ap-i2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});loadAdmProducts();}
@@ -4346,7 +4355,10 @@ async function renderAgentDashboard(){
                 <span><i class="fas fa-clock" style="margin-right:3px"></i>${av.expires_at?'Expires '+D(av.expires_at).split(',')[0]:'Manual removal'}</span>
               </div>
             </div>
-            <button class="btn btn-ghost btn-xs" style="color:var(--red);flex-shrink:0" onclick="agentRemoveAdvert('${esc(av._key)}')"><i class="fas fa-trash"></i></button>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+              <button class="btn btn-ghost btn-xs" onclick="agEditAdvert(${JSON.stringify(av).replace(/'/g,'&apos;')},'${esc(av._key)}')"><i class="fas fa-edit"></i></button>
+              <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="agentRemoveAdvert('${esc(av._key)}')"><i class="fas fa-trash"></i></button>
+            </div>
           </div>
         </div>
       </div>`).join('')}
@@ -4366,7 +4378,10 @@ async function renderAgentDashboard(){
           <div style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(it.title||'')}</div>
           <div style="font-size:.64rem;color:var(--t3);margin-top:2px">${esc(it.desc||'')}</div>
         </div>
-        <button class="btn btn-ghost btn-xs" style="color:var(--red);flex-shrink:0" onclick="agentRemoveGallery('${esc(it._key)}')"><i class="fas fa-trash"></i></button>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn btn-ghost btn-xs" onclick="agEditGallery(${JSON.stringify(it).replace(/'/g,'&apos;')},'${esc(it._key)}')"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-ghost btn-xs" style="color:var(--red)" onclick="agentRemoveGallery('${esc(it._key)}')"><i class="fas fa-trash"></i></button>
+        </div>
       </div>`).join('')}
     </div>
 
@@ -4379,70 +4394,61 @@ async function renderAgentDashboard(){
 }
 
 /* ═══ AGENT MODAL FUNCTIONS ═══ */
-function agOpenAdvertModal(){
-  // Reset form
-  document.getElementById('ag-av-img-url').value='';
-  document.getElementById('ag-av-title').value='';
-  document.getElementById('ag-av-sub').value='';
-  document.getElementById('ag-av-link').value='';
-  document.getElementById('ag-av-placement').value='home';
-  document.getElementById('ag-av-duration').value='0';
-  document.getElementById('ag-av-err').style.display='none';
-  document.getElementById('ag-av-preview-img').style.display='none';
-  document.getElementById('ag-av-preview-img').src='';
-  document.getElementById('ag-av-preview-placeholder').style.display='';
-  document.getElementById('ag-av-uploading').style.display='none';
-  const btn=document.getElementById('ag-av-publish-btn');
-  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
-  document.getElementById('ag-advert-modal').classList.add('on');
-  showOvl();
+let _agEditAdvertKey=null; // null = new, string = editing existing key
+let _agEditGalleryKey=null;
+
+function _agResetAdvertModal(){
+  _agEditAdvertKey=null;
+  ['ag-av-img','ag-av-title','ag-av-sub','ag-av-link'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const sel1=document.getElementById('ag-av-placement');if(sel1)sel1.value='home';
+  const sel2=document.getElementById('ag-av-duration');if(sel2)sel2.value='0';
+  const errEl=document.getElementById('ag-av-err');if(errEl)errEl.style.display='none';
+  const prog=document.getElementById('ag-av-img-progress');if(prog)prog.style.display='none';
+  const prev=document.getElementById('ag-av-img-preview');if(prev){prev.style.display='none';prev.src='';}
+  const hdr=document.getElementById('ag-av-modal-title');if(hdr)hdr.textContent='New Advert';
+  const btn=document.getElementById('ag-av-publish-btn');if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
 }
-function agCloseAdvertModal(){
-  document.getElementById('ag-advert-modal')?.classList.remove('on');
-  hideOvl();
+function agOpenAdvertModal(){_agResetAdvertModal();document.getElementById('ag-advert-modal').classList.add('on');showOvl();}
+function agEditAdvert(av,key){
+  _agResetAdvertModal();
+  _agEditAdvertKey=key;
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
+  set('ag-av-title',av.title);set('ag-av-sub',av.subtitle);set('ag-av-img',av.img);set('ag-av-link',av.link);
+  const sel1=document.getElementById('ag-av-placement');if(sel1)sel1.value=av.placement||'home';
+  const hdr=document.getElementById('ag-av-modal-title');if(hdr)hdr.textContent='Edit Advert';
+  const btn=document.getElementById('ag-av-publish-btn');if(btn)btn.innerHTML='<i class="fas fa-save"></i> Save Changes';
+  admShowImgPreview('ag-av-img','ag-av-img-preview');
+  document.getElementById('ag-advert-modal').classList.add('on');showOvl();
 }
+function agCloseAdvertModal(){document.getElementById('ag-advert-modal')?.classList.remove('on');hideOvl();}
 async function agHandleAdvertImg(input){
+  if(!input.files[0]||!sb)return;
   const file=input.files[0];
-  if(!file)return;
   if(file.size>5*1024*1024){toast('Image too large (max 5MB)','er');return;}
-  // Show local preview instantly
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const img=document.getElementById('ag-av-preview-img');
-    const ph=document.getElementById('ag-av-preview-placeholder');
-    if(img){img.src=e.target.result;img.style.display='block';}
-    if(ph)ph.style.display='none';
-  };
-  reader.readAsDataURL(file);
-  // Disable publish button while upload is in progress
-  const publishBtn=document.getElementById('ag-av-publish-btn');
-  if(publishBtn){publishBtn.disabled=true;publishBtn.innerHTML='<span class="spin" style="display:inline-block;width:12px;height:12px;border:2px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span>Uploading image…';}
-  // Upload to Supabase
-  if(!sb){
-    if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
-    toast('Storage not configured','er');return;
-  }
-  const uploading=document.getElementById('ag-av-uploading');
-  if(uploading)uploading.style.display='flex';
   const ext=file.name.split('.').pop()||'jpg';
-  const path=`agent/${user.id}/advert_${Date.now()}.${ext}`;
+  const path=`adverts/${Date.now()}_${Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b=>b.toString(16).padStart(2,'0')).join('')}.${ext}`;
+  const prog=document.getElementById('ag-av-img-progress');
+  const errEl=document.getElementById('ag-av-err');
+  if(prog)prog.style.display='';
+  if(errEl)errEl.style.display='none';
   try{
     const{error}=await sb.storage.from('products').upload(path,file,{upsert:true,contentType:file.type});
-    if(uploading)uploading.style.display='none';
+    if(prog)prog.style.display='none';
     if(error){
-      if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
+      if(errEl){errEl.textContent='Upload failed: '+error.message;errEl.style.display='';}
       toast('Upload failed: '+error.message,'er');return;
     }
     const{data}=sb.storage.from('products').getPublicUrl(path);
     if(data?.publicUrl){
-      document.getElementById('ag-av-img-url').value=data.publicUrl;
-      // Re-enable publish button now that upload is done
-      if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
-      toast('Image ready ✓','ok');
+      const inp=document.getElementById('ag-av-img');
+      if(inp)inp.value=data.publicUrl;
+      admShowImgPreview('ag-av-img','ag-av-img-preview');
+      if(errEl)errEl.style.display='none';
+      toast('Image uploaded! ✓','ok');
     }
   }catch(e){
-    if(uploading)uploading.style.display='none';
-    if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
+    if(prog)prog.style.display='none';
+    if(errEl){errEl.textContent='Upload error — check your connection and try again';errEl.style.display='';}
     toast('Upload error','er');
   }
 }
@@ -4450,89 +4456,81 @@ async function agSubmitAdvertModal(){
   if(userRole!=='agent'){toast('Agent access required','er');return;}
   const title=document.getElementById('ag-av-title')?.value?.trim();
   const subtitle=document.getElementById('ag-av-sub')?.value?.trim()||'';
-  const imgUrl=document.getElementById('ag-av-img-url')?.value?.trim();
+  const imgUrl=document.getElementById('ag-av-img')?.value?.trim();
   const link=document.getElementById('ag-av-link')?.value?.trim()||'';
   const placement=document.getElementById('ag-av-placement')?.value||'home';
   const duration=parseInt(document.getElementById('ag-av-duration')?.value||'0');
   const errEl=document.getElementById('ag-av-err');
   if(!title){errEl.textContent='Please enter a title';errEl.style.display='';return;}
-  if(!imgUrl){errEl.textContent='Image is still uploading — please wait a moment then tap Publish again';errEl.style.display='';return;}
+  if(!imgUrl){errEl.textContent='Please add an image — paste a URL or tap Upload';errEl.style.display='';return;}
   errEl.style.display='none';
   const btn=document.getElementById('ag-av-publish-btn');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span>Publishing…';}
-  const id=Date.now();
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span>Saving…';}
+  const isEdit=!!_agEditAdvertKey;
+  const key=isEdit?_agEditAdvertKey:`advert_${Date.now()}`;
+  const id=isEdit?parseInt(_agEditAdvertKey.replace('advert_','')):Date.now();
   const expires_at=duration>0?new Date(Date.now()+duration*1000).toISOString():null;
   const advert={id,title,subtitle,img:imgUrl,link,placement,expires_at,created_at:new Date().toISOString(),agent_id:user.id,agent_name:user?.user_metadata?.full_name||user?.email||'Agent'};
   if(sb){
-    const{error}=await sb.from('app_settings').upsert({key:`advert_${id}`,value:JSON.stringify(advert),updated_at:new Date().toISOString()});
-    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-bullhorn"></i> Publish Advert';}
+    const{error}=await sb.from('app_settings').upsert({key,value:JSON.stringify(advert),updated_at:new Date().toISOString()});
+    if(btn){btn.disabled=false;btn.innerHTML=isEdit?'<i class="fas fa-save"></i> Save Changes':'<i class="fas fa-bullhorn"></i> Publish Advert';}
     if(error){errEl.textContent=error.message;errEl.style.display='';return;}
   }
   agCloseAdvertModal();
-  toast('Advert published! 🎯','ok');
+  toast(isEdit?'Advert updated! ✓':'Advert published! 🎯','ok');
   await loadAndRenderAdverts();
   await renderAgentDashboard();
 }
 
-function agOpenGalleryModal(){
-  document.getElementById('ag-gl-img-url').value='';
-  document.getElementById('ag-gl-title').value='';
-  document.getElementById('ag-gl-sub').value='';
-  document.getElementById('ag-gl-err').style.display='none';
-  document.getElementById('ag-gl-preview-img').style.display='none';
-  document.getElementById('ag-gl-preview-img').src='';
-  document.getElementById('ag-gl-preview-placeholder').style.display='';
-  document.getElementById('ag-gl-uploading').style.display='none';
-  const btn=document.getElementById('ag-gl-publish-btn');
-  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
-  document.getElementById('ag-gallery-modal').classList.add('on');
-  showOvl();
+function _agResetGalleryModal(){
+  _agEditGalleryKey=null;
+  ['ag-gl-img','ag-gl-title','ag-gl-sub'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  const errEl=document.getElementById('ag-gl-err');if(errEl)errEl.style.display='none';
+  const prog=document.getElementById('ag-gl-img-progress');if(prog)prog.style.display='none';
+  const prev=document.getElementById('ag-gl-img-preview');if(prev){prev.style.display='none';prev.src='';}
+  const hdr=document.getElementById('ag-gl-modal-title');if(hdr)hdr.textContent='New Gallery Item';
+  const btn=document.getElementById('ag-gl-publish-btn');if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
 }
-function agCloseGalleryModal(){
-  document.getElementById('ag-gallery-modal')?.classList.remove('on');
-  hideOvl();
+function agOpenGalleryModal(){_agResetGalleryModal();document.getElementById('ag-gallery-modal').classList.add('on');showOvl();}
+function agEditGallery(it,key){
+  _agResetGalleryModal();
+  _agEditGalleryKey=key;
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
+  set('ag-gl-title',it.title);set('ag-gl-sub',it.desc);set('ag-gl-img',it.img);
+  const hdr=document.getElementById('ag-gl-modal-title');if(hdr)hdr.textContent='Edit Gallery Item';
+  const btn=document.getElementById('ag-gl-publish-btn');if(btn)btn.innerHTML='<i class="fas fa-save"></i> Save Changes';
+  admShowImgPreview('ag-gl-img','ag-gl-img-preview');
+  document.getElementById('ag-gallery-modal').classList.add('on');showOvl();
 }
+function agCloseGalleryModal(){document.getElementById('ag-gallery-modal')?.classList.remove('on');hideOvl();}
 async function agHandleGalleryImg(input){
+  if(!input.files[0]||!sb)return;
   const file=input.files[0];
-  if(!file)return;
   if(file.size>5*1024*1024){toast('Image too large (max 5MB)','er');return;}
-  // Instant preview
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const img=document.getElementById('ag-gl-preview-img');
-    const ph=document.getElementById('ag-gl-preview-placeholder');
-    if(img){img.src=e.target.result;img.style.display='block';}
-    if(ph)ph.style.display='none';
-  };
-  reader.readAsDataURL(file);
-  // Disable publish button while uploading
-  const publishBtn=document.getElementById('ag-gl-publish-btn');
-  if(publishBtn){publishBtn.disabled=true;publishBtn.innerHTML='<span class="spin" style="display:inline-block;width:12px;height:12px;border:2px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span>Uploading image…';}
-  // Upload to Supabase
-  if(!sb){
-    if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
-    toast('Storage not configured','er');return;
-  }
-  const uploading=document.getElementById('ag-gl-uploading');
-  if(uploading)uploading.style.display='flex';
   const ext=file.name.split('.').pop()||'jpg';
-  const path=`agent/${user.id}/gallery_${Date.now()}.${ext}`;
+  const path=`gallery/${Date.now()}_${Array.from(crypto.getRandomValues(new Uint8Array(4))).map(b=>b.toString(16).padStart(2,'0')).join('')}.${ext}`;
+  const prog=document.getElementById('ag-gl-img-progress');
+  const errEl=document.getElementById('ag-gl-err');
+  if(prog)prog.style.display='';
+  if(errEl)errEl.style.display='none';
   try{
     const{error}=await sb.storage.from('products').upload(path,file,{upsert:true,contentType:file.type});
-    if(uploading)uploading.style.display='none';
+    if(prog)prog.style.display='none';
     if(error){
-      if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
+      if(errEl){errEl.textContent='Upload failed: '+error.message;errEl.style.display='';}
       toast('Upload failed: '+error.message,'er');return;
     }
     const{data}=sb.storage.from('products').getPublicUrl(path);
     if(data?.publicUrl){
-      document.getElementById('ag-gl-img-url').value=data.publicUrl;
-      if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
-      toast('Image ready ✓','ok');
+      const inp=document.getElementById('ag-gl-img');
+      if(inp)inp.value=data.publicUrl;
+      admShowImgPreview('ag-gl-img','ag-gl-img-preview');
+      if(errEl)errEl.style.display='none';
+      toast('Image uploaded! ✓','ok');
     }
   }catch(e){
-    if(uploading)uploading.style.display='none';
-    if(publishBtn){publishBtn.disabled=false;publishBtn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
+    if(prog)prog.style.display='none';
+    if(errEl){errEl.textContent='Upload error — check your connection and try again';errEl.style.display='';}
     toast('Upload error','er');
   }
 }
@@ -4540,22 +4538,24 @@ async function agSubmitGalleryModal(){
   if(userRole!=='agent'){toast('Agent access required','er');return;}
   const title=document.getElementById('ag-gl-title')?.value?.trim();
   const desc=document.getElementById('ag-gl-sub')?.value?.trim()||'';
-  const imgUrl=document.getElementById('ag-gl-img-url')?.value?.trim();
+  const imgUrl=document.getElementById('ag-gl-img')?.value?.trim();
   const errEl=document.getElementById('ag-gl-err');
   if(!title){errEl.textContent='Please enter a title';errEl.style.display='';return;}
-  if(!imgUrl){errEl.textContent='Image is still uploading — please wait a moment then tap Publish again';errEl.style.display='';return;}
+  if(!imgUrl){errEl.textContent='Please add an image — paste a URL or tap Upload';errEl.style.display='';return;}
   errEl.style.display='none';
   const btn=document.getElementById('ag-gl-publish-btn');
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span>Adding…';}
-  const id=Date.now();
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:8px"></span>Saving…';}
+  const isEdit=!!_agEditGalleryKey;
+  const key=isEdit?_agEditGalleryKey:`gallery_${Date.now()}`;
+  const id=isEdit?parseInt(_agEditGalleryKey.replace('gallery_','')):Date.now();
   const item={id,title,desc,img:imgUrl,tall:false,price:'',agent_id:user.id,agent_name:user?.user_metadata?.full_name||user?.email||'Agent'};
   if(sb){
-    const{error}=await sb.from('app_settings').upsert({key:`gallery_${id}`,value:JSON.stringify(item),updated_at:new Date().toISOString()});
-    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-plus"></i> Add to Gallery';}
+    const{error}=await sb.from('app_settings').upsert({key,value:JSON.stringify(item),updated_at:new Date().toISOString()});
+    if(btn){btn.disabled=false;btn.innerHTML=isEdit?'<i class="fas fa-save"></i> Save Changes':'<i class="fas fa-plus"></i> Add to Gallery';}
     if(error){errEl.textContent=error.message;errEl.style.display='';return;}
   }
   agCloseGalleryModal();
-  toast('Gallery item added! ✓','ok');
+  toast(isEdit?'Gallery item updated! ✓':'Gallery item added! ✓','ok');
   await loadGalleryFromDB();
   await renderAgentDashboard();
 }
@@ -4612,11 +4612,12 @@ async function renderAdmGallery(){
     <div class="fg"><label class="flbl">Subtitle</label><input type="text" class="fi" id="gl-sub" placeholder="e.g. Full-grain leather · KES 7,500" maxlength="150"></div>
     <div class="fg"><label class="flbl">Image</label>
       <div style="display:flex;gap:8px;align-items:center">
-        <input type="url" class="fi" id="gl-img" placeholder="https://… or upload" maxlength="500" style="flex:1">
+        <input type="url" class="fi" id="gl-img" placeholder="https://… or upload" maxlength="500" style="flex:1" oninput="admShowImgPreview('gl-img','gl-img-preview')">
         <label for="gl-img-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label>
       </div>
       <input type="file" id="gl-img-file" accept="image/*" style="display:none" onchange="admUploadGalleryImg(this)">
       <div id="gl-img-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div>
+      <img id="gl-img-preview" src="" style="display:none;width:100%;height:130px;object-fit:cover;border-radius:var(--rl);margin-top:8px;border:1px solid var(--bd)">
     </div>
     <div style="display:flex;gap:8px">
       <div class="fg" style="flex:1"><label class="flbl">Tall? (spans 2 rows)</label><select class="fsel" id="gl-tall"><option value="0">Normal</option><option value="1">Tall</option></select></div>
@@ -4657,7 +4658,7 @@ async function admUploadGalleryImg(input){
     document.getElementById('gl-img-progress').style.display='none';
     if(error){toast('Upload failed: '+error.message,'er');return;}
     const{data}=sb.storage.from('products').getPublicUrl(path);
-    if(data?.publicUrl){const inp=document.getElementById('gl-img');if(inp)inp.value=data.publicUrl;toast('Image uploaded! ✓','ok');}
+    if(data?.publicUrl){const inp=document.getElementById('gl-img');if(inp)inp.value=data.publicUrl;admShowImgPreview('gl-img','gl-img-preview');toast('Image uploaded! ✓','ok');}
   }catch(e){document.getElementById('gl-img-progress').style.display='none';toast('Upload error','er');}
 }
 async function admAddGalleryItem(){
@@ -4745,11 +4746,12 @@ async function renderAdmAdverts(){
     <div class="fg"><label class="flbl">Subtitle</label><input type="text" class="fi" id="av-sub" placeholder="e.g. Valid this weekend only" maxlength="150"></div>
     <div class="fg"><label class="flbl">Image *</label>
       <div style="display:flex;gap:8px;align-items:center">
-        <input type="url" class="fi" id="av-img" placeholder="https://… or upload" maxlength="500" style="flex:1">
+        <input type="url" class="fi" id="av-img" placeholder="https://… or upload" maxlength="500" style="flex:1" oninput="admShowImgPreview('av-img','av-img-preview')">
         <label for="av-img-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i></label>
       </div>
       <input type="file" id="av-img-file" accept="image/*" style="display:none" onchange="admUploadAdvertImg(this)">
       <div id="av-img-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div>
+      <img id="av-img-preview" src="" style="display:none;width:100%;height:130px;object-fit:cover;border-radius:var(--rl);margin-top:8px;border:1px solid var(--bd)">
     </div>
     <div class="fg"><label class="flbl">Link (optional)</label><input type="url" class="fi" id="av-link" placeholder="https://… or leave empty" maxlength="300"></div>
     <div class="form-row">
@@ -4798,7 +4800,7 @@ async function admUploadAdvertImg(input){
     document.getElementById('av-img-progress').style.display='none';
     if(error){toast('Upload failed: '+error.message,'er');return;}
     const{data}=sb.storage.from('products').getPublicUrl(path);
-    if(data?.publicUrl){const inp=document.getElementById('av-img');if(inp)inp.value=data.publicUrl;toast('Image uploaded! ✓','ok');}
+    if(data?.publicUrl){const inp=document.getElementById('av-img');if(inp)inp.value=data.publicUrl;admShowImgPreview('av-img','av-img-preview');toast('Image uploaded! ✓','ok');}
   }catch(e){document.getElementById('av-img-progress').style.display='none';toast('Upload error','er');}
 }
 async function admAddAdvert(){
@@ -5089,57 +5091,35 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <!-- AGENT ADVERT MODAL -->
+<!-- AGENT ADVERT MODAL -->
 <div id="ag-advert-modal" class="modal">
   <div class="sheet-pull"></div>
   <div class="sheet-hdr">
-    <span class="sheet-title" style="color:var(--gold)"><i class="fas fa-bullhorn" style="margin-right:8px"></i>New Advert</span>
+    <span class="sheet-title" style="color:var(--gold)"><i class="fas fa-bullhorn" style="margin-right:8px"></i><span id="ag-av-modal-title">New Advert</span></span>
     <button class="sheet-cls" onclick="agCloseAdvertModal()"><i class="fas fa-times"></i></button>
   </div>
   <div class="modal-body">
-
-    <!-- Image picker area -->
-    <div id="ag-av-preview" style="position:relative;width:100%;height:160px;background:var(--bg3);border:2px dashed var(--bd2);border-radius:var(--rl);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;margin-bottom:16px;overflow:hidden;transition:border-color .2s" onclick="document.getElementById('ag-av-file').click()">
-      <img id="ag-av-preview-img" src="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:var(--rl)">
-      <div id="ag-av-preview-placeholder" style="text-align:center;pointer-events:none">
-        <div style="width:52px;height:52px;background:var(--gold-a8);border:1px solid var(--gold-a25);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:1.3rem;color:var(--gold)"><i class="fas fa-camera"></i></div>
-        <div style="font-size:.8rem;color:var(--t2);font-weight:500">Tap to upload image</div>
-        <div style="font-size:.64rem;color:var(--t3);margin-top:4px">From camera or gallery · Max 5MB</div>
-      </div>
-      <div id="ag-av-uploading" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;border-radius:var(--rl)">
-        <div class="spin" style="width:28px;height:28px;border:3px solid var(--gold-a25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite"></div>
-        <div style="font-size:.72rem;color:var(--gold)">Uploading…</div>
-      </div>
-    </div>
-    <input type="file" id="ag-av-file" accept="image/*" style="display:none" onchange="agHandleAdvertImg(this)">
-
-    <!-- Hidden URL field (auto-filled after upload) -->
-    <input type="hidden" id="ag-av-img-url">
-
     <div class="fg"><label class="flbl">Title *</label><input type="text" class="fi" id="ag-av-title" placeholder="e.g. Weekend Sale — 20% Off!" maxlength="100"></div>
     <div class="fg"><label class="flbl">Subtitle</label><input type="text" class="fi" id="ag-av-sub" placeholder="e.g. Valid this weekend only" maxlength="150"></div>
+    <div class="fg"><label class="flbl">Image *</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="url" class="fi" id="ag-av-img" placeholder="https://… or upload" maxlength="500" style="flex:1" oninput="admShowImgPreview('ag-av-img','ag-av-img-preview')">
+        <label for="ag-av-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label>
+      </div>
+      <input type="file" id="ag-av-file" accept="image/*" style="display:none" onchange="agHandleAdvertImg(this)">
+      <div id="ag-av-img-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div>
+      <img id="ag-av-img-preview" src="" style="display:none;width:100%;height:130px;object-fit:cover;border-radius:var(--rl);margin-top:8px;border:1px solid var(--bd)">
+    </div>
     <div class="fg"><label class="flbl">Link (optional)</label><input type="url" class="fi" id="ag-av-link" placeholder="https://… leave empty if none" maxlength="300"></div>
     <div class="form-row">
-      <div class="fg"><label class="flbl">Show On</label>
-        <select class="fsel" id="ag-av-placement">
-          <option value="home">Home</option>
-          <option value="shop">Shop</option>
-          <option value="gallery">Gallery</option>
-          <option value="all">All Pages</option>
-        </select>
-      </div>
-      <div class="fg"><label class="flbl">Expires After</label>
-        <select class="fsel" id="ag-av-duration">
-          <option value="0">Manual only</option>
-          <option value="3600">1 hour</option>
-          <option value="21600">6 hours</option>
-          <option value="86400">1 day</option>
-          <option value="259200">3 days</option>
-          <option value="604800">1 week</option>
-        </select>
-      </div>
+      <div class="fg"><label class="flbl">Show On</label><select class="fsel" id="ag-av-placement"><option value="home">Home</option><option value="shop">Shop</option><option value="gallery">Gallery</option><option value="all">All Pages</option></select></div>
+      <div class="fg"><label class="flbl">Auto-remove After</label><select class="fsel" id="ag-av-duration"><option value="0">Manual only</option><option value="3600">1 hour</option><option value="21600">6 hours</option><option value="86400">1 day</option><option value="259200">3 days</option><option value="604800">1 week</option></select></div>
     </div>
     <div id="ag-av-err" class="ferr" style="display:none;margin-bottom:10px"></div>
-    <button class="btn btn-gold btn-full" id="ag-av-publish-btn" onclick="agSubmitAdvertModal()"><i class="fas fa-bullhorn"></i> Publish Advert</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" style="flex-shrink:0" onclick="agCloseAdvertModal()"><i class="fas fa-times"></i> Cancel</button>
+      <button class="btn btn-gold btn-full" id="ag-av-publish-btn" onclick="agSubmitAdvertModal()"><i class="fas fa-bullhorn"></i> Publish Advert</button>
+    </div>
   </div>
 </div>
 
@@ -5147,33 +5127,26 @@ document.addEventListener('DOMContentLoaded', () => {
 <div id="ag-gallery-modal" class="modal">
   <div class="sheet-pull"></div>
   <div class="sheet-hdr">
-    <span class="sheet-title" style="color:var(--gold)"><i class="fas fa-images" style="margin-right:8px"></i>New Gallery Item</span>
+    <span class="sheet-title" style="color:var(--gold)"><i class="fas fa-images" style="margin-right:8px"></i><span id="ag-gl-modal-title">New Gallery Item</span></span>
     <button class="sheet-cls" onclick="agCloseGalleryModal()"><i class="fas fa-times"></i></button>
   </div>
   <div class="modal-body">
-
-    <!-- Image picker area -->
-    <div id="ag-gl-preview" style="position:relative;width:100%;height:160px;background:var(--bg3);border:2px dashed var(--bd2);border-radius:var(--rl);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;margin-bottom:16px;overflow:hidden;transition:border-color .2s" onclick="document.getElementById('ag-gl-file').click()">
-      <img id="ag-gl-preview-img" src="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:var(--rl)">
-      <div id="ag-gl-preview-placeholder" style="text-align:center;pointer-events:none">
-        <div style="width:52px;height:52px;background:var(--gold-a8);border:1px solid var(--gold-a25);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:1.3rem;color:var(--gold)"><i class="fas fa-image"></i></div>
-        <div style="font-size:.8rem;color:var(--t2);font-weight:500">Tap to upload photo</div>
-        <div style="font-size:.64rem;color:var(--t3);margin-top:4px">From camera or gallery · Max 5MB</div>
-      </div>
-      <div id="ag-gl-uploading" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.7);align-items:center;justify-content:center;flex-direction:column;gap:8px;border-radius:var(--rl)">
-        <div class="spin" style="width:28px;height:28px;border:3px solid var(--gold-a25);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite"></div>
-        <div style="font-size:.72rem;color:var(--gold)">Uploading…</div>
-      </div>
-    </div>
-    <input type="file" id="ag-gl-file" accept="image/*" capture="environment" style="display:none" onchange="agHandleGalleryImg(this)">
-
-    <!-- Hidden URL field -->
-    <input type="hidden" id="ag-gl-img-url">
-
     <div class="fg"><label class="flbl">Title *</label><input type="text" class="fi" id="ag-gl-title" placeholder="e.g. Savanna Leather Tote" maxlength="100"></div>
     <div class="fg"><label class="flbl">Description</label><input type="text" class="fi" id="ag-gl-sub" placeholder="e.g. Full-grain leather · KES 7,500" maxlength="150"></div>
+    <div class="fg"><label class="flbl">Image *</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="url" class="fi" id="ag-gl-img" placeholder="https://… or upload" maxlength="500" style="flex:1" oninput="admShowImgPreview('ag-gl-img','ag-gl-img-preview')">
+        <label for="ag-gl-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label>
+      </div>
+      <input type="file" id="ag-gl-file" accept="image/*" style="display:none" onchange="agHandleGalleryImg(this)">
+      <div id="ag-gl-img-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div>
+      <img id="ag-gl-img-preview" src="" style="display:none;width:100%;height:130px;object-fit:cover;border-radius:var(--rl);margin-top:8px;border:1px solid var(--bd)">
+    </div>
     <div id="ag-gl-err" class="ferr" style="display:none;margin-bottom:10px"></div>
-    <button class="btn btn-gold btn-full" id="ag-gl-publish-btn" onclick="agSubmitGalleryModal()"><i class="fas fa-plus"></i> Add to Gallery</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" style="flex-shrink:0" onclick="agCloseGalleryModal()"><i class="fas fa-times"></i> Cancel</button>
+      <button class="btn btn-gold btn-full" id="ag-gl-publish-btn" onclick="agSubmitGalleryModal()"><i class="fas fa-plus"></i> Add to Gallery</button>
+    </div>
   </div>
 </div>
 </body>
