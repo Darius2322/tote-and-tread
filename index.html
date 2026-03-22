@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
+  <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
 <!--
 =======================================================================
   TOTE & TREAD COLLECTION v2.0  —  PRODUCTION PWA
@@ -179,12 +181,13 @@
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230A0A0A'/%3E%3Cg transform='translate(90,90) scale(4.2) translate(-18,-18)'%3E%3Cpath d='M7 11L7 28Q7 30 9 30L27 30Q29 30 29 28L29 15L21 11Z' stroke='%23C9A84C' stroke-width='1.6' fill='none' stroke-linejoin='round'/%3E%3Cpath d='M13 11L13 7.5Q13 5.5 15 5.5L21 5.5Q23 5.5 23 7.5L23 11' stroke='%23C9A84C' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3Cline x1='11' y1='18' x2='25' y2='18' stroke='%23C9A84C' stroke-width='1.1' opacity='.7'/%3E%3Cline x1='11' y1='22' x2='21' y2='22' stroke='%23C9A84C' stroke-width='1.1' opacity='.7'/%3E%3Ccircle cx='18' cy='14.5' r='2' fill='%23C9A84C'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="manifest" href="/manifest.json">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+<link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'" crossorigin="anonymous">
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous"></noscript>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/dexie@4/dist/dexie.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+<!-- Dexie lazy-loaded in initOfflineDB() --></script>
+<!-- jsPDF lazy-loaded on first PDF download -->
 <style>
 /* ══ TOKENS ══ */
 :root{
@@ -780,10 +783,10 @@ body:has(#splash:not(.gone)) #notif {
 .lb-img-wrap{position:relative;max-width:430px;width:100%;flex:1;display:flex;align-items:center;justify-content:center;padding:60px 14px 0}
 #lb-img{max-width:100%;max-height:70dvh;border-radius:10px;object-fit:contain;animation:lbImgIn .3s var(--ease)}
 @keyframes lbImgIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
-.lb-close{position:absolute;top:12px;right:14px;width:36px;height:36px;background:rgba(255,255,255,.1);border:none;border-radius:50%;color:#fff;font-size:.88rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.lb-close{width:36px;height:36px;border:none;border-radius:50%;color:#fff;font-size:.88rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
 .lb-close:hover{background:rgba(255,255,255,.22)}
-.lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;background:rgba(255,255,255,.1);border:none;border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
-.lb-nav:hover{background:var(--gold);color:#000}.lb-prev{left:10px}.lb-next{right:10px}
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);border:1.5px solid rgba(255,255,255,.2);border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.lb-nav:hover{background:var(--gold);color:#000}.lb-prev{left:12px}.lb-next{right:12px}
 .lb-caption{max-width:430px;width:100%;padding:16px 20px;background:linear-gradient(to top,rgba(0,0,0,.9),transparent)}
 .lb-caption-name{font-family:var(--fd);font-size:1.1rem;color:#fff;margin-bottom:4px}
 .lb-caption-desc{font-size:.72rem;color:rgba(255,255,255,.6);line-height:1.55;margin-bottom:8px}
@@ -1722,14 +1725,33 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 
 <!-- LIGHTBOX -->
 <div id="lightbox">
-  <button class="lb-close" onclick="closeLB()"><i class="fas fa-times"></i></button>
+  <!-- Top bar: back + counter + close -->
+  <div style="position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:linear-gradient(to bottom,rgba(0,0,0,.7) 0%,transparent 100%)">
+    <button class="lb-close" onclick="closeLB()" style="position:static;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.15)">
+      <i class="fas fa-arrow-left"></i>
+    </button>
+    <div id="lb-counter" style="font-size:.72rem;color:rgba(255,255,255,.7);font-family:var(--fb);letter-spacing:.05em"></div>
+    <button onclick="closeLB()" style="width:36px;height:36px;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.15);border-radius:50%;color:#fff;font-size:.88rem;cursor:pointer;display:flex;align-items:center;justify-content:center">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+  <!-- Image area with nav buttons -->
   <div class="lb-img-wrap">
-    <button class="lb-nav lb-prev" onclick="lbNav(-1)"><i class="fas fa-chevron-left"></i></button>
-    <img id="lb-img" src="" alt="Gallery image" loading="lazy">
-    <button class="lb-nav lb-next" onclick="lbNav(1)"><i class="fas fa-chevron-right"></i></button>
+    <button class="lb-nav lb-prev" onclick="lbNav(-1)" aria-label="Previous">
+      <i class="fas fa-chevron-left"></i>
+    </button>
+    <img id="lb-img" src="" alt="Gallery image" loading="lazy" style="user-select:none;-webkit-user-drag:none">
+    <button class="lb-nav lb-next" onclick="lbNav(1)" aria-label="Next">
+      <i class="fas fa-chevron-right"></i>
+    </button>
   </div>
   <div class="lb-dots" id="lb-dots"></div>
-  <div class="lb-caption"><div class="lb-caption-name" id="lb-name"></div><div class="lb-caption-desc" id="lb-desc"></div><div class="lb-caption-price" id="lb-price"></div><button class="btn btn-gold btn-sm" onclick="showTab('shop');closeLB()" style="margin-top:10px"><i class="fas fa-store"></i>Shop Now</button></div>
+  <div class="lb-caption">
+    <div class="lb-caption-name" id="lb-name"></div>
+    <div class="lb-caption-desc" id="lb-desc"></div>
+    <div class="lb-caption-price" id="lb-price"></div>
+    <button class="btn btn-gold btn-sm" onclick="showTab('shop');closeLB()" style="margin-top:10px"><i class="fas fa-store"></i>Shop Now</button>
+  </div>
 </div>
 
 <!-- ADMIN -->
@@ -1740,8 +1762,10 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
     <button class="adm-tab" onclick="admTab('notifications')">Notifications</button>
     <button class="adm-tab" onclick="admTab('logs')">Logs</button>
     <button class="adm-tab" onclick="admTab('products')">Products</button>
+    <button class="adm-tab" onclick="admTab('inventory')">Inventory</button>
     <button class="adm-tab" onclick="admTab('orders')">Orders</button>
     <button class="adm-tab" onclick="admTab('users')">Users</button>
+    <button class="adm-tab" onclick="admTab('badges')">Badges</button>
     <button class="adm-tab" onclick="admTab('agents')">Agents</button>
     <button class="adm-tab" onclick="admTab('gallery')">Gallery</button>
     <button class="adm-tab" onclick="admTab('adverts')">Adverts</button>
@@ -2429,7 +2453,15 @@ self.addEventListener('fetch',e=>{
 let _db = null;
 async function initOfflineDB() {
   try {
-    // Dexie loaded from CDN — graceful if unavailable
+    // Lazy-load Dexie on first call
+    if (typeof Dexie === 'undefined') {
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdn.jsdelivr.net/npm/dexie@4/dist/dexie.min.js';
+        s.onload=res; s.onerror=rej;
+        document.head.appendChild(s);
+      }).catch(()=>{});
+    }
     if (typeof Dexie === 'undefined') return;
     _db = new Dexie('ToteAndTreadDB');
     _db.version(1).stores({
@@ -3173,9 +3205,12 @@ function openLB(idx) {
   const lb = document.getElementById('lightbox'); if (!lb) return;
   lb.classList.add('on');
   document.body.style.overflow = 'hidden';
-  lb.addEventListener('touchstart', _lbTouchStart, { passive:true });
-  lb.addEventListener('touchend', _lbTouchEnd, { passive:true });
+  lb.removeEventListener('touchstart', _lbTouchStart);
+  lb.removeEventListener('touchend', _lbTouchEnd);
+  lb.addEventListener('touchstart', _lbTouchStart, {passive:true});
+  lb.addEventListener('touchend', _lbTouchEnd, {passive:true});
   document.addEventListener('keydown', _lbKey);
+  _lbUpdateCounter();
 }
 function closeLB() {
   const lb = document.getElementById('lightbox'); if (!lb) return;
@@ -3195,10 +3230,26 @@ function renderLB() {
   const pr = document.getElementById('lb-price'); if (pr) pr.textContent = g.price;
   const dots = document.getElementById('lb-dots');
   if (dots) dots.innerHTML = GAL_DATA.map((_, i) => `<div class="lb-dot${i===lbIdx?' on':''}" onclick="lbIdx=${i};renderLB()"></div>`).join('');
+  _lbUpdateCounter();
 }
-let _lbTx = 0;
-function _lbTouchStart(e) { _lbTx = e.changedTouches[0].clientX; }
-function _lbTouchEnd(e) { const dx = e.changedTouches[0].clientX - _lbTx; if (Math.abs(dx) > 40) lbNav(dx > 0 ? -1 : 1); }
+let _lbTx = 0, _lbTy = 0;
+function _lbUpdateCounter(){
+  const src=window._activeLBData||GAL_DATA;
+  const el=document.getElementById('lb-counter');
+  if(el) el.textContent=(lbIdx+1)+' / '+src.length;
+}
+function _lbTouchStart(e){
+  _lbTx=e.changedTouches[0].clientX;
+  _lbTy=e.changedTouches[0].clientY;
+}
+function _lbTouchEnd(e){
+  const dx=e.changedTouches[0].clientX-_lbTx;
+  const dy=e.changedTouches[0].clientY-_lbTy;
+  // Only trigger swipe if horizontal movement dominates (not a scroll)
+  if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>30){
+    lbNav(dx>0?-1:1);
+  }
+}
 function _lbKey(e) { if (e.key === 'ArrowLeft') lbNav(-1); if (e.key === 'ArrowRight') lbNav(1); if (e.key === 'Escape') closeLB(); }
 
 /* ════════ CART ════════ */
@@ -3663,18 +3714,21 @@ function buildPDF(o) {
 }
 
 function dlReceipt(o) {
-  if(!window.jspdf){
-    // jsPDF not yet loaded — wait and retry once
-    setTimeout(()=>{
-      if(window.jspdf){ dlReceipt(o); }
-      else { toast('PDF library not ready — please reload the page','nf'); }
-    },1500);
+  if(!window.jspdf && !window.jsPDF){
+    toast('Loading PDF…','nf');
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.crossOrigin='anonymous';
+    s.onload=()=>{ setTimeout(()=>dlReceipt(o),100); };
+    s.onerror=()=>toast('Could not load PDF library','er');
+    document.head.appendChild(s);
     return;
   }
   try {
     const doc=buildPDF(o);
-    doc.save(`TnT_Receipt_${(o.id||Date.now()).toString().slice(0,8).toUpperCase()}.pdf`);
-    toast('Receipt downloaded! 📄','ok');
+    const fname='TnT_Receipt_'+(o.id||Date.now()).toString().slice(0,8).toUpperCase()+'.pdf';
+    doc.save(fname);
+    toast('Receipt downloaded!','ok');
   } catch(err) {
     console.error('[PDF]',err);
     toast('PDF error: '+err.message,'er');
@@ -3990,53 +4044,82 @@ async function sendPhoneResetOTP(){if(!sb){popupErr('Not Configured','Supabase i
 async function verifyPhoneResetOTP(){if(!sb)return;const ph=document.getElementById('pr-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('protp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('pr-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify & Sign In';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}closeSub('phonereset');document.getElementById('reset-pw-overlay').classList.add('on');toast('Verified! Now set your new password.','ok');}
 async function doUpdatePassword(){
   if(!sb){toast('Not configured','er');return;}
-  const p=document.getElementById('np-pw')?.value||'',
-        p2=document.getElementById('np-pw2')?.value||'',
-        errEl=document.getElementById('np-err'),
-        btn=document.getElementById('np-btn');
-  // FIX-C: also disable the Cancel link while saving to prevent partial-state confusion
-  const cancelLink=document.querySelector('#reset-pw-overlay a[href="#"]');
-  if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}
-  if(p!==p2){setErr(errEl,'Passwords do not match');return;}
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving…';
-  if(cancelLink)cancelLink.style.pointerEvents='none';
-  const{data,error}=await sb.auth.updateUser({password:p});
-  if(error){
-    btn.disabled=false;btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';
-    if(cancelLink)cancelLink.style.pointerEvents='';
-    setErr(errEl,error.message);return;
-  }
-  // Don't await getSession — it can hang. Use the data from updateUser directly.
-  user=data?.user||user||null;
-  btn.disabled=false;btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';
-  history.replaceState(null,'',location.pathname);
-  const overlay=document.getElementById('reset-pw-overlay');
-  if(overlay){
-    overlay.innerHTML=`
-      <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:24px;animation:fadeUp .4s ease both">
-        <div style="position:relative;width:88px;height:88px;margin-bottom:24px">
-          <div style="position:absolute;inset:0;border-radius:50%;background:rgba(50,200,100,.12);border:2px solid rgba(50,200,100,.3);animation:pulseRing 1.6s ease-out infinite"></div>
-          <div style="position:absolute;inset:10px;border-radius:50%;background:rgba(50,200,100,.2);display:flex;align-items:center;justify-content:center">
-            <i class="fas fa-lock-open" style="font-size:1.8rem;color:#32C864"></i>
-          </div>
-        </div>
-        <div style="font-family:var(--fd);font-size:1.6rem;color:var(--t1);margin-bottom:8px">Password Updated!</div>
-        <div style="font-size:.78rem;color:#32C864;font-weight:500;margin-bottom:6px">Your new password has been saved</div>
-        <div style="font-size:.72rem;color:var(--t3)">Taking you to your account…</div>
-      </div>`;
-    overlay.classList.add('on'); // make sure it stays visible
-  }
-  if(user){
-    pushDBNotif({type:'admin',title:'Password Changed',body:'Your account password was successfully updated.',targetUserId:user.id}).catch(()=>{});
-    try{ await fetchRole(); }catch(_){}
-  }
-  setTimeout(()=>{
-    if(overlay)overlay.classList.remove('on');
+  const pw=document.getElementById('np-pw')?.value||'';
+  const pw2=document.getElementById('np-pw2')?.value||'';
+  const errEl=document.getElementById('np-err');
+  const btn=document.getElementById('np-btn');
+
+  if(pw.length<8){setErr(errEl,'Password must be at least 8 characters');return;}
+  if(pw!==pw2){setErr(errEl,'Passwords do not match');return;}
+
+  // Lock UI
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin"></span> Saving…';
+  errEl.style.display='none';
+
+  try{
+    const{data,error}=await sb.auth.updateUser({password:pw});
+    if(error){
+      btn.disabled=false;
+      btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';
+      setErr(errEl,error.message);
+      return;
+    }
+
+    // Update local user ref
+    if(data?.user) user=data.user;
+
+    // Clear the URL ?reset=1 param
     history.replaceState(null,'',location.pathname);
-    showTab('acc');  // clean navigation using existing helper
-    toast('Password updated successfully! 🔐','ok');
-  },1800);
+
+    // Show success animation INSIDE the overlay box (not replace whole overlay)
+    const box=document.querySelector('#reset-pw-overlay .reset-pw-box');
+    if(box){
+      box.innerHTML=`
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0;animation:fadeUp .4s ease both">
+          <div style="position:relative;width:80px;height:80px;margin-bottom:20px">
+            <div style="position:absolute;inset:0;border-radius:50%;background:rgba(50,200,100,.1);border:2px solid rgba(50,200,100,.3);animation:pulseRing 1.6s ease-out infinite"></div>
+            <div style="position:absolute;inset:10px;border-radius:50%;background:rgba(50,200,100,.2);display:flex;align-items:center;justify-content:center">
+              <i class="fas fa-check" style="font-size:1.8rem;color:#32C864"></i>
+            </div>
+          </div>
+          <div style="font-family:var(--fd);font-size:1.5rem;color:var(--t1);margin-bottom:8px">Password Saved!</div>
+          <div style="font-size:.8rem;color:#32C864;font-weight:600;margin-bottom:6px">Your new password is active</div>
+          <div style="font-size:.72rem;color:var(--t3)">Taking you to your account…</div>
+        </div>`;
+    }
+
+    // Non-blocking: send notification + fetch role
+    if(user){
+      (async()=>{
+        try{await pushDBNotif({type:'admin',title:'Password Changed',
+          body:'Your account password was successfully updated.',
+          targetUserId:user.id});}catch(_){}
+      })();
+      fetchRole().catch(()=>{});
+    }
+
+    // Navigate to account after 1.6s
+    setTimeout(()=>{
+      const overlay=document.getElementById('reset-pw-overlay');
+      if(overlay) overlay.classList.remove('on');
+      showTab('acc');
+      toast('Password updated! 🔐','ok');
+    },1600);
+
+  }catch(err){
+    btn.disabled=false;
+    btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';
+    const msg=String(err?.message||err||'');
+    if(!navigator.onLine||msg.includes('fetch')){
+      setErr(errEl,'No internet connection. Please check your Wi-Fi or data.');
+    } else {
+      setErr(errEl,msg||'Could not update password. Please try again.');
+    }
+  }
 }
+
+
 async function renderLoggedIn(el){
   const name=user?.user_metadata?.full_name||user?.email?.split('@')[0]||'Member';
   const email=user?.email||user?.phone||'';
@@ -4076,6 +4159,9 @@ async function renderLoggedIn(el){
           <div style="font-family:var(--fd);font-size:1.4rem;color:var(--gold)">${cart.reduce((s,i)=>s+i.qty,0)}</div>
         </div>
       </div>
+
+      <!-- Custom badges from admin -->
+      <div id="user-badges-row" style="display:none;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:8px;width:100%"></div>
 
       <!-- Leaderboard badge — shown if user is top 5 buyer -->
       <div id="prof-leaderboard-badge" style="display:none;margin-top:10px;width:100%"></div>
@@ -4151,6 +4237,8 @@ async function renderLoggedIn(el){
         }
       }
     }).catch(()=>{});
+    // Load custom admin badges
+    loadUserBadges().catch(()=>{});
   }
 }
 async function doLogout(){
@@ -4212,10 +4300,189 @@ function renderGuestProfile(el) {
 function tglPW(inpId,icoId){const inp=document.getElementById(inpId),ico=document.getElementById(icoId);if(!inp)return;const isText=inp.type==='text';inp.type=isText?'password':'text';if(ico)ico.className=isText?'fas fa-eye':'fas fa-eye-slash';}
 function setErr(el,msg){if(!el)return;el.textContent=msg;el.style.display='';}
 
+
+/* ════════ ADMIN INVENTORY ════════ */
+async function renderAdmInventory(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+
+  const[{data:prods},{data:orders}]=await Promise.allSettled([
+    sb.from('products').select(PRODUCTS_COLS).order('created_at',{ascending:false}),
+    sb.from('orders').select('items,status,created_at').neq('status','cancelled').order('created_at',{ascending:false}).limit(500)
+  ]).then(r=>r.map(x=>x.status==='fulfilled'?x.value:{data:[]}));
+
+  const allProds=prods||[];
+  const allOrders=orders||[];
+
+  // Sales map
+  const salesMap={};
+  allOrders.forEach(o=>{
+    safeParseItems(o.items).forEach(item=>{
+      const k=item.id||item.name||'?';
+      if(!salesMap[k])salesMap[k]={id:item.id,name:item.name||'Unknown',qty:0,revenue:0};
+      salesMap[k].qty+=(item.qty||1);
+      salesMap[k].revenue+=(item.price||0)*(item.qty||1);
+    });
+  });
+
+  // Enrich products with sales data
+  const enriched=allProds.map(p=>{
+    const s=salesMap[p.id]||salesMap[p.name]||{qty:0,revenue:0};
+    return {...p,soldQty:s.qty,revenue:s.revenue};
+  });
+
+  // Totals
+  const totalValue=allProds.reduce((sum,p)=>sum+(p.price||0)*(p.stock||0),0);
+  const totalItems=allProds.reduce((sum,p)=>sum+(p.stock||0),0);
+  const outOfStock=allProds.filter(p=>p.stock<=0);
+  const lowStock=allProds.filter(p=>p.stock>0&&p.stock<=LOW_STK);
+
+  // Top 5 sellers and bottom 5
+  const sorted=[...enriched].sort((a,b)=>b.soldQty-a.soldQty);
+  const topSellers=sorted.slice(0,5);
+  const poorSellers=sorted.filter(p=>p.soldQty===0).slice(0,5);
+  const worstSellers=sorted.filter(p=>p.soldQty>0).sort((a,b)=>a.soldQty-b.soldQty).slice(0,5);
+
+  // Restock suggestions: low/out of stock + low turnover
+  const restockNeeded=[...outOfStock,...lowStock].filter((v,i,a)=>a.findIndex(x=>x.id===v.id)===i).slice(0,8);
+  const addMoreNeeded=sorted.slice(0,5).filter(p=>p.stock<10);
+
+  const stkColor=(p)=>p.stock<=0?'var(--red)':p.stock<=LOW_STK?'#FFA032':'#32C864';
+  const stkLabel=(p)=>p.stock<=0?'Sold Out':p.stock<=LOW_STK?`${p.stock} left`:p.stock;
+
+  el.innerHTML=`
+  <!-- Summary cards -->
+  <div class="adm-stats-grid">
+    <div class="stat-card highlight">
+      <div class="stat-card-icon"><i class="fas fa-boxes"></i></div>
+      <span class="stat-card-num">${allProds.length}</span>
+      <span class="stat-card-lbl">Total Products</span>
+      <div style="font-size:.6rem;color:var(--t3);margin-top:4px">${totalItems.toLocaleString()} units in stock</div>
+    </div>
+    <div class="stat-card" style="border-color:rgba(201,168,76,.3)">
+      <div class="stat-card-icon"><i class="fas fa-coins"></i></div>
+      <span class="stat-card-num" style="font-size:1rem">KES ${N(totalValue)}</span>
+      <span class="stat-card-lbl">Inventory Value</span>
+      <div style="font-size:.6rem;color:var(--t3);margin-top:4px">at current prices</div>
+    </div>
+    <div class="stat-card" style="border-color:${outOfStock.length?'rgba(224,80,80,.3)':'var(--bd)'}">
+      <div class="stat-card-icon" style="color:${outOfStock.length?'var(--red)':'var(--green)'}"><i class="fas fa-exclamation-triangle"></i></div>
+      <span class="stat-card-num" style="color:${outOfStock.length?'var(--red)':'var(--green)'}">${outOfStock.length}</span>
+      <span class="stat-card-lbl">Out of Stock</span>
+      <div style="font-size:.6rem;color:#FFA032;margin-top:4px">${lowStock.length} low stock</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-icon" style="color:#32C864"><i class="fas fa-chart-line"></i></div>
+      <span class="stat-card-num" style="color:#32C864">${allOrders.length}</span>
+      <span class="stat-card-lbl">Total Orders</span>
+      <div style="font-size:.6rem;color:var(--t3);margin-top:4px">items sold this period</div>
+    </div>
+  </div>
+
+  <!-- Restock Alerts -->
+  ${restockNeeded.length?`
+  <div class="adm-section" style="border:1.5px solid rgba(224,80,80,.25);border-radius:var(--rl);margin:0 12px 12px;background:rgba(224,80,80,.04)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="width:32px;height:32px;background:rgba(224,80,80,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-bell" style="color:var(--red);font-size:.78rem"></i></div>
+      <div>
+        <div style="font-size:.82rem;font-weight:700;color:var(--t1)">🔴 Restock Alert — ${restockNeeded.length} products need attention</div>
+        <div style="font-size:.64rem;color:var(--t3)">These items are sold out or critically low</div>
+      </div>
+    </div>
+    ${restockNeeded.map(p=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.78rem;font-weight:600;color:var(--t1)">${esc(p.name)}</div>
+        <div style="font-size:.62rem;color:var(--t3)">${esc(fmtCat(p.category))} · Added ${D(p.created_at).split(',')[0]}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:.72rem;font-weight:700;color:${stkColor(p)}">${stkLabel(p)}</div>
+        <div style="font-size:.6rem;color:var(--t3)">KES ${N(p.price)}</div>
+      </div>
+    </div>`).join('')}
+  </div>`:'' }
+
+  <!-- Add More Suggestions (high sellers with low stock) -->
+  ${addMoreNeeded.length?`
+  <div class="adm-section" style="border:1.5px solid rgba(201,168,76,.3);border-radius:var(--rl);margin:0 12px 12px;background:rgba(201,168,76,.04)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="width:32px;height:32px;background:rgba(201,168,76,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-fire" style="color:var(--gold);font-size:.78rem"></i></div>
+      <div>
+        <div style="font-size:.82rem;font-weight:700;color:var(--t1)">🔥 Restock These Fast — Selling Well!</div>
+        <div style="font-size:.64rem;color:var(--t3)">Top sellers that are running low — add more stock</div>
+      </div>
+    </div>
+    ${addMoreNeeded.map(p=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.78rem;font-weight:600;color:var(--t1)">${esc(p.name)}</div>
+        <div style="font-size:.62rem;color:var(--t3)">${p.soldQty} sold · only ${p.stock} left</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <span class="badge badge-amber">Add Stock</span>
+      </div>
+    </div>`).join('')}
+  </div>`:'' }
+
+  <!-- Top Sellers -->
+  <div class="adm-section">
+    <h3>🏆 Top Selling Products</h3>
+    ${!topSellers.length?'<p style="font-size:.76rem;color:var(--t3)">No sales data yet.</p>':`
+    <table><thead><tr><th>#</th><th>Product</th><th>Sold</th><th>Revenue</th><th>Stock</th><th>Added</th></tr></thead><tbody>
+    ${topSellers.map((p,i)=>`<tr>
+      <td style="color:var(--gold);font-weight:700">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
+      <td class="td-name">${esc(p.name)}<div style="font-size:.58rem;color:var(--t3)">${esc(fmtCat(p.category))}</div></td>
+      <td style="font-weight:700;color:#32C864">${p.soldQty}</td>
+      <td class="td-gold">KES ${N(p.revenue)}</td>
+      <td style="color:${stkColor(p)};font-weight:600">${stkLabel(p)}</td>
+      <td style="font-size:.6rem;color:var(--t3)">${D(p.created_at).split(',')[0]}</td>
+    </tr>`).join('')}
+    </tbody></table>`}
+  </div>
+
+  <!-- Poor Sellers -->
+  <div class="adm-section" style="border-top:1px solid var(--bd)">
+    <h3>📉 Poor Performing Products</h3>
+    <p style="font-size:.68rem;color:var(--t3);margin-bottom:10px">Products with low/no sales — consider promotions or removing them</p>
+    ${!worstSellers.length&&!poorSellers.length?'<p style="font-size:.76rem;color:var(--green)">✓ All products are selling!</p>':`
+    <table><thead><tr><th>Product</th><th>Sold</th><th>Revenue</th><th>Stock</th><th>Added</th></tr></thead><tbody>
+    ${[...poorSellers,...worstSellers].filter((v,i,a)=>a.findIndex(x=>x.id===v.id)===i).slice(0,8).map(p=>`<tr>
+      <td class="td-name">${esc(p.name)}<div style="font-size:.58rem;color:var(--t3)">${esc(fmtCat(p.category))}</div></td>
+      <td style="color:${p.soldQty===0?'var(--red)':'#FFA032'}">${p.soldQty===0?'None':p.soldQty}</td>
+      <td class="td-gold">${p.revenue?'KES '+N(p.revenue):'—'}</td>
+      <td style="color:${stkColor(p)}">${stkLabel(p)}</td>
+      <td style="font-size:.6rem;color:var(--t3)">${D(p.created_at).split(',')[0]}</td>
+    </tr>`).join('')}
+    </tbody></table>`}
+  </div>
+
+  <!-- Full Product List with timestamps -->
+  <div class="adm-section" style="border-top:1px solid var(--bd)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h3 style="margin:0">All Products (${allProds.length})</h3>
+      <button class="btn btn-ghost btn-xs" onclick="admTab('products')">Manage →</button>
+    </div>
+    <table><thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Sold</th><th>Added</th></tr></thead><tbody>
+    ${enriched.map(p=>`<tr>
+      <td class="td-name">${esc(p.name)}</td>
+      <td style="font-size:.62rem;color:var(--t3)">${esc(fmtCat(p.category))}</td>
+      <td class="td-gold" style="font-size:.7rem">KES ${N(p.price)}</td>
+      <td>
+        <div style="font-size:.68rem;font-weight:600;color:${stkColor(p)}">${stkLabel(p)}</div>
+        <div style="height:4px;background:var(--bg4);border-radius:2px;width:50px;margin-top:3px">
+          <div style="height:100%;width:${Math.min(100,Math.round((p.stock/50)*100))}%;background:${stkColor(p)};border-radius:2px"></div>
+        </div>
+      </td>
+      <td style="font-size:.72rem;color:${p.soldQty>0?'#32C864':'var(--t3)'}">${p.soldQty||0}</td>
+      <td style="font-size:.6rem;color:var(--t3)">${D(p.created_at).split(',')[0]}</td>
+    </tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+
 /* ════════ ADMIN ════════ */
 function openAdmin(){if(userRole!=='admin'){toast('Admin access required','er');showTab('acc');return;}document.getElementById('admin').classList.add('on');showOvl();admTab('overview');}
 function closeAdmin(){document.getElementById('admin')?.classList.remove('on');hideOvl();}
-function admTab(name){document.querySelectorAll('.adm-tab').forEach(t=>t.classList.remove('on'));document.querySelector(`.adm-tab[onclick="admTab('${name}')"]`)?.classList.add('on');const content=document.getElementById('adm-content');const sections={overview:renderAdmOverview,notifications:renderAdmNotifications,logs:renderAdmLogs,products:renderAdmProducts,orders:renderAdmOrders,users:renderAdmUsers,agents:renderAdmAgents,gallery:renderAdmGallery,adverts:renderAdmAdverts,messages:renderAdmMessages,broadcast:renderAdmBroadcast,settings:renderAdmSettings};content.innerHTML='<div class="load-center"><div class="spin"></div></div>';(sections[name]||(() => {}))();}
+function admTab(name){document.querySelectorAll('.adm-tab').forEach(t=>t.classList.remove('on'));document.querySelector(`.adm-tab[onclick="admTab('${name}')"]`)?.classList.add('on');const content=document.getElementById('adm-content');const sections={overview:renderAdmOverview,notifications:renderAdmNotifications,logs:renderAdmLogs,products:renderAdmProducts,inventory:renderAdmInventory,orders:renderAdmOrders,users:renderAdmUsers,badges:renderAdmBadges,agents:renderAdmAgents,gallery:renderAdmGallery,adverts:renderAdmAdverts,messages:renderAdmMessages,broadcast:renderAdmBroadcast,settings:renderAdmSettings};content.innerHTML='<div class="load-center"><div class="spin"></div></div>';(sections[name]||(() => {}))();}
 async function renderAdmOverview(){
   const el=document.getElementById('adm-content');
   if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
@@ -4423,6 +4690,249 @@ async function renderAdmOverview(){
   `;
 }
 async function renderAdmProducts(){const el=document.getElementById('adm-content');el.innerHTML=`<div class="adm-section"><h3>Add Product</h3><div class="fg"><label class="flbl">Name *</label><input type="text" class="fi" id="ap-n" placeholder="Product name" maxlength="200"></div><div class="form-row"><div class="fg"><label class="flbl">Category *</label><select class="fsel" id="ap-c"><option value="">Category…</option><option value="tote-bags">Tote Bags</option><option value="footwear">Footwear</option><option value="accessories">Accessories</option></select></div><div class="fg"><label class="flbl">Price (KES) *</label><input type="number" class="fi" id="ap-p" min="0"></div></div><div class="form-row"><div class="fg"><label class="flbl">Compare Price</label><input type="number" class="fi" id="ap-cp" min="0"></div><div class="fg"><label class="flbl">Stock *</label><input type="number" class="fi" id="ap-s" min="0" value="0"></div></div><div class="fg"><label class="flbl">Description</label><textarea class="fta" id="ap-d" maxlength="1000" style="min-height:70px"></textarea></div><div class="fg"><label class="flbl">Primary Image</label><div style="display:flex;gap:8px;align-items:center"><input type="url" class="fi" id="ap-i" placeholder="https://… or upload below" maxlength="500" style="flex:1" oninput="admShowImgPreview('ap-i','ap-i-preview')"><label for="ap-i-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label></div><input type="file" id="ap-i-file" accept="image/*" style="display:none" onchange="admUploadProductImg(this,'ap-i')"><div id="ap-i-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div><img id="ap-i-preview" src="" style="display:none;width:100%;height:120px;object-fit:cover;border-radius:var(--rl);margin-top:8px;border:1px solid var(--bd)"></div><div class="fg"><label class="flbl">Secondary Image</label><div style="display:flex;gap:8px;align-items:center"><input type="url" class="fi" id="ap-i2" placeholder="https://… or upload below" maxlength="500" style="flex:1" oninput="admShowImgPreview('ap-i2','ap-i2-preview')"><label for="ap-i2-file" class="btn btn-outline btn-xs" style="flex-shrink:0;cursor:pointer;padding:8px 12px"><i class="fas fa-upload"></i> Upload</label></div><input type="file" id="ap-i2-file" accept="image/*" style="display:none" onchange="admUploadProductImg(this,'ap-i2')"><div id="ap-i2-progress" style="display:none;font-size:.66rem;color:var(--gold);margin-top:4px"><span class="spin" style="display:inline-block;width:9px;height:9px;border:1.5px solid var(--gold-a45);border-top-color:var(--gold);border-radius:50%;animation:ro .65s linear infinite;vertical-align:middle;margin-right:4px"></span>Uploading…</div><img id="ap-i2-preview" src="" style="display:none;width:100%;height:120px;object-fit:cover;border-radius:var(--rl);margin-top:8px;border:1px solid var(--bd)"></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px">${[['feat','Featured'],['trend','Trending'],['best','Best Seller'],['prem','Premium'],['new','New']].map(([k,l])=>`<label class="flag-btn" id="ap-${k}-btn" onclick="this.classList.toggle('on');document.getElementById('ap-${k}').checked=!document.getElementById('ap-${k}').checked"><input type="checkbox" id="ap-${k}" style="display:none"> ${l}</label>`).join('')}</div><button class="btn btn-gold btn-full" onclick="admAddProd()"><i class="fas fa-plus"></i>Add Product</button></div><div class="adm-section"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px"><h3 style="margin-bottom:0">All Products</h3><span id="adm-prod-count" style="font-size:.66rem;color:var(--t3)"></span></div><div id="adm-ptbl"><div class="load-center"><div class="spin"></div></div></div></div>`;loadAdmProducts();}
+
+/* ════════ ADMIN BADGES ════════ */
+// Badge definitions
+const BADGE_DEFS=[
+  {id:'vip',label:'VIP Customer',icon:'fa-crown',color:'#FFD700',bg:'rgba(255,215,0,.1)',border:'rgba(255,215,0,.35)',desc:'Top-tier loyal customer'},
+  {id:'loyal',label:'Loyal Buyer',icon:'fa-heart',color:'#FF6B8A',bg:'rgba(255,107,138,.08)',border:'rgba(255,107,138,.3)',desc:'Regular repeat customer'},
+  {id:'early',label:'Early Adopter',icon:'fa-rocket',color:'#9B8AF0',bg:'rgba(155,138,240,.08)',border:'rgba(155,138,240,.3)',desc:'Joined us early on'},
+  {id:'referral',label:'Top Referrer',icon:'fa-share-alt',color:'#32C864',bg:'rgba(50,200,100,.08)',border:'rgba(50,200,100,.3)',desc:'Brought new customers'},
+  {id:'bulk',label:'Bulk Buyer',icon:'fa-shopping-bag',color:'#C9A84C',bg:'rgba(201,168,76,.1)',border:'rgba(201,168,76,.35)',desc:'Large volume purchases'},
+  {id:'ambassador',label:'Brand Ambassador',icon:'fa-star',color:'#FF8C42',bg:'rgba(255,140,66,.08)',border:'rgba(255,140,66,.3)',desc:'Promotes Tote & Tread'},
+];
+
+async function renderAdmBadges(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+
+  // Load all badge assignments from app_settings
+  const[{data:badgeRows},{data:allProfiles}]=await Promise.allSettled([
+    sb.from('app_settings').select('key,value').like('key','badge_%'),
+    sb.from('profiles').select('id,full_name,email,avatar_url,role')
+  ]).then(r=>r.map(x=>x.status==='fulfilled'?x.value:{data:[]}));
+
+  const profMap={};(allProfiles||[]).forEach(p=>profMap[p.id]=p);
+
+  // Parse badge assignments: badge_{badgeId}_{userId} = {granted_at, granted_by}
+  const assignments=[];
+  (badgeRows||[]).forEach(row=>{
+    try{
+      const parts=row.key.split('_');
+      if(parts.length<3) return;
+      const badgeId=parts[1];
+      const userId=parts.slice(2).join('_');
+      const val=JSON.parse(row.value);
+      assignments.push({key:row.key,badgeId,userId,grantedAt:val.granted_at,grantedBy:val.granted_by,grantedByName:val.granted_by_name||'Admin'});
+    }catch{}
+  });
+
+  el.innerHTML=`
+  <div class="adm-section">
+    <h3>Badge Definitions</h3>
+    <p style="font-size:.7rem;color:var(--t3);margin-bottom:12px;line-height:1.6">Assign special badges to recognise your best customers. Tap "Assign" to give a badge, or view holders to revoke.</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${BADGE_DEFS.map(bd=>{
+        const holders=assignments.filter(a=>a.badgeId===bd.id);
+        return `<div style="background:var(--bg3);border:1px solid ${bd.border};border-radius:var(--rl);padding:12px 14px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:${holders.length?'10px':'0'}">
+            <div style="width:38px;height:38px;border-radius:10px;background:${bd.bg};border:1px solid ${bd.border};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <i class="fas ${bd.icon}" style="color:${bd.color};font-size:.9rem"></i>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.84rem;font-weight:700;color:${bd.color}">${esc(bd.label)}</div>
+              <div style="font-size:.64rem;color:var(--t3)">${esc(bd.desc)} · ${holders.length} holder${holders.length!==1?'s':''}</div>
+            </div>
+            <button class="btn btn-outline btn-xs" onclick="admAssignBadge('${bd.id}','${bd.label}')">
+              <i class="fas fa-plus"></i>Assign
+            </button>
+          </div>
+          ${holders.length?`<div style="border-top:1px solid var(--bd);padding-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+            ${holders.map(h=>{
+              const p=profMap[h.userId];
+              const name=p?.full_name||p?.email||'User';
+              return `<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--bg2);border-radius:20px;border:1px solid var(--bd)">
+                <div style="width:22px;height:22px;border-radius:50%;overflow:hidden;background:${bd.bg};border:1px solid ${bd.border};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  ${p?.avatar_url?`<img src="${esc(p.avatar_url)}" style="width:100%;height:100%;object-fit:cover">`:`<i class="fas fa-user" style="font-size:.5rem;color:${bd.color}"></i>`}
+                </div>
+                <span style="font-size:.68rem;color:var(--t1);font-weight:500">${esc(name)}</span>
+                <span style="font-size:.58rem;color:var(--t3)">${new Date(h.grantedAt).toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}</span>
+                <button onclick="admRevokeBadge('${bd.id}','${h.userId}','${esc(name)}','${bd.label}')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:.65rem;padding:0 2px;line-height:1" title="Revoke badge">✕</button>
+              </div>`;
+            }).join('')}
+          </div>`:'' }
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+async function admAssignBadge(badgeId, badgeName){
+  if(!sb||userRole!=='admin') return;
+  // Load users for selection
+  const{data:users}=await sb.from('profiles').select('id,full_name,email,avatar_url').order('full_name');
+  if(!users?.length){toast('No users found','nf');return;}
+
+  // Check existing holders
+  const{data:existing}=await sb.from('app_settings').select('key').like('key','badge_'+badgeId+'_%');
+  const holderIds=new Set((existing||[]).map(r=>r.key.replace('badge_'+badgeId+'_','')));
+
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;z-index:9700;background:rgba(0,0,0,.88);display:flex;align-items:flex-end;justify-content:center;padding:0';
+  modal.innerHTML=`<div style="background:var(--bg3);border-radius:var(--rxl) var(--rxl) 0 0;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--bd)">
+      <div style="font-family:var(--fd);font-size:1.1rem;color:var(--t1);margin-bottom:2px">Assign "${esc(badgeName)}"</div>
+      <div style="font-size:.68rem;color:var(--t3)">Select a user to receive this badge</div>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:10px 0">
+      ${users.map(u=>{
+        const hasIt=holderIds.has(u.id);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:${hasIt?'default':'pointer'};opacity:${hasIt?'.5':'1'}" ${!hasIt?`onclick="admGiveBadge('${badgeId}','${u.id}','${esc(u.full_name||u.email||'')}','${esc(badgeName)}',this.closest('div[style*=z-index]'))"`:''}> 
+          <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--bg4);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            ${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover">`:'<i class="fas fa-user" style="color:var(--t3)"></i>'}
+          </div>
+          <div style="flex:1"><div style="font-size:.8rem;color:var(--t1);font-weight:500">${esc(u.full_name||'—')}</div><div style="font-size:.64rem;color:var(--t3)">${esc(u.email||'')}</div></div>
+          ${hasIt?'<span class="badge badge-green">Has badge</span>':'<i class="fas fa-chevron-right" style="color:var(--t3);font-size:.6rem"></i>'}
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--bd)">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('div[style*=z-index]').remove()"><i class="fas fa-times"></i>Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+}
+
+async function admGiveBadge(badgeId, userId, userName, badgeName, modal){
+  if(!sb) return;
+  const key=`badge_${badgeId}_${userId}`;
+  const val={granted_at:new Date().toISOString(),granted_by:user.id,granted_by_name:user.user_metadata?.full_name||user.email||'Admin'};
+  const{error}=await sb.from('app_settings').upsert({key,value:JSON.stringify(val),updated_at:new Date().toISOString()});
+  if(error){toast(error.message,'er');return;}
+  if(modal) modal.remove();
+  // Notify user
+  (async()=>{
+    try{
+      const bd=BADGE_DEFS.find(b=>b.id===badgeId);
+      await pushDBNotif({type:'welcome',title:'Badge Awarded! '+( bd?bd.label:''),
+        body:'You have been awarded the "'+badgeName+'" badge by the Tote & Tread team. Check your profile!',
+        targetUserId:userId});
+    }catch(_){}
+  })();
+  writeAdminLog('Badge Assigned',`${badgeName} awarded to ${userName}`);
+  toast(`Badge assigned to ${userName} ✓`,'ok');
+  renderAdmBadges();
+}
+
+async function admRevokeBadge(badgeId, userId, userName, badgeName){
+  const ok=await popupConfirm('Revoke Badge',`Remove the "${badgeName}" badge from ${userName}?`,'Revoke','Cancel');
+  if(!ok) return;
+  const key=`badge_${badgeId}_${userId}`;
+  await sb.from('app_settings').delete().eq('key',key);
+  writeAdminLog('Badge Revoked',`${badgeName} removed from ${userName}`);
+  toast(`Badge revoked from ${userName}`,'nf');
+  renderAdmBadges();
+}
+
+// Show badges on user profile card (called in renderLoggedIn)
+async function loadUserBadges(){
+  if(!sb||!user) return;
+  try{
+    const{data:rows}=await sb.from('app_settings').select('key').like('key','badge_%_'+user.id);
+    if(!rows?.length) return;
+    const badgeEls=rows.map(r=>{
+      const badgeId=r.key.split('_')[1];
+      const bd=BADGE_DEFS.find(b=>b.id===badgeId);
+      if(!bd) return '';
+      return `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:${bd.bg};border:1px solid ${bd.border};border-radius:20px;margin:3px">
+        <i class="fas ${bd.icon}" style="font-size:.65rem;color:${bd.color}"></i>
+        <span style="font-size:.66rem;font-weight:700;color:${bd.color}">${esc(bd.label)}</span>
+      </div>`;
+    }).filter(Boolean).join('');
+    const container=document.getElementById('user-badges-row');
+    if(container&&badgeEls){container.innerHTML=badgeEls;container.style.display='flex';}
+  }catch{}
+}
+
+
+/* ════════ AGENT BROADCAST ════════ */
+async function agSendBroadcast(){
+  if(!sb||userRole!=='agent') return;
+  const subject=document.getElementById('ag-bc-subject')?.value?.trim();
+  const body=document.getElementById('ag-bc-body')?.value?.trim();
+  if(!subject||!body){toast('Enter subject and message','er');return;}
+  if(!rateLimit('agentBroadcast',300000)){toast('Please wait 5 minutes before sending another broadcast','er');return;}
+
+  // Load all customer IDs
+  const{data:customers}=await sb.from('profiles').select('id').eq('role','customer');
+  if(!customers?.length){toast('No customers to notify','nf');return;}
+
+  const btn=document.querySelector('#ag-panel-bcast button.btn-green');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';}
+
+  let sent=0;
+  const agentName=user.user_metadata?.full_name||user.email||'Agent';
+  for(const c of customers){
+    try{
+      await sb.from('notifications').insert([{user_id:c.id,type:'promo',title:subject,body,read:false}]);
+      sent++;
+    }catch{}
+  }
+
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i>Send Notification';}
+  document.getElementById('ag-bc-subject').value='';
+  document.getElementById('ag-bc-body').value='';
+  toast(`Sent to ${sent} customers! 🔔`,'ok');
+  writeAdminLog('Agent Broadcast Sent',`${agentName}: "${subject}" sent to ${sent} customers`);
+
+  // Notify admins
+  (async()=>{
+    const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');
+    for(const a of(admins||[])){
+      try{await sb.from('notifications').insert([{user_id:a.id,type:'admin_log',
+        title:'Agent Broadcast Sent',body:`${agentName} sent: "${subject}" to ${sent} customers`,read:false}]);}catch{}
+    }
+  })();
+}
+
+// Agent: load feedback and suggestions
+async function agLoadFeedback(){
+  const el=document.getElementById('ag-fb-body');
+  if(!el||!sb) return;
+  el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+
+  const[{data:fb},{data:sugg}]=await Promise.allSettled([
+    _agPerms.feedback?sb.from('feedback').select('*').order('created_at',{ascending:false}).limit(50):{data:[]},
+    _agPerms.suggestions?sb.from('suggestions').select('*').order('created_at',{ascending:false}).limit(50):{data:[]}
+  ]).then(r=>r.map(x=>x.status==='fulfilled'?x.value:{data:[]}));
+
+  el.innerHTML=`
+    ${_agPerms.feedback&&(fb||[]).length?`
+    <div style="margin-bottom:16px">
+      <div style="font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Customer Feedback (${(fb||[]).length})</div>
+      ${(fb||[]).map(f=>`<div style="padding:10px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="color:var(--gold)">${'★'.repeat(f.rating||0)}${'☆'.repeat(5-(f.rating||0))}</span>
+          <span style="font-size:.6rem;color:var(--t3)">${D(f.created_at).split(',')[0]}</span>
+        </div>
+        <div style="font-size:.76rem;color:var(--t2)">${esc(f.comment||'')}</div>
+      </div>`).join('')}
+    </div>`:''}
+    ${_agPerms.suggestions&&(sugg||[]).length?`
+    <div>
+      <div style="font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">Suggestions (${(sugg||[]).length})</div>
+      ${(sugg||[]).map(s=>`<div style="padding:10px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px">
+        <div style="font-size:.76rem;color:var(--t2);line-height:1.5">${esc(s.suggestion||'')}</div>
+        ${s.email?`<div style="font-size:.62rem;color:var(--t3);margin-top:4px">${esc(s.email)}</div>`:''}
+        <div style="font-size:.6rem;color:var(--t3);margin-top:2px">${D(s.created_at).split(',')[0]}</div>
+      </div>`).join('')}
+    </div>`:''}
+    ${!(_agPerms.feedback&&(fb||[]).length)&&!(_agPerms.suggestions&&(sugg||[]).length)?
+      '<div class="empty-state"><i class="fas fa-comment-slash"></i><p>No feedback or suggestions yet</p></div>':''}`;
+}
+
 async function loadAdmProducts(){const el=document.getElementById('adm-ptbl');if(!el)return;let list=products;if(sb)try{const{data}=await sb.from('products').select(PRODUCTS_COLS+',description').order('created_at',{ascending:false});list=data||products;}catch{}const cnt=document.getElementById('adm-prod-count');if(cnt)cnt.textContent=list.length+' products';if(!list.length){el.innerHTML='<p style="padding:12px;font-size:.76rem;color:var(--t3)">No products.</p>';return;}el.innerHTML=`<table><thead><tr><th>Name</th><th>Price</th><th>Inventory</th><th></th></tr></thead><tbody>${list.map(p=>{
     const maxStk=50;
     const pct=Math.min(100,Math.round((p.stock/maxStk)*100));
@@ -5692,6 +6202,9 @@ async function admAgentPerms(agentId, agentName){
         ['orders','📦 Orders','Can search orders and update order status'],
         ['gallery','🖼️ Gallery','Can add/edit gallery items'],
         ['adverts','📢 Adverts','Can create and manage adverts'],
+        ['feedback','⭐ Feedback & Reviews','Can view and respond to customer feedback'],
+        ['suggestions','💡 Suggestions','Can view customer suggestions'],
+        ['broadcast','📣 Broadcast','Can send in-app notifications (no email)'],
       ].map(([k,label,desc])=>`<label style="display:flex;align-items:center;gap:12px;padding:11px 12px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:8px;cursor:pointer">
         <div style="flex:1;min-width:0">
           <div style="font-size:.8rem;color:var(--t1);font-weight:500">${label}</div>
@@ -5713,7 +6226,7 @@ async function admAgentPerms(agentId, agentName){
   document.body.appendChild(modal);
 
   // Wire toggle visuals
-  ['orders','gallery','adverts'].forEach(k=>{
+  ['orders','gallery','adverts','feedback','suggestions','broadcast'].forEach(k=>{
     const inp=modal.querySelector('#perm-'+k);
     inp.addEventListener('change',()=>{
       const track=modal.querySelector('#perm-track-'+k);
@@ -5729,6 +6242,9 @@ async function admAgentPerms(agentId, agentName){
       orders:modal.querySelector('#perm-orders')?.checked??true,
       gallery:modal.querySelector('#perm-gallery')?.checked??true,
       adverts:modal.querySelector('#perm-adverts')?.checked??true,
+      feedback:modal.querySelector('#perm-feedback')?.checked??false,
+      suggestions:modal.querySelector('#perm-suggestions')?.checked??false,
+      broadcast:modal.querySelector('#perm-broadcast')?.checked??false,
     };
     const{error}=await sb.from('app_settings').upsert({key,value:JSON.stringify(newPerms),updated_at:new Date().toISOString()});
     if(error){toast(error.message,'er');return;}
@@ -5815,7 +6331,7 @@ async function renderAgentDashboard(){
     sb.from('app_settings').select('key,value').like('key','gallery_%'),
     sb.from('app_settings').select('value').eq('key',permKey).maybeSingle()
   ]);
-  let _agPerms={orders:true,gallery:true,adverts:true};
+  let _agPerms={orders:true,gallery:true,adverts:true,feedback:false,suggestions:false,broadcast:false};
   try{if(permRow?.value)_agPerms={..._agPerms,...JSON.parse(permRow.value)};}catch{}
   const agentAdverts=(myAdverts||[]).map(r=>{try{const v=JSON.parse(r.value);return v.agent_id===user.id?{...v,_key:r.key}:null;}catch{return null;}}).filter(Boolean);
   const agentGallery=(myGallery||[]).map(r=>{try{const v=JSON.parse(r.value);return v.agent_id===user.id?{...v,_key:r.key}:null;}catch{return null;}}).filter(Boolean);
@@ -5859,8 +6375,10 @@ async function renderAgentDashboard(){
       ${_agPerms.adverts?`<button id="ag-tab-adv" style="flex:1;padding:7px;font-size:.62rem;font-family:var(--fb);border:none;border-radius:6px;cursor:pointer;background:rgba(50,200,100,.15);color:#32C864;font-weight:600;transition:all .2s" onclick="agSwitchTab('adv')">📢 Adverts</button>`:''}
       ${_agPerms.gallery?`<button id="ag-tab-gal" style="flex:1;padding:7px;font-size:.62rem;font-family:var(--fb);border:none;border-radius:6px;cursor:pointer;background:transparent;color:var(--t3);transition:all .2s" onclick="agSwitchTab('gal')">🖼️ Gallery</button>`:''}
       ${_agPerms.orders?`<button id="ag-tab-ord" style="flex:1;padding:7px;font-size:.62rem;font-family:var(--fb);border:none;border-radius:6px;cursor:pointer;background:transparent;color:var(--t3);transition:all .2s" onclick="agSwitchTab('ord')">📦 Orders</button>`:''}
+      ${_agPerms.feedback||_agPerms.suggestions?`<button id="ag-tab-fb" style="flex:1;padding:7px;font-size:.62rem;font-family:var(--fb);border:none;border-radius:6px;cursor:pointer;background:transparent;color:var(--t3);transition:all .2s" onclick="agSwitchTab('fb')">⭐ Feedback</button>`:''}
+      ${_agPerms.broadcast?`<button id="ag-tab-bcast" style="flex:1;padding:7px;font-size:.62rem;font-family:var(--fb);border:none;border-radius:6px;cursor:pointer;background:transparent;color:var(--t3);transition:all .2s" onclick="agSwitchTab('bcast')">📣 Broadcast</button>`:''}
     </div>
-    ${!_agPerms.adverts&&!_agPerms.gallery&&!_agPerms.orders?`<div style="padding:12px;background:rgba(224,80,80,.08);border:1px solid rgba(224,80,80,.2);border-radius:var(--r);font-size:.74rem;color:var(--red);margin-bottom:12px"><i class="fas fa-lock" style="margin-right:8px"></i>Your dashboard access has been restricted by admin.</div>`:''}
+    ${!_agPerms.adverts&&!_agPerms.gallery&&!_agPerms.orders&&!_agPerms.feedback&&!_agPerms.suggestions&&!_agPerms.broadcast?`<div style="padding:12px;background:rgba(224,80,80,.08);border:1px solid rgba(224,80,80,.2);border-radius:var(--r);font-size:.74rem;color:var(--red);margin-bottom:12px"><i class="fas fa-lock" style="margin-right:8px"></i>Your dashboard access has been restricted by admin.</div>`:''}
 
     <!-- ADVERTS panel -->
     <div id="ag-panel-adv" ${!_agPerms.adverts?'style="display:none"':''}>
@@ -5926,6 +6444,26 @@ async function renderAgentDashboard(){
         </div>
         <div id="ag-order-results" style="margin-top:10px"></div>
       </div>
+    </div>
+
+    <!-- FEEDBACK panel (hidden by default) -->
+    <div id="ag-panel-fb" style="display:none">
+      ${(_agPerms.feedback||_agPerms.suggestions)?`
+      <div id="ag-fb-body"><div class="load-center"><div class="spin"></div></div></div>`
+      :`<div style="text-align:center;padding:24px;font-size:.74rem;color:var(--t3)"><i class="fas fa-lock" style="font-size:1.5rem;display:block;margin-bottom:8px;opacity:.4"></i>Feedback access disabled</div>`}
+    </div>
+
+    <!-- BROADCAST panel (hidden by default) -->
+    <div id="ag-panel-bcast" style="display:none">
+      ${_agPerms.broadcast?`
+      <div style="margin-bottom:10px">
+        <div style="font-size:.56rem;letter-spacing:.18em;text-transform:uppercase;color:var(--t4);margin-bottom:8px">Send In-App Notification</div>
+        <p style="font-size:.7rem;color:var(--t3);margin-bottom:10px;line-height:1.55">Send an in-app notification to all customers. This cannot send emails.</p>
+        <div class="fg"><label class="flbl">Subject *</label><input type="text" class="fi" id="ag-bc-subject" placeholder="e.g. New arrivals this week!" maxlength="120"></div>
+        <div class="fg"><label class="flbl">Message *</label><textarea class="fta" id="ag-bc-body" placeholder="Write your message…" maxlength="600" style="min-height:80px"></textarea></div>
+        <button class="btn btn-green btn-full" onclick="agSendBroadcast()"><i class="fas fa-paper-plane"></i>Send Notification</button>
+      </div>`
+      :`<div style="text-align:center;padding:24px;font-size:.74rem;color:var(--t3)"><i class="fas fa-lock" style="font-size:1.5rem;display:block;margin-bottom:8px;opacity:.4"></i>Broadcast access disabled</div>`}
     </div>
 
     <!-- WhatsApp Support -->
@@ -6105,7 +6643,7 @@ async function agSubmitGalleryModal(){
 
 /* Agent dashboard helpers */
 function agSwitchTab(tab){
-  ['adv','gal','ord'].forEach(t=>{
+  ['adv','gal','ord','fb','bcast'].forEach(t=>{
     const panel=document.getElementById('ag-panel-'+t);
     const btn=document.getElementById('ag-tab-'+t);
     if(panel) panel.style.display=tab===t?'':'none';
@@ -6115,12 +6653,12 @@ function agSwitchTab(tab){
       btn.style.fontWeight=tab===t?'600':'400';
     }
   });
-  // Auto-focus search when switching to orders tab
   if(tab==='ord'){
     const inp=document.getElementById('ag-order-search');
     if(inp) setTimeout(()=>inp.focus(),100);
     agSearchOrders('');
   }
+  if(tab==='fb') agLoadFeedback();
 }
 async function agSearchOrders(query){
   const el=document.getElementById('ag-order-results');
@@ -6385,6 +6923,7 @@ function renderLBDynamic(){
   if(price)price.textContent=g.price||'';
   const dots=document.getElementById('lb-dots');
   if(dots)dots.innerHTML=src.map((_,i)=>`<div class="lb-dot${i===lbIdx?' on':''}" onclick="lbIdx=${i};renderLBDynamic()"></div>`).join('');
+  _lbUpdateCounter();
 }
 
 /* ════════ ADMIN ADVERTS ════════ */
