@@ -3188,9 +3188,16 @@ function _openPDInner(p) {
   document.getElementById('pd-sheet').classList.add('on');
   showOvl();
   hideLiveResults();
+  _navPush('pd');
 }
 function addToCartAndClose(p) { addToCart(p); closePD(); }
-function closePD() { document.getElementById('pd-sheet')?.classList.remove('on'); hideOvl(); }
+function closePD() {
+  document.getElementById('pd-sheet')?.classList.remove('on');
+  hideOvl();
+  if(!_handlingBack&&_navStack.length>0&&_navStack[_navStack.length-1]==='pd'){
+    _navPop(); history.go(-1);
+  }
+}
 function swapPDImg(src, el) {
   const main = document.getElementById('pd-main-img');
   if (main && safeImgSrc(src)) main.src = src;
@@ -3211,11 +3218,15 @@ function openLB(idx) {
   lb.addEventListener('touchend', _lbTouchEnd, {passive:true});
   document.addEventListener('keydown', _lbKey);
   _lbUpdateCounter();
+  _navPush('lightbox');
 }
 function closeLB() {
   const lb = document.getElementById('lightbox'); if (!lb) return;
   lb.classList.remove('on');
   document.body.style.overflow = '';
+  if(!_handlingBack&&_navStack.length>0&&_navStack[_navStack.length-1]==='lightbox'){
+    _navPop(); history.go(-1);
+  }
   lb.removeEventListener('touchstart', _lbTouchStart);
   lb.removeEventListener('touchend', _lbTouchEnd);
   document.removeEventListener('keydown', _lbKey);
@@ -3266,8 +3277,19 @@ function updBadges() {
   if (cb) { cb.textContent = cc; cb.classList.toggle('hidden', cc === 0); }
   updNotifBadge();
 }
-function openCart() { renderCartBody(); document.getElementById('cart-sheet').classList.add('on'); showOvl(); }
-function closeCart() { document.getElementById('cart-sheet')?.classList.remove('on'); hideOvl(); }
+function openCart() {
+  renderCartBody();
+  document.getElementById('cart-sheet').classList.add('on');
+  showOvl();
+  _navPush('cart');
+}
+function closeCart() {
+  document.getElementById('cart-sheet')?.classList.remove('on');
+  hideOvl();
+  if(!_handlingBack&&_navStack.length>0&&_navStack[_navStack.length-1]==='cart'){
+    _navPop(); history.go(-1);
+  }
+}
 function renderCartBody() {
   const body = document.getElementById('cart-body');
   const foot = document.getElementById('cart-foot');
@@ -3327,9 +3349,15 @@ function openWish() {
     const img = safeImgSrc(item.image_url);
     return `<div class="wi"><div class="${img ? 'wi-img' : 'wi-ph'}">${img ? `<img src="${img}" alt="${esc(item.name)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:8px" onerror="this.parentElement.className='wi-ph';this.remove();this.parentElement.innerHTML='<i class=\\'fas fa-image\\'></i>'">` : '<i class="fas fa-image"></i>'}</div><div style="flex:1;min-width:0"><div class="wi-name">${esc(item.name)}</div><div class="wi-price">KES ${N(item.price)}</div></div><button class="wi-rm" onclick='toggleWish(null,${JSON.stringify(item)});openWish()' aria-label="Remove from wishlist"><i class="fas fa-times"></i></button></div>`;
   }).join('')}</div>`; }
-  document.getElementById('wish-sheet').classList.add('on'); showOvl();
+  document.getElementById('wish-sheet').classList.add('on'); showOvl(); _navPush('wish');
 }
-function closeWish() { document.getElementById('wish-sheet')?.classList.remove('on'); hideOvl(); }
+function closeWish() {
+  document.getElementById('wish-sheet')?.classList.remove('on');
+  hideOvl();
+  if(!_handlingBack&&_navStack.length>0&&_navStack[_navStack.length-1]==='wish'){
+    _navPop(); history.go(-1);
+  }
+}
 
 /* ════════ CHECKOUT ════════ */
 async function openCheckout() {
@@ -3654,7 +3682,7 @@ function buildPDF(o) {
 
   // ── FOOTER ──────────────────────────────────────────────────────
   // ── DISCLAIMER BOX ──────────────────────────────────────────────
-  y=Math.max(y,248);
+  y=Math.max(y,230);  // Raise footer higher on page
   // Outer border (amber/gold)
   doc.setFillColor(255,248,225);
   doc.setDrawColor(180,130,40);
@@ -3685,23 +3713,23 @@ function buildPDF(o) {
   doc.setDrawColor(...goldD);
   doc.setLineWidth(0.3);
   doc.line(18,y,W-18,y);
-  y+=8;
+  y+=6;
   doc.setFont('times','italic');
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.setTextColor(...goldD);
   doc.text('Thank you for shopping with Tote & Tread!',W/2,y,{align:'center'});
-  y+=7;
+  y+=6;
   doc.setFont('helvetica','normal');
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setTextColor(...warmD);
-  doc.text('For queries: toteandtreadcollection@gmail.com  ·  0107545752',W/2,y,{align:'center'});
+  doc.text('toteandtreadcollection@gmail.com  ·  0107545752',W/2,y,{align:'center'});
   y+=5;
   doc.setTextColor(...gold);
   doc.text(_shareUrl()||SITE,W/2,y,{align:'center'});
-  y+=5;
-  doc.setFontSize(6.5);
+  y+=4;
+  doc.setFontSize(6);
   doc.setTextColor(155,135,95);
-  doc.text(`Generated: ${new Date().toLocaleString('en-KE')}`,W/2,y,{align:'center'});
+  doc.text('Generated: '+new Date().toLocaleString('en-KE'),W/2,y,{align:'center'});
 
   // ── CORNER ACCENTS ─────────────────────────────────────────────
   doc.setFillColor(...gold);
@@ -3768,40 +3796,119 @@ async function pushDBNotif({type='system',title,body,link=null,targetUserId=null
   try{await sb.from('notifications').insert([{user_id:uid,type,title,body,link,read:false}]);}catch{}
   if(uid===user?.id){await loadNotifications();}
 }
-function openNotifications(){if(!user){showTab('acc');toast('Sign in to view notifications','nf');return;}document.getElementById('sub-notifs').classList.add('on');showOvl();renderNotifications();}
+function openNotifications(){
+  if(!user){showTab('acc');toast('Sign in to view notifications','nf');return;}
+  document.getElementById('sub-notifs').classList.add('on');
+  showOvl();
+  _navPush('sub:notifs');
+  // Always reload fresh when opening
+  _notifCache=[];
+  renderNotifications();
+}
 async function renderNotifications(){
   const bodyEl=document.getElementById('notifs-body');if(!bodyEl)return;
-  bodyEl.innerHTML='<div class="load-center"><div class="spin"></div></div>';
-  await loadNotifications();
+  if(!_notifCache.length){
+    bodyEl.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+    await loadNotifications();
+  }
   const notifs=_notifCache;
   if(!notifs.length){bodyEl.innerHTML='<div class="empty-state"><i class="fas fa-bell"></i>No notifications yet</div>';return;}
   const icons={welcome:'fa-gift',order:'fa-box',restock:'fa-bell',promo:'fa-tag',system:'fa-info-circle',product:'fa-tag',user:'fa-user',admin:'fa-shield-alt'};
-  const colors={welcome:'badge-green',order:'badge-gold',restock:'badge-amber',promo:'badge-purple',system:'badge-blue',product:'badge-amber',user:'badge-green',admin:'badge-purple'};
-  bodyEl.innerHTML=notifs.map(n=>`
-    <div class="notif-item${n.read?' read':''}" id="ni-${n.id}" onclick="toggleNotif('${n.id}')">
-      <div class="notif-ico ${colors[n.type]||'badge-blue'}"><i class="fas ${icons[n.type]||'fa-info-circle'}"></i></div>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
-          <div class="notif-title" style="flex:1">${esc(n.title)}</div>
-          <i class="fas fa-chevron-down" id="ni-chev-${n.id}" style="font-size:.55rem;color:var(--t3);transition:transform .25s;flex-shrink:0"></i>
-        </div>
-        <div class="notif-ts">${D(n.created_at)}</div>
-        <div id="ni-body-${n.id}" style="display:none;margin-top:8px;padding:10px 12px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--bd)">
-          <div style="font-size:.78rem;color:var(--t1);line-height:1.65;white-space:pre-wrap">${esc(n.body)}</div>
-        </div>
+  const bgColors={welcome:'badge-green',order:'badge-gold',restock:'badge-amber',promo:'badge-purple',system:'badge-blue',product:'badge-amber',user:'badge-green',admin:'badge-purple'};
+  const unread=notifs.filter(n=>!n.read).length;
+  bodyEl.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px">
+      <span style="font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t3)">${unread} unread · ${notifs.length} total</span>
+      ${unread>0?`<button class="btn btn-ghost btn-xs" onclick="markAllRead()"><i class="fas fa-check-double"></i> Mark all read</button>`:''}
+    </div>
+    ${notifs.map(n=>`
+    <div class="notif-item${n.read?' read':''}" id="ni-${n.id}"
+      onclick="openNotifDetail('${n.id}')"
+      style="cursor:pointer;padding:13px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:flex-start;gap:11px;transition:background .15s;${!n.read?'background:rgba(201,168,76,.03)':''}"
+      onmouseover="this.style.background='var(--gold-a8)'" onmouseout="this.style.background='${!n.read?'rgba(201,168,76,.03)':''}'"
+    >
+      <div class="notif-ico ${bgColors[n.type]||'badge-blue'}" style="flex-shrink:0">
+        <i class="fas ${icons[n.type]||'fa-info-circle'}"></i>
       </div>
-      ${!n.read?'<div class="notif-dot" id="ni-dot-'+n.id+'"></div>':''}
-    </div>`).join('');
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px">
+          <div style="font-size:.82rem;font-weight:${n.read?'400':'600'};color:${n.read?'var(--t2)':'var(--t1)'};line-height:1.4">${esc(n.title)}</div>
+          <i class="fas fa-chevron-right" style="font-size:.55rem;color:var(--t3);flex-shrink:0;margin-top:3px"></i>
+        </div>
+        <div style="font-size:.72rem;color:var(--t3);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:4px">${esc(n.body)}</div>
+        <div style="font-size:.6rem;color:var(--t4)">${D(n.created_at)}</div>
+      </div>
+      ${!n.read?`<div style="width:8px;height:8px;background:var(--gold);border-radius:50%;flex-shrink:0;margin-top:5px" id="ni-dot-${n.id}"></div>`:''}
+    </div>`).join('')}`;
+}
+
+function openNotifDetail(id){
+  const n=_notifCache.find(x=>x.id===id);
+  if(!n) return;
+  // Mark as read
+  if(!n.read) readNotif(id);
+
+  const icons={welcome:'fa-gift',order:'fa-box',restock:'fa-bell',promo:'fa-tag',system:'fa-info-circle',product:'fa-tag',user:'fa-user',admin:'fa-shield-alt'};
+  const bgColors={welcome:'badge-green',order:'badge-gold',restock:'badge-amber',promo:'badge-purple',system:'badge-blue',product:'badge-amber',user:'badge-green',admin:'badge-purple'};
+  const typeLabel={welcome:'Welcome',order:'Order Update',restock:'Restock',promo:'Promotion',system:'System',product:'Product',user:'Account',admin:'Admin'}[n.type]||n.type;
+
+  const modal=document.createElement('div');
+  modal.id='notif-detail-modal';
+  modal.style.cssText='position:fixed;inset:0;z-index:9800;background:rgba(0,0,0,.88);display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fadeIn .2s ease';
+  modal.innerHTML=`
+    <div style="background:var(--bg3);border-radius:var(--rxl) var(--rxl) 0 0;width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;animation:slideUp .25s ease">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;border-bottom:1px solid var(--bd)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="notif-ico ${bgColors[n.type]||'badge-blue'}" style="flex-shrink:0">
+            <i class="fas ${icons[n.type]||'fa-info-circle'}"></i>
+          </div>
+          <div>
+            <div style="font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:1px">${esc(typeLabel)}</div>
+            <div style="font-size:.84rem;font-weight:700;color:var(--t1);line-height:1.3">${esc(n.title)}</div>
+          </div>
+        </div>
+        <button onclick="document.getElementById('notif-detail-modal').remove()"
+          style="width:32px;height:32px;background:var(--bg4);border:1px solid var(--bd);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t2);font-size:.82rem;flex-shrink:0">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Timestamp + read status -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 16px;background:var(--bg2);border-bottom:1px solid var(--bd)">
+        <div style="display:flex;align-items:center;gap:6px;font-size:.66rem;color:var(--t3)">
+          <i class="fas fa-clock" style="color:var(--gold);font-size:.6rem"></i>
+          ${D(n.created_at)}
+        </div>
+        <span style="font-size:.6rem;padding:2px 8px;border-radius:20px;background:${n.read?'rgba(50,200,100,.12)':'rgba(201,168,76,.12)'};color:${n.read?'#32C864':'var(--gold)'}">
+          ${n.read?'✓ Read':'● Unread'}
+        </span>
+      </div>
+
+      <!-- Full message body -->
+      <div style="flex:1;overflow-y:auto;padding:18px 16px">
+        <div style="font-size:.85rem;color:var(--t1);line-height:1.75;white-space:pre-wrap;word-break:break-word">
+          ${esc(n.body||'No message body.')}
+        </div>
+        ${n.link?`<a href="${esc(n.link)}" target="_blank" rel="noopener"
+          style="display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 16px;background:rgba(201,168,76,.1);border:1px solid var(--gold-a25);border-radius:var(--r);font-size:.76rem;color:var(--gold);text-decoration:none">
+          <i class="fas fa-external-link-alt" style="font-size:.68rem"></i>View Details
+        </a>`:''}
+      </div>
+
+      <!-- Close button -->
+      <div style="padding:12px 16px;border-top:1px solid var(--bd)">
+        <button class="btn btn-gold btn-full" onclick="document.getElementById('notif-detail-modal').remove()">
+          <i class="fas fa-check"></i>Close
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e=>{ if(e.target===modal) modal.remove(); });
 }
 function toggleNotif(id){
-  const body=document.getElementById('ni-body-'+id);
-  const chev=document.getElementById('ni-chev-'+id);
-  if(!body)return;
-  const isOpen=body.style.display!=='none';
-  body.style.display=isOpen?'none':'block';
-  if(chev)chev.style.transform=isOpen?'':'rotate(180deg)';
-  // Mark as read when expanded
-  if(!isOpen) readNotif(id);
+  // Legacy — now delegates to full detail modal
+  openNotifDetail(id);
 }
 async function readNotif(id){
   if(!sb||!user)return;
@@ -3837,8 +3944,21 @@ async function notifyOrderPlaced(orderId,total){
 function showOvl(){document.getElementById('ovl').classList.add('on');}
 function hideOvl(){document.getElementById('ovl').classList.remove('on');}
 function closeAll(){document.querySelectorAll('.sheet.on,.modal.on').forEach(el=>el.classList.remove('on'));document.querySelectorAll('.sub.on').forEach(el=>el.classList.remove('on'));const lb=document.getElementById('lightbox');if(lb?.classList.contains('on')){lb.classList.remove('on');document.body.style.overflow='';}document.getElementById('admin')?.classList.remove('on');hideOvl();}
-function openSub(name){document.getElementById('sub-'+name)?.classList.add('on');showOvl();if(name==='about')setTimeout(runAboutCounters,300);if(name==='agent')setTimeout(checkAgentStatus,300);}
-function closeSub(name){document.getElementById('sub-'+name)?.classList.remove('on');hideOvl();}
+function openSub(name){
+  document.getElementById('sub-'+name)?.classList.add('on');
+  showOvl();
+  _navPush('sub:'+name);
+  if(name==='about')setTimeout(runAboutCounters,300);
+  if(name==='agent')setTimeout(checkAgentStatus,300);
+}
+function closeSub(name){
+  document.getElementById('sub-'+name)?.classList.remove('on');
+  hideOvl();
+  if(!_handlingBack&&_navStack.length>0&&_navStack[_navStack.length-1]==='sub:'+name){
+    _navPop();
+    history.go(-1);
+  }
+}
 
 /* ════════ ACCOUNT ════════ */
 async function renderAcc(){const el=document.getElementById('acc-body');if(!el)return;if(user)await renderLoggedIn(el);else if(isGuest)renderGuestProfile(el);else renderAuthForms(el,'login');}
@@ -4480,8 +4600,21 @@ async function renderAdmInventory(){
 }
 
 /* ════════ ADMIN ════════ */
-function openAdmin(){if(userRole!=='admin'){toast('Admin access required','er');showTab('acc');return;}document.getElementById('admin').classList.add('on');showOvl();admTab('overview');}
-function closeAdmin(){document.getElementById('admin')?.classList.remove('on');hideOvl();}
+function openAdmin(){
+  if(userRole!=='admin'){toast('Admin access required','er');showTab('acc');return;}
+  document.getElementById('admin').classList.add('on');
+  showOvl();
+  admTab('overview');
+  _navPush('admin');
+}
+function closeAdmin(){
+  document.getElementById('admin')?.classList.remove('on');
+  hideOvl();
+  if(!_handlingBack&&_navStack.length>0&&_navStack[_navStack.length-1]==='admin'){
+    _navPop();
+    history.go(-1);
+  }
+}
 function admTab(name){document.querySelectorAll('.adm-tab').forEach(t=>t.classList.remove('on'));document.querySelector(`.adm-tab[onclick="admTab('${name}')"]`)?.classList.add('on');const content=document.getElementById('adm-content');const sections={overview:renderAdmOverview,notifications:renderAdmNotifications,logs:renderAdmLogs,products:renderAdmProducts,inventory:renderAdmInventory,orders:renderAdmOrders,users:renderAdmUsers,badges:renderAdmBadges,agents:renderAdmAgents,gallery:renderAdmGallery,adverts:renderAdmAdverts,messages:renderAdmMessages,broadcast:renderAdmBroadcast,settings:renderAdmSettings};content.innerHTML='<div class="load-center"><div class="spin"></div></div>';(sections[name]||(() => {}))();}
 async function renderAdmOverview(){
   const el=document.getElementById('adm-content');
@@ -5245,14 +5378,22 @@ async function renderAdmNotifications(){
     notifs.map(n=>{
       const icons={order:'fa-receipt',user:'fa-user-plus',welcome:'fa-gift',warning:'fa-exclamation-triangle',product:'fa-box',admin:'fa-shield-alt',system:'fa-info-circle',promo:'fa-tag'};
       const colors={order:'badge-gold',user:'badge-green',welcome:'badge-green',warning:'badge-red',product:'badge-amber',admin:'badge-purple',system:'badge-blue',promo:'badge-purple'};
-      return `<div style="display:flex;gap:10px;padding:11px 12px;background:${n.read?'var(--bg3)':'rgba(201,168,76,.04)'};border:1px solid ${n.read?'var(--bd)':'var(--gold-a25)'};border-radius:var(--rl);margin-bottom:7px;cursor:pointer" onclick="admReadNotif('${esc(n.id)}',this)">
-        <div style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.78rem" class="${colors[n.type]||'badge-blue'}"><i class="fas ${icons[n.type]||'fa-info-circle'}"></i></div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:.8rem;font-weight:${n.read?'400':'600'};color:${n.read?'var(--t2)':'var(--t1)'};margin-bottom:2px">${esc(n.title)}</div>
-          <div style="font-size:.7rem;color:var(--t3);line-height:1.5">${esc(n.body)}</div>
-          <div style="font-size:.6rem;color:var(--t4);margin-top:4px">${D(n.created_at)}</div>
+      return `<div
+        style="display:flex;gap:10px;padding:12px 13px;background:${n.read?'var(--bg3)':'rgba(201,168,76,.04)'};border:1px solid ${n.read?'var(--bd)':'var(--gold-a25)'};border-radius:var(--rl);margin-bottom:7px;cursor:pointer;transition:background .15s"
+        onmouseover="this.style.background='var(--gold-a8)'" onmouseout="this.style.background='${n.read?'var(--bg3)':'rgba(201,168,76,.04)'}'"
+        onclick="openAdmNotifDetail('${esc(n.id)}',this)">
+        <div style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.8rem" class="${colors[n.type]||'badge-blue'}">
+          <i class="fas ${icons[n.type]||'fa-info-circle'}"></i>
         </div>
-        ${!n.read?'<div style="width:8px;height:8px;background:var(--gold);border-radius:50%;flex-shrink:0;margin-top:4px"></div>':''}
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px">
+            <div style="font-size:.8rem;font-weight:${n.read?'400':'600'};color:${n.read?'var(--t2)':'var(--t1)'};line-height:1.4">${esc(n.title)}</div>
+            <i class="fas fa-chevron-right" style="font-size:.55rem;color:var(--t3);flex-shrink:0;margin-top:3px"></i>
+          </div>
+          <div style="font-size:.7rem;color:var(--t3);line-height:1.45;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:3px">${esc(n.body)}</div>
+          <div style="font-size:.6rem;color:var(--t4)">${D(n.created_at)}</div>
+        </div>
+        ${!n.read?'<div style="width:8px;height:8px;background:var(--gold);border-radius:50%;flex-shrink:0;margin-top:5px"></div>':''}
       </div>`;
     }).join('')}
   </div>`;
@@ -5264,14 +5405,89 @@ async function admReadNotif(id, rowEl){
     rowEl.style.border='1px solid var(--bd)';
     const dot=rowEl.querySelector('[style*="background:var(--gold)"]');
     if(dot)dot.remove();
+    // Update bold title to normal weight
+    const title=rowEl.querySelector('[style*="font-weight:600"]');
+    if(title){title.style.fontWeight='400';title.style.color='var(--t2)';}
   }
-  await sb.from('notifications').update({read:true}).eq('id',id).catch(()=>{});
+  // Update cache and badge immediately
+  _notifCache=_notifCache.map(n=>n.id===id?{...n,read:true}:n);
+  updNotifBadge();
+  (async()=>{try{await sb.from('notifications').update({read:true}).eq('id',id);}catch{}})(  );
 }
+function openAdmNotifDetail(id, rowEl){
+  // Mark as read in UI immediately
+  if(rowEl){
+    const dot=rowEl.querySelector('[style*="border-radius:50%;flex-shrink:0"]');
+    if(dot) dot.remove();
+    rowEl.style.background='var(--bg3)';
+    rowEl.style.border='1px solid var(--bd)';
+    const title=rowEl.querySelector('[style*="font-weight:600"]');
+    if(title){title.style.fontWeight='400';title.style.color='var(--t2)';}
+  }
+  // Update cache + badge
+  _notifCache=_notifCache.map(n=>n.id===id?{...n,read:true}:n);
+  updNotifBadge();
+  (async()=>{try{await sb.from('notifications').update({read:true}).eq('id',id);}catch{}})(  );
+
+  // Find notification data — search cache and fallback to row content
+  const n=_notifCache.find(x=>x.id===id);
+  if(!n){ toast('Notification not found','nf'); return; }
+
+  const icons={order:'fa-receipt',user:'fa-user-plus',welcome:'fa-gift',warning:'fa-exclamation-triangle',product:'fa-box',admin:'fa-shield-alt',system:'fa-info-circle',promo:'fa-tag',admin_log:'fa-shield-alt'};
+  const bgColors={order:'badge-gold',user:'badge-green',welcome:'badge-green',warning:'badge-red',product:'badge-amber',admin:'badge-purple',system:'badge-blue',promo:'badge-purple',admin_log:'badge-purple'};
+  const typeLabel={order:'Order Update',user:'User',welcome:'Welcome',warning:'Warning',product:'Product',admin:'Admin',system:'System',promo:'Promotion',admin_log:'Admin Log'}[n.type]||n.type;
+
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;z-index:9800;background:rgba(0,0,0,.88);display:flex;align-items:flex-end;justify-content:center;padding:0';
+  modal.innerHTML=`
+    <div style="background:var(--bg3);border-radius:var(--rxl) var(--rxl) 0 0;width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;animation:slideUp .25s ease">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;border-bottom:1px solid var(--bd)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="notif-ico ${bgColors[n.type]||'badge-blue'}" style="flex-shrink:0">
+            <i class="fas ${icons[n.type]||'fa-info-circle'}"></i>
+          </div>
+          <div>
+            <div style="font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:1px">${esc(typeLabel)}</div>
+            <div style="font-size:.88rem;font-weight:700;color:var(--t1);line-height:1.3">${esc(n.title)}</div>
+          </div>
+        </div>
+        <button onclick="this.closest('[style*=z-index]').remove()"
+          style="width:32px;height:32px;background:var(--bg4);border:1px solid var(--bd);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t2);font-size:.82rem;flex-shrink:0">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--bd)">
+        <div style="font-size:.64rem;color:var(--t3)">
+          <i class="fas fa-clock" style="color:var(--gold);margin-right:5px;font-size:.6rem"></i>${D(n.created_at)}
+        </div>
+        <span style="font-size:.6rem;padding:2px 8px;border-radius:20px;background:rgba(50,200,100,.12);color:#32C864">✓ Read</span>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:18px 16px">
+        <div style="font-size:.86rem;color:var(--t1);line-height:1.78;white-space:pre-wrap;word-break:break-word">
+          ${esc(n.body||'No message body.')}
+        </div>
+        ${n.link?`<a href="${esc(n.link)}" target="_blank" rel="noopener"
+          style="display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 16px;background:rgba(201,168,76,.1);border:1px solid var(--gold-a25);border-radius:var(--r);font-size:.76rem;color:var(--gold);text-decoration:none">
+          <i class="fas fa-external-link-alt" style="font-size:.68rem"></i>View Details
+        </a>`:''}
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid var(--bd)">
+        <button class="btn btn-gold btn-full" onclick="this.closest('[style*=z-index]').remove()">
+          <i class="fas fa-check"></i>Done
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{if(e.target===modal) modal.remove();});
+}
+
 async function admMarkAllNotifsRead(){
   if(!sb||!user)return;
-  await sb.from('notifications').update({read:true}).eq('user_id',user.id).catch(()=>{});
+  _notifCache=_notifCache.map(n=>({...n,read:true}));
+  updNotifBadge();
   toast('All notifications marked as read','ok');
   renderAdmNotifications();
+  (async()=>{try{await sb.from('notifications').update({read:true}).eq('user_id',user.id);}catch{}})(  );
 }
 
 /* ── Push notification to ALL admins ── */
@@ -7329,6 +7545,71 @@ function popupOk(title, msg) {
 function popupConfirm(title, msg, confirmLabel = 'Confirm', cancelLabel = 'Cancel') {
   return showPopup({ title, msg, type: 'wa', confirmLabel, cancelLabel });
 }
+
+
+/* ════════ PHONE BACK BUTTON / SWIPE-BACK NAVIGATION ════════
+   Uses History API: every overlay push pushes a state.
+   Android back button and iOS swipe-back fires popstate → closes top layer.
+   Stack pattern: _navStack tracks what's open so we close in order.
+═══════════════════════════════════════════════════════════════ */
+const _navStack = [];
+
+function _navPush(label) {
+  _navStack.push(label);
+  history.pushState({ nav: label, depth: _navStack.length }, '');
+}
+
+function _navPop() {
+  _navStack.pop();
+}
+
+// Handle back gesture / back button
+let _handlingBack = false;
+window.addEventListener('popstate', (e) => {
+  if (_navStack.length === 0) return;
+
+  _handlingBack = true;
+  const top = _navStack[_navStack.length - 1];
+  _navPop();
+
+  // Close whichever layer is on top
+  if (top === 'lightbox') {
+    const lb = document.getElementById('lightbox');
+    if (lb?.classList.contains('on')) {
+      lb.classList.remove('on');
+      document.body.style.overflow = '';
+      lb.removeEventListener('touchstart', _lbTouchStart);
+      lb.removeEventListener('touchend', _lbTouchEnd);
+      document.removeEventListener('keydown', _lbKey);
+    }
+  } else if (top === 'admin') {
+    const a = document.getElementById('admin');
+    if (a?.classList.contains('on')) { a.classList.remove('on'); hideOvl(); }
+  } else if (top === 'receipt-modal') {
+    document.getElementById('receipt-modal-overlay')?.remove();
+    hideOvl();
+  } else if (top === 'pd') {
+    closePD();
+  } else if (top === 'cart') {
+    closeCart();
+  } else if (top === 'wish') {
+    closeWish();
+  } else if (top === 'co') {
+    closeCO();
+  } else if (top && top.startsWith('sub:')) {
+    const subName = top.slice(4);
+    const el = document.getElementById('sub-' + subName);
+    if (el?.classList.contains('on')) { el.classList.remove('on'); hideOvl(); }
+  } else if (top && top.startsWith('modal:')) {
+    const modalId = top.slice(6);
+    const el = document.getElementById(modalId);
+    if (el?.classList.contains('on')) { el.classList.remove('on'); hideOvl(); }
+  } else {
+    closeAll();
+  }
+  // Clear flag after a tick so close functions see it
+  setTimeout(()=>{ _handlingBack=false; }, 0);
+});
 
 /* ════════ BOOT ════════ */
 document.addEventListener('DOMContentLoaded', () => {
