@@ -2296,6 +2296,7 @@ async function init() {
 
   // PWA — register service worker + show install popup every visit
   initPWA();
+  initSmartRefresh();
   document.querySelectorAll('.gi').forEach(gi => {
     gi.addEventListener('click', () => openLB(parseInt(gi.dataset.gal)));
     gi.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLB(parseInt(gi.dataset.gal)); } });
@@ -2448,6 +2449,135 @@ function showUpdateBanner(){
       <i class="fas fa-times"></i>
     </button>`;
   document.body.appendChild(b);
+}
+
+/* ════════ SMART AUTO-REFRESH SYSTEM ════════ */
+function initSmartRefresh(){
+
+  // ── Config ──
+  const STALE_AFTER_MS    = 25 * 60 * 1000;  // 25 min open → hard reload
+  const DB_REFRESH_MS     = 3  * 60 * 1000;  // every 3 min refresh DB data
+  const SW_CHECK_MS       = 5  * 60 * 1000;  // every 5 min check SW for new HTML
+
+  let _openedAt    = Date.now();
+  let _lastVisible = Date.now();
+  let _dbTimer     = null;
+  let _swTimer     = null;
+  let _staleTimer  = null;
+
+  // ── Soft DB refresh: reload products, settings, notifications without page reload ──
+  async function softRefreshDB(){
+    if(!sb||!navigator.onLine) return;
+    try{
+      // Bust product cache so next render fetches fresh prices/stock
+      try{ sessionStorage.removeItem('tt_products_cache'); sessionStorage.removeItem('tt_products_time'); }catch(_){}
+      // Reload products silently
+      if(typeof loadProducts==='function') await loadProducts().catch(()=>{});
+      // Reload settings (announcements, social links, adverts)
+      if(typeof loadAppSettings==='function') await loadAppSettings().catch(()=>{});
+      // Reload adverts
+      if(typeof loadAndRenderAdverts==='function') await loadAndRenderAdverts().catch(()=>{});
+      // Reload notifications for signed-in user
+      if(user&&typeof loadNotifications==='function') await loadNotifications().catch(()=>{});
+      console.log('[AutoRefresh] DB refreshed silently');
+    }catch(_){}
+  }
+
+  // ── Hard reload: preserves session via Supabase local storage ──
+  // Supabase stores the session in localStorage so reloading keeps the user signed in
+  function hardReload(){
+    // Only reload when the tab is visible and online
+    if(document.visibilityState!=='visible'||!navigator.onLine) return;
+    console.log('[AutoRefresh] Stale page — reloading');
+    window.location.reload();
+  }
+
+  // ── SW update check: ask SW to check for a new version ──
+  function checkSWUpdate(){
+    if(!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.getRegistration('/').then(reg=>{
+      if(reg) reg.update().catch(()=>{});
+    }).catch(()=>{});
+  }
+
+  // ── Start timers ──
+  function startTimers(){
+    clearInterval(_dbTimer);
+    clearInterval(_swTimer);
+    clearTimeout(_staleTimer);
+
+    // DB data refresh every 3 minutes while visible
+    _dbTimer = setInterval(()=>{
+      if(document.visibilityState==='visible') softRefreshDB();
+    }, DB_REFRESH_MS);
+
+    // SW/HTML update check every 5 minutes
+    _swTimer = setInterval(()=>{
+      if(document.visibilityState==='visible') checkSWUpdate();
+    }, SW_CHECK_MS);
+
+    // Stale page reload after 25 minutes of continuous open time
+    _staleTimer = setTimeout(()=>{
+      hardReload();
+    }, STALE_AFTER_MS);
+  }
+
+  startTimers();
+
+  // ── Page visibility: when user comes back to the tab ──
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState!=='visible') return;
+
+    const awayMs = Date.now() - _lastVisible;
+    _lastVisible = Date.now();
+
+    // If tab was away for more than 15 minutes, do a soft DB refresh immediately
+    if(awayMs > 15 * 60 * 1000){
+      softRefreshDB();
+      checkSWUpdate();
+    }
+
+    // If tab has been open for more than 25 min total (counting away time), hard reload
+    if(Date.now() - _openedAt > STALE_AFTER_MS){
+      hardReload();
+      return;
+    }
+
+    // Reset stale timer from now
+    clearTimeout(_staleTimer);
+    _staleTimer = setTimeout(()=>{ hardReload(); }, STALE_AFTER_MS);
+  });
+
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='hidden') _lastVisible=Date.now();
+  });
+
+  // ── App open / PWA launch: immediate soft refresh ──
+  // pageshow fires on back-navigation and fresh load
+  window.addEventListener('pageshow', e=>{
+    // e.persisted = true means the page was restored from bfcache (back button)
+    if(e.persisted){
+      console.log('[AutoRefresh] Restored from bfcache — refreshing data');
+      softRefreshDB();
+      checkSWUpdate();
+      // Reset stale timer
+      _openedAt = Date.now();
+      clearTimeout(_staleTimer);
+      _staleTimer = setTimeout(()=>{ hardReload(); }, STALE_AFTER_MS);
+    }
+  });
+
+  // ── Online event: refresh immediately when reconnecting ──
+  window.addEventListener('online', ()=>{
+    console.log('[AutoRefresh] Back online — refreshing data');
+    setTimeout(softRefreshDB, 1000); // 1s delay to let connection stabilise
+  });
+
+  // ── Initial load: soft refresh 2 seconds after page opens ──
+  // Gives auth time to settle before fetching DB data
+  setTimeout(()=>{
+    if(navigator.onLine) softRefreshDB();
+  }, 2000);
 }
 
 function registerServiceWorker() {
