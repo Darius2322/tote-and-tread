@@ -1055,13 +1055,13 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
     <div style="text-align:center;margin-bottom:20px">
       <div style="width:54px;height:54px;background:var(--gold-a8);border:1.5px solid var(--gold-a45);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:1.2rem;color:var(--gold)"><i class="fas fa-lock"></i></div>
       <h3 style="font-family:var(--fd);font-size:1.4rem;margin-bottom:5px">Create New Password</h3>
-      <p style="font-size:.74rem;color:var(--t3);line-height:1.6">Choose a strong password for your Tote &amp; Tread account.</p>
+      <p id="reset-pw-sub" style="font-size:.74rem;color:var(--t3);line-height:1.6">Choose a strong password for your Tote &amp; Tread account.</p>
     </div>
     <div class="fg"><label class="flbl">New Password</label><div class="pw-wrap"><input type="password" class="fi" id="np-pw" placeholder="At least 8 characters" maxlength="128" autocomplete="new-password"><button class="pw-eye" type="button" onclick="tglPW('np-pw','np-pi')"><i class="fas fa-eye" id="np-pi"></i></button></div></div>
     <div class="fg"><label class="flbl">Confirm New Password</label><div class="pw-wrap"><input type="password" class="fi" id="np-pw2" placeholder="Repeat your password" maxlength="128" autocomplete="new-password"><button class="pw-eye" type="button" onclick="tglPW('np-pw2','np-pi2')"><i class="fas fa-eye" id="np-pi2"></i></button></div></div>
     <div id="np-err" class="ferr" style="display:none;margin-bottom:10px"></div>
     <button class="btn btn-gold btn-full" id="np-btn" onclick="doUpdatePassword()"><i class="fas fa-lock"></i>Save New Password</button>
-    <p style="text-align:center;margin-top:12px"><a href="#" style="font-size:.72rem;color:var(--t3)" onclick="document.getElementById('reset-pw-overlay').classList.remove('on');history.replaceState(null,'',location.pathname);return false">← Cancel</a></p>
+    <p style="text-align:center;margin-top:12px"><a href="#" style="font-size:.72rem;color:var(--t3);display:inline-flex;align-items:center;gap:5px" onclick="closeResetOverlay();return false"><i class="fas fa-arrow-left" style="font-size:.6rem"></i> Cancel</a></p>
   </div>
 </div>
 
@@ -2218,6 +2218,76 @@ async function init() {
   if (urlParams.get('reset') === '1' || (urlParams.has('type') && urlParams.get('type') === 'recovery')) {
     document.getElementById('reset-pw-overlay').classList.add('on');
   }
+  // Secure deep link: ?reset=1&rt=URL_TOKEN
+  // Token is looked up in recovery_codes — email never exposed in URL
+  const rtToken = urlParams.get('rt');
+  if (urlParams.get('reset') === '1' && rtToken) {
+    history.replaceState(null, '', window.location.pathname); // remove token from URL immediately
+    // Look up token in DB — runs after sb is initialised (slight delay)
+    setTimeout(async () => {
+      try {
+        let preEmail = '';
+        if (sb) {
+          // Try RPC first (works unauthenticated via SECURITY DEFINER)
+          try {
+            const { data: rpcData } = await sb.rpc('resolve_reset_token', { p_token: rtToken });
+            if (rpcData?.email) preEmail = rpcData.email;
+          } catch(_) {}
+          // Fallback: direct query (works if recovery_own_read policy allows it)
+          if (!preEmail) {
+            try {
+              const { data: rows } = await sb.from('recovery_codes')
+                .select('email').eq('url_token', rtToken).eq('used', false)
+                .gt('expires_at', new Date().toISOString()).limit(1);
+              if (rows && rows[0]) preEmail = rows[0].email;
+            } catch(_) {}
+          }
+        }
+        if (!preEmail) {
+          // Token invalid or expired — show generic reset page
+          showTab('acc');
+          if (typeof showReset === 'function') showReset();
+          setTimeout(() => {
+            const errEl = document.getElementById('ac-err');
+            if (errEl) { errEl.textContent = 'This reset link has expired or already been used. Please request a new one.'; errEl.style.display = ''; }
+          }, 700);
+          return;
+        }
+        // Token valid — jump straight to OTP entry step
+        showTab('acc');
+        if (typeof showReset === 'function') showReset();
+        setTimeout(() => {
+          const emailInput = document.getElementById('ac-email');
+          if (emailInput) emailInput.value = preEmail;
+          window._acVerifiedEmail = preEmail;
+          const step1 = document.getElementById('ac-step1');
+          const step2 = document.getElementById('ac-step2');
+          if (step1) step1.style.display = 'none';
+          if (step2) step2.style.display = '';
+          document.querySelector('#ac-step2')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 700);
+      } catch(_) {}
+    }, 900);
+  }
+  // Legacy: ?reset=1&code=true&email=... (keep for backwards compat)
+  if (urlParams.get('reset') === '1' && urlParams.get('code') === 'true') {
+    const preEmail = urlParams.get('email') || '';
+    history.replaceState(null, '', window.location.pathname);
+    setTimeout(() => {
+      showTab('acc');
+      if (typeof showReset === 'function') showReset();
+      setTimeout(() => {
+        const emailInput = document.getElementById('ac-email');
+        if (emailInput && preEmail) emailInput.value = preEmail;
+        if (preEmail) window._acVerifiedEmail = preEmail;
+        const step1 = document.getElementById('ac-step1');
+        const step2 = document.getElementById('ac-step2');
+        if (step1) step1.style.display = 'none';
+        if (step2) step2.style.display = '';
+        document.querySelector('#ac-step2')?.scrollIntoView({behavior:'smooth', block:'center'});
+      }, 600);
+    }, 500);
+  }
   // Verification email link → open account tab automatically
   if (urlParams.get('tab') === 'acc') {
     setTimeout(() => { showTab('acc'); }, 800);
@@ -2819,7 +2889,7 @@ async function saveProfile(){
     // Update auth metadata (non-blocking — don't let it block the UI)
     const metaUpdate={full_name:name};
     if(avatarUrl) metaUpdate.avatar_url=avatarUrl;
-    sb.auth.updateUser({data:metaUpdate}).catch(()=>{});
+    (async()=>{try{await sb.auth.updateUser({data:metaUpdate});}catch(_){}})();
 
     // Update local state
     if(user.user_metadata) user.user_metadata.full_name=name;
@@ -2828,7 +2898,7 @@ async function saveProfile(){
 
     // Keep user_contacts in sync (non-blocking)
     if(fullPhone){
-      sb.from('user_contacts').upsert({user_id:user.id,phone:fullPhone,updated_at:new Date().toISOString()},{onConflict:'user_id'}).catch(()=>{});
+      (async()=>{try{await sb.from('user_contacts').upsert({user_id:user.id,phone:fullPhone,updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(_){}})();
     }
 
     // ── SUCCESS: show animation, then go back ──
@@ -2848,10 +2918,29 @@ async function saveProfile(){
         </div>`;
     }
     window._avatarFileToUpload=null; // clear global file ref
+
+    // Send in-app notification confirming the change (non-blocking)
+    (async()=>{
+      try{
+        const now=new Date().toLocaleString('en-KE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        const changedFields=[];
+        if(name) changedFields.push('name');
+        if(fullPhone) changedFields.push('phone number');
+        if(avatarUrl) changedFields.push('profile photo');
+        const what=changedFields.length?changedFields.join(' & '):'details';
+        await pushDBNotif({
+          type:'system',
+          title:'Profile Updated \u2713',
+          body:'Your '+what+' was successfully updated on '+now+'. If you did not make this change, contact support.',
+          targetUserId:user.id
+        });
+      }catch(_){}
+    })();
+
     setTimeout(()=>{
       closeSub('editprofile');
       renderAcc();
-      toast('Profile updated! ✓','ok');
+      toast('Profile updated! \u2713','ok');
     },2000);
 
   } catch(err) {
@@ -2920,11 +3009,33 @@ async function fetchRole() {
 
   const emailLower = (user.email || '').toLowerCase();
 
+  // Helper: send welcome-back in-app notification once per session
+  function sendWelcomeNotif(role){
+    const key='tt_welcomed_'+user.id;
+    if(sessionStorage.getItem(key)==='1') return; // already sent this session
+    sessionStorage.setItem(key,'1');
+    const name=user.user_metadata?.full_name||user.email?.split('@')[0]||'there';
+    const now=new Date();
+    const hour=now.getHours();
+    const timeOfDay=hour<12?'Good morning':'Good evening';
+    const msgs={
+      admin:`${timeOfDay}, ${name}! You're signed in as Admin. The dashboard is ready.`,
+      agent:`${timeOfDay}, ${name}! Welcome back. Your agent dashboard is ready.`,
+      customer:`${timeOfDay}, ${name}! Welcome back to Tote & Tread. Great to see you again.`
+    };
+    const titles={admin:'Welcome back, Admin 🛡',agent:'Welcome back, Agent 🤝',customer:'Welcome back! 👋'};
+    // Send in-app notification (non-blocking)
+    (async()=>{
+      try{ await pushDBNotif({type:'welcome',title:titles[role]||titles.customer,body:msgs[role]||msgs.customer,targetUserId:user.id}); }catch(_){}
+    })();
+  }
+
   // 1. Instant admin check — email-based guarantee
   if (ADMIN_EMAILS.some(a => a.toLowerCase() === emailLower)) {
     userRole = 'admin';
     toast('Welcome back, Admin 🛡', 'ok');
-    logAdminSignIn();  // Track admin session
+    logAdminSignIn();
+    sendWelcomeNotif('admin');
     try{ await sb.from('profiles').update({ visit_count: 1, last_visit: new Date().toISOString() }).eq('id', user.id); }catch(_){}
     loadNotifications();
     return;
@@ -2934,7 +3045,7 @@ async function fetchRole() {
   if (AGENT_EMAILS.some(a => a.toLowerCase() === emailLower)) {
     userRole = 'agent';
     toast('Welcome back, Agent 🤝', 'ok');
-    // FIX-06b: Never write role:'agent' from client — only update visit tracking
+    sendWelcomeNotif('agent');
     try{ await sb.from('profiles').update({ visit_count: 1, last_visit: new Date().toISOString() }).eq('id', user.id); }catch(_){}
     loadNotifications();
     return;
@@ -2942,11 +3053,12 @@ async function fetchRole() {
 
   // 3. DB check for all other users
   try {
-    const { data, error } = await sb.from('profiles').select('role,visit_count').eq('id', user.id).maybeSingle();
+    const { data, error } = await sb.from('profiles').select('role,visit_count,full_name').eq('id', user.id).maybeSingle();
     if (error) { console.warn('fetchRole error:', error.message); userRole = 'customer'; return; }
     userRole = data?.role || 'customer';
     if (userRole === 'admin') { toast('Welcome back, Admin 🛡', 'ok'); logAdminSignIn(); }
     if (userRole === 'agent') toast('Welcome back, Agent 🤝', 'ok');
+    sendWelcomeNotif(userRole||'customer');
     // Track visit
     try{ await sb.from('profiles').update({ visit_count:(data?.visit_count||0)+1, last_visit:new Date().toISOString() }).eq('id', user.id); }catch(_){}
     loadNotifications();
@@ -3419,7 +3531,7 @@ async function placeOrder() {
     await notifyOrderPlaced(ordId, total);
     // Save contact if user checked the option
     if (user && sb && document.getElementById('co-save-contact')?.checked) {
-      await sb.from('user_contacts').upsert({user_id:user.id, phone:fullPhone, delivery_address:addr, updated_at:new Date().toISOString()},{onConflict:'user_id'}).catch(()=>{});
+      try{await sb.from('user_contacts').upsert({user_id:user.id,phone:fullPhone,delivery_address:addr,updated_at:new Date().toISOString()},{onConflict:'user_id'});}catch(_){}
     }
     cart=[]; saveCart(); updBadges(); closeCO(); toast('Order placed successfully! 🎉','ok');
   } catch { toast('Could not place order. Please try again.','er'); btn.disabled=false; btn.innerHTML='<i class="fas fa-lock"></i>Confirm Order via WhatsApp'; }
@@ -3784,7 +3896,7 @@ function updNotifBadge(){const cnt=getUnreadCount();const badge=document.getElem
 async function loadNotifications(){
   if(!user||!sb)return;
   try{
-    const{data}=await sb.from('notifications').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(50);
+    const{data}=await sb.from('notifications').select('*').eq('user_id',user.id).neq('type','admin_log').order('created_at',{ascending:false}).limit(50);
     _notifCache=data||[];
     updNotifBadge();
   }catch{}
@@ -3835,7 +3947,7 @@ async function renderNotifications(){
           <div style="font-size:.82rem;font-weight:${n.read?'400':'600'};color:${n.read?'var(--t2)':'var(--t1)'};line-height:1.4">${esc(n.title)}</div>
           <i class="fas fa-chevron-right" style="font-size:.55rem;color:var(--t3);flex-shrink:0;margin-top:3px"></i>
         </div>
-        <div style="font-size:.72rem;color:var(--t3);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:4px">${esc(n.body)}</div>
+        <div style="font-size:.72rem;color:var(--t3);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:4px">${(()=>{try{const _b=JSON.parse(n.body||'{}');if(_b.msg) return esc(_b.msg);if(_b.detail) return esc(_b.detail);if(_b.actor_name) return esc(_b.actor_name+(_b.detail?' — '+_b.detail:''));}catch(_){}return esc(n.body||'');})()}</div>
         <div style="font-size:.6rem;color:var(--t4)">${D(n.created_at)}</div>
       </div>
       ${!n.read?`<div style="width:8px;height:8px;background:var(--gold);border-radius:50%;flex-shrink:0;margin-top:5px" id="ni-dot-${n.id}"></div>`:''}
@@ -3888,12 +4000,12 @@ function openNotifDetail(id){
       <!-- Full message body -->
       <div style="flex:1;overflow-y:auto;padding:18px 16px">
         <div style="font-size:.85rem;color:var(--t1);line-height:1.75;white-space:pre-wrap;word-break:break-word">
-          ${esc(n.body||'No message body.')}
+          ${(()=>{try{const _b=JSON.parse(n.body||'{}');if(_b.msg) return esc(_b.msg);if(_b.detail) return esc(_b.detail);if(_b.actor_name) return esc(_b.actor_name+(_b.detail?' — '+_b.detail:''));}catch(_){}return esc(n.body||'No message body.');})()}
         </div>
-        ${n.link?`<a href="${esc(n.link)}" target="_blank" rel="noopener"
-          style="display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 16px;background:rgba(201,168,76,.1);border:1px solid var(--gold-a25);border-radius:var(--r);font-size:.76rem;color:var(--gold);text-decoration:none">
-          <i class="fas fa-external-link-alt" style="font-size:.68rem"></i>View Details
-        </a>`:''}
+        ${(()=>{
+          if(n.type==='warning'){try{const _w=JSON.parse(n.body||'{}');if(_w.action==='open_recovery'&&_w.user_id){window._pendingRecovery=_w;return '<button class="btn btn-gold btn-full" style="margin-top:16px" onclick="openRecoveryFromNotif(this)"><i class=\'fas fa-key\'></i>Open User &amp; Generate Code</button>';}}catch(_){}}
+          return n.link?`<a href="${esc(n.link)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 16px;background:rgba(201,168,76,.1);border:1px solid var(--gold-a25);border-radius:var(--r);font-size:.76rem;color:var(--gold);text-decoration:none"><i class="fas fa-external-link-alt" style="font-size:.68rem"></i>View Details</a>`:'';
+        })()}
       </div>
 
       <!-- Close button -->
@@ -4038,15 +4150,10 @@ async function doLogin(){
     // Navigate to account IMMEDIATELY — never block on role fetch
     renderAcc();
     toast('Signed in! ✓','ok');
-    // Fetch role in background, then update UI with correct role + admin dashboard
+    // Fetch role in background, then update UI with correct role
+    // Admin lands on normal account view — they can tap "Admin Dashboard" themselves
     fetchRole().then(()=>{
       renderAcc();
-      if(userRole==='admin'){
-        toast('Welcome back, Admin 🛡','ok');
-        setTimeout(()=>openAdmin(),400);
-      } else if(userRole==='agent'){
-        toast('Welcome back, Agent 🤝','ok');
-      }
     }).catch(()=>{});
   }catch(err){
     console.error('Login error:',err);
@@ -4071,7 +4178,7 @@ async function doLogin(){
 }
 async function doPhoneLogin(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('li-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('li-ph-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('li-otp-wrap').style.display='';document.getElementById('li-otp-send-wrap').style.display='none';toast('OTP sent to '+fullPhone,'ok');}
 async function doPhoneVerify(){if(!sb)return;const ph=document.getElementById('li-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('otp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('otp-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify OTP';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}toast('Signed in successfully! 👋','ok');}
-async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const redirectUrl=(SITE&&SITE.startsWith('https://'))?SITE+'?tab=acc':(window.location.origin+window.location.pathname+'?tab=acc');const{data:_suData,error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:redirectUrl}});if(!error&&_suData?.user?.identities?.length===0){btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';const ew=document.getElementById('su-err');ew.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">'+esc(e)+'</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');setTimeout(()=>{const li=document.getElementById(\'li-e\');if(li)li.value=\''+e+'\';},150)"><i class="fas fa-sign-in-alt"></i>Sign In Instead</button></div></div>';ew.style.display='';return;}if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?null:error.message;if(!msg){const errWrap=document.getElementById('su-err');errWrap.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px;margin-bottom:4px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">' + esc(e) + '</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');document.getElementById(\'li-e\')&&(document.getElementById(\'li-e\').value=\'' + e.replace(/'/g,"\\'")+'\')"><i class="fas fa-sign-in-alt"></i>Sign In</button><button class="btn btn-ghost" style="flex:1;font-size:.72rem" onclick="this.closest(\'[id=su-err]\').style.display=\'none\';"><i class="fas fa-times"></i>Cancel</button></div></div>';errWrap.style.display='';return;}setErr(errEl,msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','We\'ve sent a confirmation link to '+e+'. Click the link in your email to activate your account — it will bring you straight to your profile.');notifyAllAdmins({type:'user',title:'New User Registered',body:`${esc(n)} (${esc(e)}) just created an account.`}).catch(()=>{});}
+async function doSignup(){if(!sb){popupErr('Not Configured','Supabase is not yet configured. Please add your API keys.');return;}const n=document.getElementById('su-n')?.value?.trim(),e=document.getElementById('su-e')?.value?.trim(),ph=document.getElementById('su-ph')?.value?.trim()||'',p=document.getElementById('su-pw')?.value||'',p2=document.getElementById('su-pw2')?.value||'',chk=document.getElementById('su-terms')?.checked,errEl=document.getElementById('su-err'),btn=document.getElementById('su-btn');if(!n||!e||!p||!p2){setErr(errEl,'Please fill in all required fields');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){setErr(errEl,'Enter a valid email address');return;}if(p.length<8){setErr(errEl,'Password must be at least 8 characters');return;}if(p!==p2){popupErr('Passwords Do Not Match','The passwords you entered don\'t match. Please re-enter them and make sure they are identical.');return;}if(!chk){setErr(errEl,'Please accept the Terms & Conditions');return;}btn.disabled=true;btn.innerHTML='<span class="spin"></span> Creating account…';const fullPhone=ph?'+254'+ph.replace(/\D/g,''):null;const redirectUrl=(SITE&&SITE.startsWith('https://'))?SITE+'?tab=acc':(window.location.origin+window.location.pathname+'?tab=acc');const{data:_suData,error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n,phone:fullPhone||''},emailRedirectTo:redirectUrl}});if(!error&&_suData?.user?.identities?.length===0){btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';const ew=document.getElementById('su-err');ew.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">'+esc(e)+'</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');setTimeout(()=>{const li=document.getElementById(\'li-e\');if(li)li.value=\''+e+'\';},150)"><i class="fas fa-sign-in-alt"></i>Sign In Instead</button></div></div>';ew.style.display='';return;}if(!error&&fullPhone)setTimeout(async()=>{const{data:{user:u}}=await sb.auth.getUser();if(u)await sb.from('profiles').upsert({id:u.id,phone:fullPhone,full_name:n,email:e}).catch(()=>{});},1000);btn.disabled=false;btn.innerHTML='<i class="fas fa-user-plus"></i>Create Account';if(error){const msg=error.message.includes('already registered')||error.message.includes('already been registered')?null:error.message;if(!msg){const errWrap=document.getElementById('su-err');errWrap.innerHTML='<div style="background:rgba(201,168,76,.08);border:1px solid var(--gold-a25);border-radius:var(--r);padding:12px 14px;margin-bottom:4px"><div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Account already exists</div><div style="font-size:.74rem;color:var(--t3);margin-bottom:12px;line-height:1.55">An account with <strong style="color:var(--gold)">' + esc(e) + '</strong> already exists.</div><div style="display:flex;gap:8px"><button class="btn btn-gold" style="flex:1;font-size:.72rem" onclick="renderAuthForms(document.getElementById(\'acc-body\'),\'login\');document.getElementById(\'li-e\')&&(document.getElementById(\'li-e\').value=\'' + e.replace(/'/g,"\\'")+'\')"><i class="fas fa-sign-in-alt"></i>Sign In</button><button class="btn btn-ghost" style="flex:1;font-size:.72rem" onclick="this.closest(\'[id=su-err]\').style.display=\'none\';"><i class="fas fa-times"></i>Cancel</button></div></div>';errWrap.style.display='';return;}setErr(errEl,msg);return;}errEl.style.display='none';popupOk('Almost There! 📧','We\'ve sent a confirmation link to '+e+'. Click the link in your email to activate your account — it will bring you straight to your profile.');(async()=>{try{await notifyAllAdmins({type:'user',title:'New User Registered',body:`${esc(n)} (${esc(e)}) just created an account.`});}catch(_){}})();}
 async function showReset(){
   const el=document.getElementById('acc-body');
   if(!el)return;
@@ -4104,12 +4211,44 @@ async function showReset(){
           <span style="font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--t3)">or</span>
           <div style="flex:1;height:1px;background:var(--bd)"></div>
         </div>
-        <!-- Phone option -->
+        <!-- Admin Code 3-step flow -->
         <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:16px;margin-bottom:20px">
-          <div style="font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:10px"><i class="fas fa-sms" style="margin-right:5px"></i>Via Phone OTP</div>
-          <button class="btn btn-outline btn-full" onclick="openPhoneReset()">
-            <i class="fas fa-sms"></i>Send OTP to Phone
-          </button>
+          <div style="font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:10px"><i class="fas fa-key" style="margin-right:5px"></i>Via Admin Code</div>
+
+          <!-- Step 1: Identity check -->
+          <div id="ac-step1">
+            <p style="font-size:.72rem;color:var(--t3);line-height:1.6;margin-bottom:12px">Enter your email and registered full name. We'll alert an admin to send you a reset code.</p>
+            <div class="fg" style="margin-bottom:8px">
+              <label class="flbl">Email Address *</label>
+              <input type="email" class="fi" id="ac-email" placeholder="your@email.com" maxlength="200" autocomplete="email" value="${prefillEmail}">
+            </div>
+            <div class="fg" style="margin-bottom:10px">
+              <label class="flbl">Full Name *</label>
+              <input type="text" class="fi" id="ac-name" placeholder="Your full name as registered" maxlength="100" autocomplete="name">
+            </div>
+            <div id="ac-err" class="ferr" style="display:none;margin-bottom:8px"></div>
+            <button class="btn btn-gold btn-full" id="ac-verify-btn" onclick="requestAdminCode()">
+              <i class="fas fa-user-check"></i>Verify My Identity
+            </button>
+          </div>
+
+          <!-- Step 2: OTP entry after admin sends code -->
+          <div id="ac-step2" style="display:none">
+            <div style="text-align:center;padding:6px 0 14px">
+              <div style="width:52px;height:52px;background:rgba(50,200,100,.1);border:1.5px solid rgba(50,200,100,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:1.1rem;color:#32C864"><i class="fas fa-bell"></i></div>
+              <div style="font-size:.82rem;font-weight:600;color:var(--t1);margin-bottom:4px">Admin Notified!</div>
+              <div style="font-size:.7rem;color:var(--t3);line-height:1.6">An admin has been alerted. Once they send you the 6-digit code via WhatsApp, enter it below.</div>
+            </div>
+            <div class="fg" style="margin-bottom:10px">
+              <label class="flbl">6-Digit Code from Admin</label>
+              <div class="otp-row">${[1,2,3,4,5,6].map(n=>`<input class="otp-inp" type="text" maxlength="1" id="acotp${n}" oninput="otpNext(this,'${n<6?'acotp'+(n+1):''}')" inputmode="numeric">`).join('')}</div>
+            </div>
+            <div id="ac-err2" class="ferr" style="display:none;margin-bottom:8px"></div>
+            <button class="btn btn-gold btn-full" id="ac-btn" onclick="verifyAdminResetCode()">
+              <i class="fas fa-unlock"></i>Verify Code
+            </button>
+            <p style="text-align:center;margin-top:8px"><a href="#" style="font-size:.68rem;color:var(--t3)" onclick="document.getElementById('ac-step1').style.display='';document.getElementById('ac-step2').style.display='none';return false"><i class="fas fa-arrow-left" style="font-size:.56rem;margin-right:4px"></i>Back</a></p>
+          </div>
         </div>
         <!-- Back link -->
         <p style="text-align:center">
@@ -4160,8 +4299,177 @@ async function doReset(){
   }
 }
 
+async function requestAdminCode(){
+  if(!sb){toast('Supabase not configured','er');return;}
+  const email=(document.getElementById('ac-email')?.value||'').trim().toLowerCase();
+  const name=(document.getElementById('ac-name')?.value||'').trim();
+  const errEl=document.getElementById('ac-err');
+  const btn=document.getElementById('ac-verify-btn');
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){setErr(errEl,'Enter a valid email address');return;}
+  if(!name||name.length<2){setErr(errEl,'Enter your full name as registered on your account');return;}
+  if(!rateLimit('reqcode',60000)){setErr(errEl,'Please wait before trying again');return;}
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying...';
+  errEl.style.display='none';
+  try{
+    // Use RPC function with SECURITY DEFINER to bypass RLS for unauthenticated users
+    let matchResult=null;
+    try{
+      const{data:rpcData,error:rpcErr}=await sb.rpc('verify_reset_identity',{p_email:email,p_name:name});
+      if(!rpcErr&&rpcData){matchResult=rpcData;}
+    }catch(_){}
+
+    // Fallback: direct query (works if user is signed in or has permissive RLS)
+    if(!matchResult){
+      try{
+        const{data:profiles}=await sb.from('profiles').select('id,full_name,email,phone').ilike('email',email).limit(5);
+        if(profiles&&profiles.length){
+          const nameLower=name.toLowerCase().replace(/\s+/g,' ').trim();
+          const found=(profiles||[]).find(p=>{
+            const stored=(p.full_name||'').toLowerCase().replace(/\s+/g,' ').trim();
+            return stored===nameLower||stored.includes(nameLower)||nameLower.includes(stored)||
+                   stored.replace(/[^a-z0-9 ]/gi,'').trim()===nameLower.replace(/[^a-z0-9 ]/gi,'').trim();
+          });
+          if(found) matchResult={id:found.id,full_name:found.full_name,email:found.email};
+        }
+      }catch(_){}
+    }
+
+    if(!matchResult){
+      setErr(errEl,'No account found with that email and name. Make sure you use the exact name saved in your profile.');
+      return;
+    }
+    const displayName=matchResult.full_name||name;
+    const displayEmail=matchResult.email||email;
+    const reqUserId=matchResult.id||null;
+    // Notify all admins — uses RPC so it works even when unauthenticated
+    await notifyAllAdminsOfReset({displayName,displayEmail,reqUserId});
+    document.getElementById('ac-step1').style.display='none';
+    document.getElementById('ac-step2').style.display='';
+    window._acVerifiedEmail=displayEmail;
+    toast('Identity verified! An admin has been notified.','ok');
+  }catch(err){
+    setErr(errEl,'Could not connect. Please check your internet.');
+  }finally{
+    btn.disabled=false;btn.innerHTML='<i class="fas fa-user-check"></i>Verify My Identity';
+  }
+}
+async function verifyAdminResetCode(){
+  if(!sb){toast('Supabase not configured','er');return;}
+  const email=window._acVerifiedEmail||(document.getElementById('ac-email')?.value||'').trim().toLowerCase();
+  const code=[1,2,3,4,5,6].map(n=>document.getElementById('acotp'+n)?.value||'').join('').replace(/[^0-9]/g,'');
+  const errEl=document.getElementById('ac-err2')||document.getElementById('ac-err');
+  const btn=document.getElementById('ac-btn');
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){setErr(errEl,'Email missing. Please start over.');return;}
+  if(code.length<6){setErr(errEl,'Please enter all 6 digits of the code you received');return;}
+  if(!rateLimit('admincode',30000)){setErr(errEl,'Please wait before trying again');return;}
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';
+  errEl.style.display='none';
+  try{
+    const now=new Date().toISOString();
+    let verified=false, userId=null;
+
+    // Try RPC first — SECURITY DEFINER bypasses RLS for unauthenticated users
+    try{
+      const{data:rpcResult,error:rpcErr}=await sb.rpc('verify_and_use_recovery_code',{
+        p_email:email, p_code:code
+      });
+      if(!rpcErr && rpcResult){
+        if(rpcResult==='expired'){
+          setErr(errEl,'This code has expired. Please contact the admin for a new one.');
+          return;
+        }
+        if(rpcResult==='invalid'){
+          setErr(errEl,'Invalid code. Please check the digits and try again.');
+          return;
+        }
+        if(typeof rpcResult==='object' && rpcResult.verified){
+          verified=true;
+          userId=rpcResult.user_id||null;
+        }
+      }
+    }catch(_){}
+
+    // Fallback: direct query (works if recovery_own_read policy allows it)
+    if(!verified){
+      const{data:rows,error:qErr}=await sb.from('recovery_codes')
+        .select('id,used,expires_at,user_id')
+        .eq('email',email).eq('code',code).limit(1);
+
+      if(qErr||!rows||!rows.length){
+        setErr(errEl,'Invalid code. Please check the digits and try again.');
+        return;
+      }
+      const row=rows[0];
+      if(row.used){
+        setErr(errEl,'This code has already been used. Please request a new one.');
+        return;
+      }
+      if(row.expires_at && new Date(row.expires_at)<new Date()){
+        setErr(errEl,'This code has expired. Please contact the admin for a new one.');
+        return;
+      }
+      // Mark as used
+      try{ await sb.from('recovery_codes').update({used:true}).eq('id',row.id); }catch(_){}
+      verified=true;
+      userId=row.user_id||null;
+    }
+
+    if(!verified){
+      setErr(errEl,'Could not verify code. Please try again.');
+      return;
+    }
+
+    window._adminResetEmail=email;
+    window._adminResetUserId=userId;
+    btn.disabled=false;
+    btn.innerHTML='<i class="fas fa-unlock"></i>Verify Code';
+    document.getElementById('reset-pw-overlay').classList.add('on');
+    const subEl=document.getElementById('reset-pw-sub');
+    if(subEl) subEl.textContent='Code verified ✓ — set your new password below.';
+    toast('Code verified! Set your new password now.','ok');
+  }catch(err){
+    setErr(errEl,'Could not connect. Please check your internet.');
+  }finally{
+    btn.disabled=false;btn.innerHTML='<i class="fas fa-unlock"></i>Verify Code';
+  }
+}
 async function sendPhoneResetOTP(){if(!sb){popupErr('Not Configured','Supabase is not yet configured.');return;}const ph=document.getElementById('pr-ph')?.value?.trim();if(!ph||!/^\d{9,10}$/.test(ph.replace(/\D/g,''))){popupErr('Invalid Phone','Please enter a valid Kenyan phone number (e.g. 0712345678).');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('pr-send-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';const{error}=await sb.auth.signInWithOtp({phone:fullPhone});btn.disabled=false;btn.innerHTML='<i class="fas fa-sms"></i>Send OTP';if(error){popupErr('OTP Failed',error.message);return;}document.getElementById('pr-send-wrap').style.display='none';document.getElementById('pr-verify-wrap').style.display='';toast('OTP sent to '+fullPhone,'ok');}
 async function verifyPhoneResetOTP(){if(!sb)return;const ph=document.getElementById('pr-ph')?.value?.trim();const otp=[1,2,3,4,5,6].map(n=>document.getElementById('protp'+n)?.value||'').join('');if(otp.length<6){popupErr('Incomplete OTP','Please enter all 6 digits of the OTP sent to your phone.');return;}const fullPhone='+254'+ph.replace(/\D/g,'');const btn=document.getElementById('pr-verify-btn');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Verifying…';const{error}=await sb.auth.verifyOtp({phone:fullPhone,token:otp,type:'sms'});btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i>Verify & Sign In';if(error){popupErr('Verification Failed',error.message.includes('expired')?'This OTP has expired. Please go back and request a new one.':error.message.includes('invalid')?'The OTP you entered is incorrect. Please check and try again.':error.message);return;}closeSub('phonereset');document.getElementById('reset-pw-overlay').classList.add('on');toast('Verified! Now set your new password.','ok');}
+function closeResetOverlay(){
+  // Close the overlay and reset all related state cleanly
+  const overlay=document.getElementById('reset-pw-overlay');
+  if(overlay) overlay.classList.remove('on');
+  // Clear fields
+  const pw=document.getElementById('np-pw'); if(pw) pw.value='';
+  const pw2=document.getElementById('np-pw2'); if(pw2) pw2.value='';
+  const err=document.getElementById('np-err'); if(err) err.style.display='none';
+  const btn=document.getElementById('np-btn');
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';}
+  // Reset subtitle text
+  const sub=document.getElementById('reset-pw-sub');
+  if(sub) sub.textContent='Choose a strong password for your Tote & Tread account.';
+  // Restore the reset-pw-box in case success animation replaced it
+  const box=document.querySelector('#reset-pw-overlay .reset-pw-box');
+  if(box&&!box.querySelector('#np-pw')){
+    box.innerHTML=`
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="width:54px;height:54px;background:var(--gold-a8);border:1.5px solid var(--gold-a45);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:1.2rem;color:var(--gold)"><i class="fas fa-lock"></i></div>
+        <h3 style="font-family:var(--fd);font-size:1.4rem;margin-bottom:5px">Create New Password</h3>
+        <p id="reset-pw-sub" style="font-size:.74rem;color:var(--t3);line-height:1.6">Choose a strong password for your Tote &amp; Tread account.</p>
+      </div>
+      <div class="fg"><label class="flbl">New Password</label><div class="pw-wrap"><input type="password" class="fi" id="np-pw" placeholder="At least 8 characters" maxlength="128" autocomplete="new-password"><button class="pw-eye" type="button" onclick="tglPW('np-pw','np-pi')"><i class="fas fa-eye" id="np-pi"></i></button></div></div>
+      <div class="fg"><label class="flbl">Confirm New Password</label><div class="pw-wrap"><input type="password" class="fi" id="np-pw2" placeholder="Repeat your password" maxlength="128" autocomplete="new-password"><button class="pw-eye" type="button" onclick="tglPW('np-pw2','np-pi2')"><i class="fas fa-eye" id="np-pi2"></i></button></div></div>
+      <div id="np-err" class="ferr" style="display:none;margin-bottom:10px"></div>
+      <button class="btn btn-gold btn-full" id="np-btn" onclick="doUpdatePassword()"><i class="fas fa-lock"></i>Save New Password</button>
+      <p style="text-align:center;margin-top:12px"><a href="#" style="font-size:.72rem;color:var(--t3);display:inline-flex;align-items:center;gap:5px" onclick="closeResetOverlay();return false"><i class="fas fa-arrow-left" style="font-size:.6rem"></i> Cancel</a></p>`;
+  }
+  // Clear admin-code reset state
+  window._adminResetEmail=null;
+  window._adminResetUserId=null;
+  window._acVerifiedEmail=null;
+  // Clear URL params
+  history.replaceState(null,'',location.pathname);
+}
 async function doUpdatePassword(){
   if(!sb){toast('Not configured','er');return;}
   const pw=document.getElementById('np-pw')?.value||'';
@@ -4178,16 +4486,42 @@ async function doUpdatePassword(){
   errEl.style.display='none';
 
   try{
-    const{data,error}=await sb.auth.updateUser({password:pw});
-    if(error){
+    let updateError=null;
+    let updatedUser=null;
+
+    // If user has an active session (email reset link flow), use standard updateUser
+    const{data:sessionData}=await sb.auth.getSession();
+    const hasSession=!!(sessionData?.session);
+
+    if(hasSession){
+      const{data,error}=await sb.auth.updateUser({password:pw});
+      updateError=error;
+      updatedUser=data?.user||null;
+    } else {
+      // Admin code flow — no session. Use SECURITY DEFINER RPC to update password directly.
+      const resetEmail=window._adminResetEmail;
+      if(!resetEmail){
+        btn.disabled=false;
+        btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';
+        setErr(errEl,'Session expired. Please start the reset process again.');
+        return;
+      }
+      const{data:rpcData,error:rpcErr}=await sb.rpc('admin_reset_password',{
+        p_email:resetEmail, p_new_password:pw
+      });
+      if(rpcErr){ updateError=rpcErr; }
+      else if(!rpcData){ updateError={message:'Password could not be updated. Please try again.'}; }
+    }
+
+    if(updateError){
       btn.disabled=false;
       btn.innerHTML='<i class="fas fa-lock"></i>Save New Password';
-      setErr(errEl,error.message);
+      setErr(errEl,updateError.message||'Could not update password. Please try again.');
       return;
     }
 
-    // Update local user ref
-    if(data?.user) user=data.user;
+    // Update local user ref if we have one
+    if(updatedUser) user=updatedUser;
 
     // Clear the URL ?reset=1 param
     history.replaceState(null,'',location.pathname);
@@ -4209,21 +4543,54 @@ async function doUpdatePassword(){
         </div>`;
     }
 
-    // Non-blocking: send notification + fetch role
-    if(user){
-      (async()=>{
-        try{await pushDBNotif({type:'admin',title:'Password Changed',
-          body:'Your account password was successfully updated.',
-          targetUserId:user.id});}catch(_){}
-      })();
-      fetchRole().catch(()=>{});
-    }
+    // Non-blocking: rich password-changed notification + sign user in
+    const resetEmail=window._adminResetEmail||user?.email||'';
+    (async()=>{
+      try{
+        // Find user by email to get their id if we don't have a session
+        let targetId=user?.id||null;
+        if(!targetId && resetEmail && sb){
+          const{data:prof}=await sb.from('profiles').select('id').ilike('email',resetEmail).maybeSingle().catch(()=>({data:null}));
+          targetId=prof?.id||null;
+        }
+        if(targetId){
+          const now=new Date().toLocaleString('en-KE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+          await pushDBNotif({
+            type:'admin',
+            title:'Password Changed Successfully 🔐',
+            body:'Your Tote & Tread account password was updated on '+now+'. If you did not do this, contact support immediately.',
+            targetUserId:targetId
+          });
+          // Also notify all admins
+          await notifyAllAdmins({
+            type:'system',
+            title:'Password Reset Completed',
+            body:(resetEmail||'A user')+' successfully reset their password via admin code at '+now+'.'
+          });
+        }
+      }catch(_){}
+      // Try to establish a session so user lands signed in
+      if(resetEmail && sb){
+        try{ await sb.auth.signInWithPassword({email:resetEmail,password:pw}); }catch(_){}
+      }
+    })();
 
-    // Navigate to account after 1.6s
-    setTimeout(()=>{
+    // Navigate directly to account profile after 1.6s
+    setTimeout(async()=>{
       const overlay=document.getElementById('reset-pw-overlay');
       if(overlay) overlay.classList.remove('on');
-      showTab('acc');
+      // Clear admin reset state
+      window._adminResetEmail=null;
+      window._adminResetUserId=null;
+      // Go to account tab and render profile directly
+      document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+      document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
+      const accScr=document.getElementById('scr-acc');
+      if(accScr) accScr.classList.add('on');
+      const accNi=document.querySelector('.ni[data-tab="acc"]');
+      if(accNi) accNi.classList.add('on');
+      window.scrollTo(0,0);
+      await renderAcc();
       toast('Password updated! 🔐','ok');
     },1600);
 
@@ -4754,9 +5121,10 @@ async function renderAdmOverview(){
       <div style="font-size:.54rem;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Cancelled Orders</div>
       <div style="font-family:var(--fd);font-size:1.2rem;color:var(--red)">${cancelledOrders}</div>
     </div>
-    <div style="flex:1;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:11px 13px">
+    <div style="flex:1;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:11px 13px;cursor:pointer" onclick="admTab('notifications')">
       <div style="font-size:.54rem;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Admins</div>
       <div style="font-family:var(--fd);font-size:1.2rem;color:var(--gold)">${adminCount}</div>
+      <div style="font-size:.56rem;color:var(--t3);margin-top:2px">${users.filter(u=>u.role==='admin'&&u.last_visit&&u.last_visit>=today).length} active today</div>
     </div>
   </div>
 
@@ -5117,27 +5485,51 @@ async function delProduct(id){if(userRole!=='admin'||!sb)return;const confirmed=
 /* ── Admin session tracking helpers ── */
 function writeAdminLog(action, detail=''){
   if(!sb||!user) return;
-  // Non-blocking fire-and-forget — use async IIFE (Supabase v2 has no .catch())
+  // Write ONE canonical log row keyed to the ACTOR.
+  // All admins share the same log view — no per-admin duplicates.
+  // Actor info is embedded in body as JSON so renderAdmLogs can attribute actions.
   (async()=>{
     try{
+      const actorName=user.user_metadata?.full_name||user.email||'Admin';
+      const actorEmail=user.email||'';
+      const bodyPayload=JSON.stringify({
+        actor_id:user.id,
+        actor_name:actorName,
+        actor_email:actorEmail,
+        detail:detail
+      });
       await sb.from('notifications').insert([{
-        user_id: user.id,
-        type: 'admin_log',
-        title: action,
-        body: detail,
-        read: false
+        user_id:user.id,
+        type:'admin_log',
+        title:action,
+        body:bodyPayload,
+        link:null,
+        read:true
       }]);
     }catch(_){}
   })();
 }
 
 // Called on admin sign-in (record session start)
+// Guard: localStorage TTL prevents duplicate rows from page reloads within 3 minutes.
 function logAdminSignIn(){
   if(!sb||!user) return;
+  const dedupKey='tt_last_signin_'+user.id;
+  const last=parseInt(localStorage.getItem(dedupKey)||'0');
+  const now=Date.now();
+  // If a sign-in was already logged within the last 3 minutes, skip
+  if(now-last < 3*60*1000) {
+    // Still set the session start if not already set
+    if(!window._adminSessionStart){
+      window._adminSessionStart = new Date(localStorage.getItem('tt_admin_session_start')||now);
+    }
+    return;
+  }
+  localStorage.setItem(dedupKey, now.toString());
   window._adminSessionStart = new Date();
   localStorage.setItem('tt_admin_session_start', window._adminSessionStart.toISOString());
-  // Small delay so auth session is fully settled before writing to DB
-  setTimeout(()=>writeAdminLog('Admin Signed In', `${user.user_metadata?.full_name||user.email} signed in`), 800);
+  const name=user.user_metadata?.full_name||user.email||'Admin';
+  setTimeout(()=>writeAdminLog('Admin Signed In', name+' signed in'), 800);
 }
 
 // Called on sign-out (record session end + duration)
@@ -5156,45 +5548,65 @@ async function renderAdmLogs(){
   if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
   el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
 
-  const [{data:allLogs},{data:allUsers}]=await Promise.all([
-    sb.from('notifications').select('*').order('created_at',{ascending:false}).limit(500),
-    sb.from('profiles').select('id,full_name,email,avatar_url,role')
+  // Fetch ALL admin IDs for cross-admin log visibility
+  const{data:adminProfiles}=await sb.from('profiles').select('id,full_name,email,avatar_url,role').eq('role','admin');
+  const adminIds=(adminProfiles||[]).map(p=>p.id);
+  if(!adminIds.includes(user.id)) adminIds.push(user.id);
+  const userMap={};(adminProfiles||[]).forEach(p=>userMap[p.id]=p);
+
+  // Fetch admin_log rows across ALL admins; activity only for current admin
+  const[{data:rawAdminLogs},{data:rawActivity}]=await Promise.all([
+    sb.from('notifications').select('*').eq('type','admin_log')
+      .in('user_id',adminIds.length?adminIds:[user.id])
+      .order('created_at',{ascending:false}).limit(600),
+    sb.from('notifications').select('*').neq('type','admin_log')
+      .eq('user_id',user.id)
+      .order('created_at',{ascending:false}).limit(200)
   ]);
-  const userMap={};(allUsers||[]).forEach(u=>userMap[u.id]=u);
-  const logs=allLogs||[];
 
-  // Separate admin session logs from general activity
-  const sessionLogs=logs.filter(l=>l.type==='admin_log');
-  const activityLogs=logs.filter(l=>l.type!=='admin_log');
+  function parseLogEntry(l){
+    let actorId=l.user_id, actorName=null, detail=l.body||'';
+    try{
+      const p=JSON.parse(l.body||'{}');
+      if(p.actor_id){ actorId=p.actor_id; actorName=p.actor_name||null; detail=p.detail||''; }
+    }catch(_){}
+    return {...l, _actorId:actorId, _actorName:actorName||userMap[actorId]?.full_name||userMap[actorId]?.email||'Admin', _detail:detail};
+  }
+  const allParsed=(rawAdminLogs||[]).map(parseLogEntry);
 
-  // Build admin sessions: pair sign-ins with sign-outs and actions in between
-  // Group by user, then by session (sign-in to sign-out)
+  // Deduplicate old broadcast rows (old format wrote one per admin recipient)
+  // Use 10-second bucket so close-together duplicates collapse
+  const seen=new Set();
+  const sessionLogs=[];
+  allParsed.forEach(l=>{
+    const tenSec=l.created_at?l.created_at.slice(0,18):'';
+    const sig=l.title+'||'+l._actorId+'||'+tenSec;
+    if(!seen.has(sig)){ seen.add(sig); sessionLogs.push(l); }
+  });
+  const activityLogs=rawActivity||[];
+
   const sessions=[];
   const byUser={};
   sessionLogs.forEach(l=>{
-    if(!byUser[l.user_id]) byUser[l.user_id]=[];
-    byUser[l.user_id].push(l);
+    const key=l._actorId;
+    if(!byUser[key]) byUser[key]=[];
+    byUser[key].push(l);
   });
   Object.entries(byUser).forEach(([uid,entries])=>{
-    // Sort ascending for timeline
     entries.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    const resolvedUser=userMap[uid]||{full_name:entries[0]?._actorName||'Admin',email:'',avatar_url:''};
+    const isSelf=uid===user.id;
     let cur=null;
     entries.forEach(e=>{
       if(e.title==='Admin Signed In'){
-        cur={uid,user:userMap[uid],signIn:e,actions:[],signOut:null};
+        cur={uid,user:resolvedUser,isSelf,signIn:e,actions:[],signOut:null};
         sessions.push(cur);
       } else if(e.title==='Admin Signed Out'){
         if(cur&&cur.uid===uid){ cur.signOut=e; cur=null; }
-        else {
-          // Orphan sign-out (no matching sign-in in window)
-          sessions.push({uid,user:userMap[uid],signIn:null,actions:[],signOut:e});
-        }
+        else { sessions.push({uid,user:resolvedUser,isSelf,signIn:null,actions:[],signOut:e}); }
       } else {
         if(cur&&cur.uid===uid){ cur.actions.push(e); }
-        else {
-          // Action without session context — create orphan
-          sessions.push({uid,user:userMap[uid],signIn:null,actions:[e],signOut:null});
-        }
+        else { sessions.push({uid,user:resolvedUser,isSelf,signIn:null,actions:[e],signOut:null}); }
       }
     });
   });
@@ -5252,11 +5664,14 @@ async function renderAdmLogs(){
         <!-- Session header -->
         <div style="padding:12px 14px;border-bottom:1px solid var(--bd);background:${isActive?'rgba(155,138,240,.05)':'transparent'}">
           <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;background:var(--gold-a8);border:1.5px solid var(--bd2);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:.9rem">
-              ${avatar?`<img src="${esc(avatar)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<i class=\"fas fa-user\"></i>'">`:'<i class="fas fa-shield-alt"></i>'}
+            <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;background:${sess.isSelf?'var(--gold-a8)':'rgba(155,138,240,.1)'};border:1.5px solid ${sess.isSelf?'var(--gold-a45)':'rgba(155,138,240,.3)'};display:flex;align-items:center;justify-content:center;color:${sess.isSelf?'var(--gold)':'#9B8AF0'};font-size:.9rem">
+              ${avatar?`<img src="${esc(avatar)}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<i class=\"fas fa-user\"></i>'">`:`<i class="fas ${sess.isSelf?'fa-shield-alt':'fa-user-shield'}"></i>`}
             </div>
             <div style="flex:1;min-width:0">
-              <div style="font-size:.84rem;font-weight:700;color:var(--t1)">${esc(name)}</div>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span style="font-size:.84rem;font-weight:700;color:var(--t1)">${esc(name)}</span>
+                ${sess.isSelf?'<span style="font-size:.52rem;font-weight:700;text-transform:uppercase;background:var(--gold-a8);border:1px solid var(--gold-a25);color:var(--gold);padding:2px 7px;border-radius:20px">You</span>':'<span style="font-size:.52rem;font-weight:700;text-transform:uppercase;background:rgba(155,138,240,.1);border:1px solid rgba(155,138,240,.25);color:#9B8AF0;padding:2px 7px;border-radius:20px">Admin</span>'}
+              </div>
               <div style="font-size:.62rem;color:var(--t3)">${signInDate}</div>
             </div>
             ${isActive?`<span style="font-size:.58rem;font-weight:700;letter-spacing:.06em;background:rgba(50,200,100,.15);border:1px solid rgba(50,200,100,.3);color:#32C864;padding:3px 9px;border-radius:20px">● ACTIVE</span>`:''}
@@ -5289,7 +5704,7 @@ async function renderAdmLogs(){
             </div>
             <div style="flex:1;padding-top:2px">
               <div style="font-size:.74rem;color:var(--t1);font-weight:500">${esc(act.title||'')}</div>
-              <div style="font-size:.64rem;color:var(--t3);line-height:1.4">${esc(act.body||'')}</div>
+              <div style="font-size:.64rem;color:var(--t3);line-height:1.4">${esc(act._detail||act.body||'')}</div>
               <div style="font-size:.58rem;color:var(--t4);margin-top:2px">${fmtTime(act.created_at)}</div>
             </div>
           </div>`).join('')}
@@ -5322,19 +5737,30 @@ async function renderAdmLogs(){
       const dt=new Date(log.created_at);
       const dateStr=dt.toLocaleDateString('en-KE',{day:'2-digit',month:'short',year:'numeric'});
       const timeStr=dt.toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)">
-        <div style="width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${color}">
+      // Parse body to get human-readable text
+      let bodyDisplay=log.body||'';
+      try{const _b=JSON.parse(log.body||'{}');if(_b.msg)bodyDisplay=_b.msg;else if(_b.detail)bodyDisplay=_b.detail;}catch(_){}
+      return `<div style="display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--bd)">
+        <div style="width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${color}">
           <i class="fas ${icon}" style="font-size:.72rem"></i>
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(log.title||'')}</div>
-          <div style="font-size:.68rem;color:var(--t3);margin-top:2px;line-height:1.5">${esc(log.body||'')}</div>
-          <div style="font-size:.6rem;color:var(--t4);margin-top:4px"><i class="fas fa-user" style="margin-right:3px"></i>${uName}</div>
+          <div style="font-size:.8rem;font-weight:500;color:var(--t1);margin-bottom:2px">${esc(log.title||'')}</div>
+          <div style="font-size:.68rem;color:var(--t3);margin-bottom:4px;line-height:1.5">${esc(bodyDisplay)}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:4px">
+              ${u?.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;border:1px solid var(--bd)">`:
+              `<div style="width:16px;height:16px;border-radius:50%;background:${u?.role==='admin'?'var(--gold-a8)':'var(--bg4)'};border:1px solid var(--bd);display:flex;align-items:center;justify-content:center">
+                <i class="fas fa-${u?.role==='admin'?'shield-alt':'user'}" style="font-size:.4rem;color:${u?.role==='admin'?'var(--gold)':'var(--t3)'}"></i>
+              </div>`}
+              <span style="font-size:.6rem;color:${u?.role==='admin'?'var(--gold)':'var(--t4)'};font-weight:${u?.role==='admin'?'600':'400'}">${uName}</span>
+            </div>
+            <span style="font-size:.55rem;background:rgba(255,255,255,.05);border-radius:4px;padding:2px 6px;color:${color};border:1px solid rgba(255,255,255,.06)">${esc(log.type||'system')}</span>
+          </div>
         </div>
-        <div style="flex-shrink:0;text-align:right;min-width:70px">
+        <div style="flex-shrink:0;text-align:right;min-width:64px">
           <div style="font-size:.62rem;color:var(--t3)">${dateStr}</div>
-          <div style="font-size:.58rem;color:var(--t4);margin-top:2px">${timeStr}</div>
-          <span style="font-size:.55rem;background:rgba(255,255,255,.05);border-radius:4px;padding:2px 5px;color:${color}">${esc(log.type||'system')}</span>
+          <div style="font-size:.6rem;color:var(--t4);margin-top:2px">${timeStr}</div>
         </div>
       </div>`;
     }).join('')}
@@ -5358,12 +5784,23 @@ function logSwitchTab(tab){
 async function renderAdmNotifications(){
   const el=document.getElementById('adm-content');
   if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
-  // Fetch all admin notifications (user_id = current admin)
-  const{data:myNotifs}=await sb.from('notifications')
-    .select('*').eq('user_id',user.id)
-    .order('created_at',{ascending:false}).limit(100);
-  const notifs=myNotifs||[];
-  const unread=notifs.filter(n=>!n.read).length;
+  // ── SHARED INBOX: fetch notifications for ALL admin accounts ──
+  // First get all admin user IDs, then fetch their notifications together
+  const{data:adminProfiles}=await sb.from('profiles').select('id,full_name,email,avatar_url').eq('role','admin');
+  const adminIds=(adminProfiles||[]).map(p=>p.id);
+  // Also include hardcoded admin emails in case profile role not set
+  if(!adminIds.includes(user.id)) adminIds.push(user.id);
+
+  const adminMap={};(adminProfiles||[]).forEach(p=>adminMap[p.id]=p);
+
+  const{data:allNotifs}=await sb.from('notifications')
+    .select('*').in('user_id',adminIds.length?adminIds:[user.id])
+    .neq('type','admin_log')
+    .order('created_at',{ascending:false}).limit(200);
+
+  const notifs=allNotifs||[];
+  // Unread = unread for the CURRENT admin (each admin has their own read state)
+  const unread=notifs.filter(n=>n.user_id===user.id&&!n.read).length;
 
   el.innerHTML=`
   <div class="adm-section">
@@ -5378,22 +5815,33 @@ async function renderAdmNotifications(){
     notifs.map(n=>{
       const icons={order:'fa-receipt',user:'fa-user-plus',welcome:'fa-gift',warning:'fa-exclamation-triangle',product:'fa-box',admin:'fa-shield-alt',system:'fa-info-circle',promo:'fa-tag'};
       const colors={order:'badge-gold',user:'badge-green',welcome:'badge-green',warning:'badge-red',product:'badge-amber',admin:'badge-purple',system:'badge-blue',promo:'badge-purple'};
+      // Per-admin read state: only the copy owned by current admin tracks read/unread
+      const isMyNotif = n.user_id === user.id;
+      const isRead = isMyNotif ? n.read : true; // other admins' copies dimmed
+      const adminOwner = adminMap[n.user_id];
+      const ownerLabel = adminOwner ? (adminOwner.full_name||adminOwner.email||'Admin') : 'Admin';
+      const isSelf = n.user_id === user.id;
       return `<div
-        style="display:flex;gap:10px;padding:12px 13px;background:${n.read?'var(--bg3)':'rgba(201,168,76,.04)'};border:1px solid ${n.read?'var(--bd)':'var(--gold-a25)'};border-radius:var(--rl);margin-bottom:7px;cursor:pointer;transition:background .15s"
-        onmouseover="this.style.background='var(--gold-a8)'" onmouseout="this.style.background='${n.read?'var(--bg3)':'rgba(201,168,76,.04)'}'"
+        style="display:flex;gap:10px;padding:12px 13px;background:${isRead?'var(--bg3)':'rgba(201,168,76,.04)'};border:1px solid ${isRead?'var(--bd)':'var(--gold-a25)'};border-radius:var(--rl);margin-bottom:7px;cursor:pointer;transition:background .15s"
+        onmouseover="this.style.background='var(--gold-a8)'" onmouseout="this.style.background='${isRead?'var(--bg3)':'rgba(201,168,76,.04)'}'"
         onclick="openAdmNotifDetail('${esc(n.id)}',this)">
         <div style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.8rem" class="${colors[n.type]||'badge-blue'}">
           <i class="fas ${icons[n.type]||'fa-info-circle'}"></i>
         </div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px">
-            <div style="font-size:.8rem;font-weight:${n.read?'400':'600'};color:${n.read?'var(--t2)':'var(--t1)'};line-height:1.4">${esc(n.title)}</div>
+            <div style="font-size:.8rem;font-weight:${isRead?'400':'600'};color:${isRead?'var(--t2)':'var(--t1)'};line-height:1.4">${esc(n.title)}</div>
             <i class="fas fa-chevron-right" style="font-size:.55rem;color:var(--t3);flex-shrink:0;margin-top:3px"></i>
           </div>
-          <div style="font-size:.7rem;color:var(--t3);line-height:1.45;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:3px">${esc(n.body)}</div>
-          <div style="font-size:.6rem;color:var(--t4)">${D(n.created_at)}</div>
+          <div style="font-size:.7rem;color:var(--t3);line-height:1.45;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:3px">${(()=>{try{const _b=JSON.parse(n.body||'{}');if(_b.msg) return esc(_b.msg);if(_b.detail) return esc(_b.detail);if(_b.actor_name) return esc(_b.actor_name+(_b.detail?' — '+_b.detail:''));}catch(_){}return esc(n.body||'');})()}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:3px">
+            <div style="font-size:.6rem;color:var(--t4)">${D(n.created_at)}</div>
+            <span style="font-size:.56rem;padding:1px 7px;border-radius:20px;background:${isSelf?'rgba(201,168,76,.1)':'rgba(155,138,240,.12)'};color:${isSelf?'var(--gold)':'#9B8AF0'}">
+              ${isSelf?'→ You':'→ '+esc(ownerLabel)}
+            </span>
+          </div>
         </div>
-        ${!n.read?'<div style="width:8px;height:8px;background:var(--gold);border-radius:50%;flex-shrink:0;margin-top:5px"></div>':''}
+        ${(isMyNotif&&!n.read)?'<div style="width:8px;height:8px;background:var(--gold);border-radius:50%;flex-shrink:0;margin-top:5px"></div>':''}
       </div>`;
     }).join('')}
   </div>`;
@@ -5464,12 +5912,12 @@ function openAdmNotifDetail(id, rowEl){
       </div>
       <div style="flex:1;overflow-y:auto;padding:18px 16px">
         <div style="font-size:.86rem;color:var(--t1);line-height:1.78;white-space:pre-wrap;word-break:break-word">
-          ${esc(n.body||'No message body.')}
+          ${(()=>{try{const _b=JSON.parse(n.body||'{}');if(_b.msg) return esc(_b.msg);if(_b.detail) return esc(_b.detail);if(_b.actor_name) return esc(_b.actor_name+(_b.detail?' \u2014 '+_b.detail:''));}catch(_){}return esc(n.body||'No message body.');})()}
         </div>
-        ${n.link?`<a href="${esc(n.link)}" target="_blank" rel="noopener"
-          style="display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 16px;background:rgba(201,168,76,.1);border:1px solid var(--gold-a25);border-radius:var(--r);font-size:.76rem;color:var(--gold);text-decoration:none">
-          <i class="fas fa-external-link-alt" style="font-size:.68rem"></i>View Details
-        </a>`:''}
+        ${(()=>{
+          if(n.type==='warning'){try{const _w=JSON.parse(n.body||'{}');if(_w.action==='open_recovery'&&_w.user_id){window._pendingRecovery=_w;return '<button class="btn btn-gold btn-full" style="margin-top:16px" onclick="openRecoveryFromNotif(this)"><i class=\'fas fa-key\'></i>Open User &amp; Generate Code</button>';}}catch(_){}}
+          return n.link?`<a href="${esc(n.link)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 16px;background:rgba(201,168,76,.1);border:1px solid var(--gold-a25);border-radius:var(--r);font-size:.76rem;color:var(--gold);text-decoration:none"><i class="fas fa-external-link-alt" style="font-size:.68rem"></i>View Details</a>`:'';
+        })()}
       </div>
       <div style="padding:12px 16px;border-top:1px solid var(--bd)">
         <button class="btn btn-gold btn-full" onclick="this.closest('[style*=z-index]').remove()">
@@ -5490,15 +5938,52 @@ async function admMarkAllNotifsRead(){
   (async()=>{try{await sb.from('notifications').update({read:true}).eq('user_id',user.id);}catch{}})(  );
 }
 
+// Helper: open recovery from a notification action button
+function openRecoveryFromNotif(btn){
+  const modal=btn.closest('[style*="z-index"]');
+  if(modal) modal.remove();
+  const d=window._pendingRecovery||{};
+  window._pendingRecovery=null;
+  if(!d.user_id){toast('User data missing. Open Admin > Users manually.','nf');return;}
+  admTab('users');
+  setTimeout(()=>{
+    openSendRecovery({id:d.user_id,email:d.user_email||'',name:d.user_name||'User',phone:''});
+  },700);
+}
+
 /* ── Push notification to ALL admins ── */
 async function notifyAllAdmins({type='system',title,body}){
   if(!sb)return;
   try{
     const{data:admins}=await sb.from('profiles').select('id').eq('role','admin');
     for(const a of(admins||[])){
-      await sb.from('notifications').insert([{user_id:a.id,type,title,body,read:false}]).catch(()=>{});
+      try{ await sb.from('notifications').insert([{user_id:a.id,type,title,body,read:false}]); }catch(_){}
     }
   }catch{}
+}
+
+// Notifies all admins without needing the caller to be authenticated.
+// Uses a SECURITY DEFINER RPC so unauthenticated reset requests still reach admins.
+async function notifyAllAdminsOfReset({displayName,displayEmail,reqUserId}){
+  if(!sb) return;
+  const bodyJson=JSON.stringify({
+    msg:displayName+' ('+displayEmail+') needs a password reset code. Tap below to open their profile.',
+    user_id:reqUserId,
+    user_name:displayName,
+    user_email:displayEmail,
+    action:'open_recovery'
+  });
+  // Try RPC first (works unauthenticated, SECURITY DEFINER in DB)
+  try{
+    const{error}=await sb.rpc('notify_admins_reset_request',{
+      p_name:displayName, p_email:displayEmail, p_user_id:reqUserId||null
+    });
+    if(!error) return;
+  }catch(_){}
+  // Fallback: direct insert (works if user is authenticated or INSERT policy is open)
+  try{
+    await notifyAllAdmins({type:'warning',title:'Password Reset Code Request',body:bodyJson});
+  }catch(_){}
 }
 
 const _admOrdersMap = {};
@@ -6024,7 +6509,7 @@ async function admCreateUser(){
       await pushDBNotif({type:'welcome',title:'Welcome to Tote & Tread!',body:`Hi ${name}, your account has been created. Start exploring our collection.`,targetUserId:data.user.id});
     }
     ['nu-name','nu-email','nu-pw'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-    toast('User created! Confirmation email sent.','ok');notifyAllAdmins({type:'user',title:'User Created by Admin',body:`Admin created account for ${name} (${email}) with role: ${role}.`}).catch(()=>{});
+    toast('User created! Confirmation email sent.','ok');(async()=>{try{await notifyAllAdmins({type:'user',title:'User Created by Admin',body:`Admin created account for ${name} (${email}) with role: ${role}.`});}catch(_){}})();
     // If created as agent, auto-create approved application record
     if(role==='agent'&&data?.user){
       await new Promise(r=>setTimeout(r,1500));
@@ -6049,7 +6534,7 @@ async function setUserRole(userId, newRole, selectEl){
   if(userRole!=='admin'||!sb)return;
   const{error}=await sb.from('profiles').update({role:newRole}).eq('id',userId);
   if(error){toast(error.message,'er');if(selectEl)selectEl.value='customer';return;}
-  toast(`Role updated to ${newRole} ✓`,'ok');notifyAllAdmins({type:'admin',title:'User Role Changed',body:`A user's role was updated to ${newRole}.`}).catch(()=>{});
+  toast(`Role updated to ${newRole} ✓`,'ok');(async()=>{try{await notifyAllAdmins({type:'admin',title:'User Role Changed',body:`A user's role was updated to ${newRole}.`});}catch(_){}})();
   // If upgrading to agent, auto-create/approve their agent application
   if(newRole==='agent'){
     // Check if they already have an application
@@ -6165,10 +6650,168 @@ function viewUserEditProfile(uid){
 let editingUser=null;
 function openEditUser(u){editingUser=u;const body=document.getElementById('edit-user-body');body.innerHTML=`<div class="fg"><label class="flbl">Full Name</label><input type="text" class="fi" id="eu-name" value="${esc(u.full_name||'')}" maxlength="100"></div><div class="fg"><label class="flbl">Email</label><input type="email" class="fi" id="eu-email" value="${esc(u.email||'')}" maxlength="200" disabled style="opacity:.5"></div><div class="fg"><label class="flbl">Phone</label><input type="tel" class="fi" id="eu-phone" value="${esc(u.phone||'')}" maxlength="20"></div><div class="fg"><label class="flbl">Role</label><select class="fsel" id="eu-role"><option value="customer" ${u.role==='customer'?'selected':''}>Customer</option><option value="agent" ${u.role==='agent'?'selected':''}>Agent</option><option value="banned_agent" ${u.role==='banned_agent'?'selected':''}>Suspended Agent</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select></div><button class="btn btn-gold btn-full" onclick="saveEditUser()"><i class="fas fa-save"></i>Save Changes</button>`;document.getElementById('edit-user-modal').classList.add('on');showOvl();}
 function closeEditUser(){document.getElementById('edit-user-modal')?.classList.remove('on');hideOvl();editingUser=null;}
-async function saveEditUser(){if(!editingUser||userRole!=='admin'||!sb)return;const name=document.getElementById('eu-name')?.value?.trim(),phone=document.getElementById('eu-phone')?.value?.trim(),role=document.getElementById('eu-role')?.value;const{error}=await sb.from('profiles').update({full_name:name,phone:phone||null,role}).eq('id',editingUser.id);if(error){toast(error.message,'er');return;}toast('User updated!','ok');closeEditUser();renderAdmUsers();}
-function openSendRecovery(u){const body=document.getElementById('recovery-body');const code=Array.from(crypto.getRandomValues(new Uint8Array(6))).map(b=>(b%36).toString(36)).join('').toUpperCase().slice(0,8);body.innerHTML=`<p style="font-size:.78rem;color:var(--t3);margin-bottom:14px;line-height:1.65">Generate a temporary recovery code for <strong style="color:var(--t1)">${esc(u.name||u.email||'this user')}</strong>.</p><div class="card card-p" style="margin-bottom:14px;text-align:center"><span class="sec-eyebrow">Recovery Code</span><div style="font-family:var(--fd);font-size:2rem;color:var(--gold);letter-spacing:.18em;margin:10px 0">${code}</div><p style="font-size:.66rem;color:var(--t3)">Expires in 48 hours</p></div><button class="btn btn-gold btn-full" onclick="sendRecoveryCode('${esc(u.id)}','${esc(u.email)}','${code}')"><i class="fas fa-paper-plane"></i>Store &amp; Copy Code</button><button class="btn btn-ghost btn-full btn-sm" onclick="copyText('${code}')" style="margin-top:8px"><i class="fas fa-copy"></i>Copy Code</button>`;document.getElementById('recovery-modal').classList.add('on');showOvl();}
 function closeRecovery(){document.getElementById('recovery-modal')?.classList.remove('on');hideOvl();}
-async function sendRecoveryCode(userId,email,code){if(userRole!=='admin')return;if(sb)await sb.from('recovery_codes').insert([{user_id:userId,email,code}]).catch(()=>{});copyText(code);closeRecovery();toast('Code stored & copied to clipboard!','ok');}
+async function saveEditUser(){if(!editingUser||userRole!=='admin'||!sb)return;const name=document.getElementById('eu-name')?.value?.trim(),phone=document.getElementById('eu-phone')?.value?.trim(),role=document.getElementById('eu-role')?.value;const{error}=await sb.from('profiles').update({full_name:name,phone:phone||null,role}).eq('id',editingUser.id);if(error){toast(error.message,'er');return;}toast('User updated!','ok');closeEditUser();renderAdmUsers();}
+function openSendRecovery(u){
+  const arr=new Uint8Array(6);
+  crypto.getRandomValues(arr);
+  const code=Array.from(arr).map(b=>b%10).join('');
+  const userName=u.name||u.email||'this user';
+  const userEmail=u.email||'';
+  const userId=u.id||'';
+  // Build WA text and link — link directly to user's phone if available
+  const userPhone=(u.phone||'').replace(/\D/g,'');
+  const _baseUrl=(typeof SITE!=='undefined'&&SITE&&SITE.startsWith('http'))?SITE:(window.location.origin+window.location.pathname);
+  const _enc=encodeURIComponent;
+  // Generate a secure url_token — random 32-char hex, not the code itself
+  // Stored alongside the code in DB; link uses token only, email never exposed
+  const urlToken=Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join('');
+  const codeEntryLink=_baseUrl+'?reset=1&rt='+urlToken;
+  // Pass url_token to sendRecoveryCode via a global so the insert can include it
+  window._pendingUrlToken=urlToken;
+  const supportNum=typeof WA_NUM!=='undefined'?WA_NUM:'254107545752';
+  const supportLink='https://wa.me/'+supportNum;
+  const waText=
+    'Hi '+(u.name||'there')+'!\n\n'
+    +'Your *Tote & Tread* password reset code is:\n\n'
+    +'*'+code+'*\n\n'
+    +'Tap this link to go directly to the code entry screen:\n'
+    +codeEntryLink+'\n\n'
+    +'Enter the 6-digit code above when prompted. It expires in *2 hours* and is *single use*.\n\n'
+    +'\u26a0\ufe0f *SECURITY WARNING*\n'
+    +'\u2022 Do *NOT* share this code with anyone \u2014 not even Tote & Tread staff.\n'
+    +'\u2022 We will never ask you for this code over the phone or email.\n'
+    +'\u2022 If you did *not* request a password reset, please *ignore this message* and your account remains safe.\n'
+    +'\u2022 If you are concerned, contact support immediately:\n'
+    +supportLink;
+  const waEncoded=encodeURIComponent(waText);
+  const waHref=userPhone?('https://wa.me/'+userPhone+'?text='+waEncoded):('https://wa.me/?text='+waEncoded);
+  const body=document.getElementById('recovery-body');
+  body.innerHTML=`
+    <p style="font-size:.78rem;color:var(--t3);margin-bottom:14px;line-height:1.65">One-time reset code for <strong style="color:var(--t1)">${esc(userName)}</strong>. Save it first — this starts the 2-hour timer — then send it to them.</p>
+
+    <!-- Code card -->
+    <div style="background:linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.03));border:1.5px solid var(--gold-a45);border-radius:var(--rl);padding:18px;margin-bottom:14px;text-align:center">
+      <div style="font-size:.54rem;letter-spacing:.18em;text-transform:uppercase;color:var(--t3);margin-bottom:8px">One-Time Reset Code</div>
+      <div style="font-family:var(--fd);font-size:2.8rem;color:var(--gold);letter-spacing:.35em;margin:8px 0;font-weight:300;user-select:all" id="rc-code-disp">${code}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px">
+        <i class="fas fa-clock" style="font-size:.6rem;color:var(--t3)"></i>
+        <span style="font-size:.64rem;color:var(--t3)">2-hour expiry · single use</span>
+      </div>
+    </div>
+
+    <!-- Status message -->
+    <div id="rc-status" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:var(--r);font-size:.74rem;font-weight:600;text-align:center"></div>
+
+    <!-- Step 1: Save button -->
+    <div id="rc-save-wrap">
+      <button class="btn btn-gold btn-full" id="rc-save-btn" onclick="sendRecoveryCode('${esc(userId)}','${esc(userEmail)}','${code}')">
+        <i class="fas fa-shield-alt"></i>Save &amp; Activate Code
+      </button>
+      <p style="font-size:.62rem;color:var(--t4);margin-top:5px;text-align:center">Saving activates the code and invalidates any previous ones for this user.</p>
+    </div>
+
+    <!-- Step 2: Share buttons — revealed after save -->
+    <div id="rc-share-btns" style="display:none;flex-direction:column;gap:8px;margin-top:2px">
+      <a href="${waHref}" target="_blank" rel="noopener noreferrer"
+        style="display:flex;align-items:center;justify-content:center;gap:9px;padding:13px;background:#25D366;color:#fff;border-radius:var(--r);font-size:.78rem;font-weight:700;font-family:var(--fb);text-decoration:none;box-shadow:0 4px 14px rgba(37,211,102,.25);transition:background .2s"
+        onmouseover="this.style.background='#1ebe5d'" onmouseout="this.style.background='#25D366'">
+        <i class="fab fa-whatsapp" style="font-size:1.1rem"></i>Send via WhatsApp${userPhone?' (direct)':' (pick contact)'}
+      </a>
+      <button class="btn btn-outline btn-full" onclick="copyText('${code}');this.innerHTML='<i class=\\'fas fa-check\\'></i> Copied!';this.style.color='#32C864';this.style.borderColor='#32C864';setTimeout(()=>{this.innerHTML='<i class=\\'fas fa-copy\\'></i> Copy Code to Clipboard';this.style.color='';this.style.borderColor='';},2200)" style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <i class="fas fa-copy"></i>Copy Code to Clipboard
+      </button>
+    </div>
+
+    <p style="font-size:.62rem;color:var(--t4);margin-top:10px;line-height:1.6;text-align:center">User enters this 6-digit code + their email under Forgot Password &rarr; Admin Code.</p>
+  `;
+  document.getElementById('recovery-modal').classList.add('on');
+  showOvl();
+}
+async function sendRecoveryCode(userId,email,code){
+  if(userRole!=='admin')return;
+  if(!sb){toast('Supabase not configured','er');return;}
+  const btn=document.getElementById('rc-save-btn');
+  const statusEl=document.getElementById('rc-status');
+  const saveWrap=document.getElementById('rc-save-wrap');
+  const shareDiv=document.getElementById('rc-share-btns');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving\u2026';}
+  if(statusEl) statusEl.style.display='none';
+  try{
+    const expiresAt=new Date(Date.now()+2*60*60*1000).toISOString();
+    // Invalidate previous unused codes for this user
+    try{ await sb.from('recovery_codes').update({used:true}).eq('email',email).eq('used',false); }catch(_){}
+    // Insert the new code
+    // Use url_token passed from openSendRecovery, or generate a fresh one
+    const urlToken2=window._pendingUrlToken||Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    window._pendingUrlToken=null;
+    const{error}=await sb.from('recovery_codes').insert([{user_id:userId||null,email,code,expires_at:expiresAt,used:false,url_token:urlToken2}]);
+    if(error){
+      if(statusEl){statusEl.style.display='';statusEl.style.background='rgba(224,80,80,.1)';statusEl.style.border='1px solid rgba(224,80,80,.3)';statusEl.style.color='var(--red)';statusEl.innerHTML='<i class="fas fa-exclamation-circle" style="margin-right:6px"></i>'+esc(error.message||'Could not save. Check Supabase RLS policies.');}
+      if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-shield-alt"></i>Save &amp; Activate Code';}
+      return;
+    }
+    // Fetch actual phone from DB for direct WhatsApp link
+    let phone='';
+    if(userId){
+      let profResult; try{ profResult=await sb.from('profiles').select('phone').eq('id',userId).maybeSingle(); }catch(_){ profResult={data:null}; }
+      const prof=profResult?.data||null;
+      phone=(prof?.phone||'').replace(/[^0-9]/g,'');
+      if(phone.startsWith('0')) phone='254'+phone.slice(1);
+      else if(phone.length===9) phone='254'+phone;
+    }
+    const _baseUrl2=(typeof SITE!=='undefined'&&SITE&&SITE.startsWith('http'))?SITE:(window.location.origin+window.location.pathname);
+    const codeEntryLink2=_baseUrl2+'?reset=1&rt='+urlToken2;
+    const supportNum2=typeof WA_NUM!=='undefined'?WA_NUM:'254107545752';
+    const supportLink2='https://wa.me/'+supportNum2;
+    const waText=
+      'Hi!\n\n'
+      +'Your *Tote & Tread* password reset code is:\n\n'
+      +'*'+code+'*\n\n'
+      +'Tap this link to go directly to the code entry screen:\n'
+      +codeEntryLink2+'\n\n'
+      +'Enter the 6-digit code above when prompted. It expires in *2 hours* and is *single use*.\n\n'
+      +'\u26a0\ufe0f *SECURITY WARNING*\n'
+      +'\u2022 Do *NOT* share this code with anyone \u2014 not even Tote & Tread staff.\n'
+      +'\u2022 We will never ask you for this code over the phone or email.\n'
+      +'\u2022 If you did *not* request a password reset, please *ignore this message* and your account remains safe.\n'
+      +'\u2022 If you are concerned, contact support immediately:\n'
+      +supportLink2;
+    const waHref=phone?('https://wa.me/'+phone+'?text='+encodeURIComponent(waText)):('https://wa.me/?text='+encodeURIComponent(waText));
+    const waLabel=phone?'Send via WhatsApp (direct to user)':'Send via WhatsApp (pick contact)';
+    // Build share buttons with real phone
+    if(shareDiv){
+      shareDiv.innerHTML='<a href="'+waHref+'" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:9px;padding:13px;background:#25D366;color:#fff;border-radius:var(--r);font-size:.78rem;font-weight:700;font-family:var(--fb);text-decoration:none;box-shadow:0 4px 14px rgba(37,211,102,.25)"><i class="fab fa-whatsapp" style="font-size:1.1rem"></i>'+waLabel+'</a>'
+        +'<button class="btn btn-outline btn-full" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:0" onclick="copyText(\''+code+'\');this.innerHTML=\'<i class=\\\'fas fa-check\\\'></i> Copied!\';this.style.color=\'#32C864\';this.style.borderColor=\'#32C864\';setTimeout(()=>{this.innerHTML=\'<i class=\\\'fas fa-copy\\\'></i> Copy Code\';this.style.color=\'\';this.style.borderColor=\'\';},2200)"><i class="fas fa-copy"></i>Copy Code</button>';
+      shareDiv.style.display='flex';
+    }
+    if(saveWrap) saveWrap.style.display='none';
+    // Success animation in status area
+    if(statusEl){
+      statusEl.style.display='';
+      statusEl.style.background='rgba(50,200,100,.07)';
+      statusEl.style.border='1px solid rgba(50,200,100,.3)';
+      statusEl.style.borderRadius='var(--rl)';
+      statusEl.style.padding='16px 14px';
+      statusEl.style.marginBottom='12px';
+      statusEl.style.animation='fadeUp .35s ease both';
+      statusEl.innerHTML=
+        '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">'
+        +'<div style="position:relative;width:56px;height:56px">'
+        +'<div style="position:absolute;inset:0;border-radius:50%;background:rgba(50,200,100,.12);border:2px solid rgba(50,200,100,.35);animation:pulseRing 1.4s ease-out infinite"></div>'
+        +'<div style="position:absolute;inset:9px;border-radius:50%;background:rgba(50,200,100,.22);display:flex;align-items:center;justify-content:center">'
+        +'<i class="fas fa-check" style="font-size:1.1rem;color:#32C864"></i></div></div>'
+        +'<div style="font-size:.9rem;font-weight:700;color:#32C864">Code Activated!</div>'
+        +'<div style="font-size:.72rem;color:var(--t3);line-height:1.55">Share the code with <strong style="color:var(--t1)">'+esc(email)+'</strong><br>using the buttons below.</div>'
+        +'</div>';
+    }
+    writeAdminLog('Recovery Code Issued','Code issued for '+email+' \u2014 expires in 2 hours');
+    toast('Code activated! Share it with the user.','ok');
+  }catch(err){
+    if(statusEl){statusEl.style.display='';statusEl.style.background='rgba(224,80,80,.1)';statusEl.style.border='1px solid rgba(224,80,80,.3)';statusEl.style.color='var(--red)';statusEl.innerHTML='<i class="fas fa-exclamation-circle" style="margin-right:6px"></i>'+(err?.message||'Unknown error. Check connection.');}
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-shield-alt"></i>Save &amp; Activate Code';}
+  }
+}
 async function renderAdmMessages(){const el=document.getElementById('adm-content');if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}const[{data:msgs},{data:fb},{data:sugg}]=await Promise.all([sb.from('contact_messages').select('*').order('created_at',{ascending:false}),sb.from('feedback').select('*').order('created_at',{ascending:false}),sb.from('suggestions').select('*').order('created_at',{ascending:false})]);el.innerHTML=`<div class="adm-section"><h3>Contact (${(msgs||[]).length})</h3>${(msgs||[]).length?msgs.map(m=>`<div class="card card-p" style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:.8rem;font-weight:500;color:var(--t1)">${esc(m.name||'—')}</span><span style="font-size:.6rem;color:var(--t3)">${D(m.created_at)}</span></div><div style="font-size:.7rem;color:var(--t3);margin-bottom:4px">${esc(m.email||'')}${m.phone?' · '+esc(m.phone):''}</div>${m.subject?`<div style="font-size:.72rem;font-weight:500;color:var(--gold);margin-bottom:4px">${esc(m.subject)}</div>`:''}<p style="font-size:.76rem;color:var(--t2);line-height:1.6">${esc(m.message)}</p><a href="mailto:${esc(m.email||'')}" class="btn btn-ghost btn-xs" style="margin-top:8px">Reply</a></div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No messages.</p>'}</div><div class="adm-section"><h3>Feedback (${(fb||[]).length})</h3>${(fb||[]).length?fb.map(f=>`<div style="display:flex;align-items:center;gap:10px;padding:9px;border-bottom:1px solid var(--bd)"><span style="color:var(--gold)">${'★'.repeat(f.rating||0)}${'☆'.repeat(5-(f.rating||0))}</span><span style="font-size:.76rem;color:var(--t2);flex:1">${esc(f.comment||'')}</span><span style="font-size:.6rem;color:var(--t3)">${D(f.created_at).split(',')[0]}</span></div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No feedback.</p>'}</div><div class="adm-section"><h3>Suggestions (${(sugg||[]).length})</h3>${(sugg||[]).length?sugg.map(s=>`<div class="card card-p" style="margin-bottom:9px"><p style="font-size:.78rem;color:var(--t2);line-height:1.65;margin-bottom:4px">${esc(s.suggestion)}</p>${s.email?`<div style="font-size:.66rem;color:var(--t3)">${esc(s.email)}</div>`:''}</div>`).join(''):'<p style="font-size:.76rem;color:var(--t3)">No suggestions.</p>'}</div>`;}
 async function renderAdmSettings(){
   const el=document.getElementById('adm-content');
@@ -6490,7 +7133,7 @@ async function admApproveAgent(appId, userId, name, email){
     // Notify the agent
     await pushDBNotif({type:'welcome',title:'Agent Application Approved! 🎉',body:'Congratulations! Your agent application has been approved. You now have access to your Agent Dashboard.',targetUserId:userId}).catch(()=>{});
   }
-  toast(`${name} approved as agent ✓`,'ok');notifyAllAdmins({type:'user',title:'Agent Approved',body:`${name} has been approved as an agent.`}).catch(()=>{});
+  toast(`${name} approved as agent ✓`,'ok');(async()=>{try{await notifyAllAdmins({type:'user',title:'Agent Approved',body:`${name} has been approved as an agent.`});}catch(_){}})();
   renderAdmAgents();
 }
 
@@ -6499,7 +7142,7 @@ async function admDenyAgent(appId, name){
   const ok=await popupConfirm('Deny Application',`Deny ${name}'s agent application?`,'Deny','Cancel');
   if(!ok)return;
   await sb.from('agent_applications').update({status:'denied'}).eq('id',appId);
-  toast(`${name}'s application denied`,'nf');notifyAllAdmins({type:'warning',title:'Agent Application Denied',body:`${name}'s agent application was denied.`}).catch(()=>{});
+  toast(`${name}'s application denied`,'nf');(async()=>{try{await notifyAllAdmins({type:'warning',title:'Agent Application Denied',body:`${name}'s agent application was denied.`});}catch(_){}})();
   renderAdmAgents();
 }
 
@@ -6509,7 +7152,7 @@ async function admBanAgent(userId, name){
   if(!ok)return;
   await sb.from('profiles').update({role:'banned_agent'}).eq('id',userId);
   await pushDBNotif({type:'warning',title:'Agent Account Suspended',body:'Your agent account has been suspended. Please contact support if you believe this is an error.',targetUserId:userId}).catch(()=>{});
-  toast(`${name} suspended`,'ok');notifyAllAdmins({type:'warning',title:'Agent Suspended',body:`${name} has been suspended from agent access.`}).catch(()=>{});
+  toast(`${name} suspended`,'ok');(async()=>{try{await notifyAllAdmins({type:'warning',title:'Agent Suspended',body:`${name} has been suspended from agent access.`});}catch(_){}})();
   renderAdmAgents();
 }
 
