@@ -942,13 +942,37 @@ body:has(#splash:not(.gone)) #notif {
 /* ADMIN */
 #admin{position:fixed;top:0;left:50%;width:100%;max-width:430px;height:100dvh;transform:translate(calc(-50% + 430px));background:var(--bg);z-index:var(--zm);display:flex;flex-direction:column;overflow:hidden;transition:transform .35s var(--ease)}
 #admin.on{transform:translate(-50%)}
-.adm-hdr{height:var(--top);display:flex;align-items:center;gap:11px;padding:0 15px;border-bottom:1px solid var(--bd);flex-shrink:0;background:var(--bg2)}
-.adm-hdr h2{font-family:var(--fd);font-size:1.2rem;margin-right:auto}
-.adm-tab-bar{display:flex;overflow-x:auto;background:var(--bg2);border-bottom:1px solid var(--bd);flex-shrink:0;scrollbar-width:none}
-.adm-tab-bar::-webkit-scrollbar{display:none}
-.adm-tab{padding:11px 13px;font-size:.6rem;letter-spacing:.11em;text-transform:uppercase;color:var(--t3);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;font-family:var(--fb);white-space:nowrap;flex-shrink:0}
-.adm-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
-.adm-content{flex:1;overflow-y:auto}
+/* ── Admin Dashboard redesign ── */
+.adm-hdr{height:var(--top);display:flex;align-items:center;gap:11px;padding:0 15px;border-bottom:1px solid var(--bd);flex-shrink:0;background:linear-gradient(135deg,#0a0900,#0F0E08)}
+.adm-hdr h2{font-family:var(--fd);font-size:1.2rem;margin-right:auto;letter-spacing:.02em}
+.adm-hdr-meta{font-size:.54rem;color:var(--t4);letter-spacing:.08em;text-transform:uppercase}
+/* Sidebar layout */
+.adm-shell{display:flex;flex:1;overflow:hidden}
+.adm-sidebar{width:72px;background:var(--bg2);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;flex-shrink:0;scrollbar-width:none;transition:width .28s var(--ease)}
+.adm-sidebar::-webkit-scrollbar{display:none}
+.adm-sidebar.expanded{width:172px}
+.adm-sidebar-toggle{display:flex;align-items:center;justify-content:center;padding:10px 0;border-bottom:1px solid var(--bd);cursor:pointer;color:var(--t4);font-size:.72rem;transition:color .2s;flex-shrink:0}
+.adm-sidebar-toggle:hover{color:var(--gold)}
+.adm-nav-group{padding:6px 0 2px}
+.adm-nav-label{font-size:.44rem;letter-spacing:.2em;text-transform:uppercase;color:var(--t4);padding:6px 0 4px;text-align:center;opacity:0;transition:opacity .2s}
+.adm-sidebar.expanded .adm-nav-label{opacity:1;padding:6px 12px 4px;text-align:left}
+.adm-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px 4px;width:100%;background:none;border:none;border-left:2px solid transparent;cursor:pointer;transition:all .18s;font-family:var(--fb);color:var(--t3);position:relative}
+.adm-sidebar.expanded .adm-tab{flex-direction:row;justify-content:flex-start;padding:10px 12px;gap:10px}
+.adm-tab-icon{font-size:.82rem;width:20px;text-align:center;flex-shrink:0;transition:color .2s}
+.adm-tab-label{font-size:.52rem;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;overflow:hidden;max-width:0;opacity:0;transition:max-width .28s,opacity .2s}
+.adm-sidebar.expanded .adm-tab-label{max-width:120px;opacity:1;font-size:.66rem}
+.adm-tab:hover{color:var(--t1);background:var(--gold-a8)}
+.adm-tab.on{color:var(--gold);border-left-color:var(--gold);background:linear-gradient(90deg,rgba(201,168,76,.1),transparent)}
+.adm-tab.on .adm-tab-icon{color:var(--gold)}
+/* Notification badge on sidebar tab */
+.adm-tab-badge{position:absolute;top:6px;right:6px;min-width:16px;height:16px;background:var(--red);color:#fff;font-size:.44rem;font-weight:700;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;transition:opacity .2s}
+.adm-sidebar.expanded .adm-tab-badge{position:static;min-width:18px;height:18px;font-size:.48rem;margin-left:auto}
+/* Divider between groups */
+.adm-nav-divider{height:1px;background:var(--bd);margin:4px 10px}
+/* Content area */
+.adm-content{flex:1;overflow-y:auto;min-width:0}
+/* Tab-bar compat (hidden now but keep for any leftover references) */
+.adm-tab-bar{display:none}
 .adm-stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;padding:12px}
 .stat-card{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:14px;transition:border-color .2s}
 .stat-card.highlight{border-color:var(--gold-a45)}
@@ -1756,24 +1780,123 @@ td{padding:9px;border-bottom:1px solid var(--bd);color:var(--t2);vertical-align:
 
 <!-- ADMIN -->
 <div id="admin">
-  <div class="adm-hdr"><i class="fas fa-shield-alt" style="color:var(--gold)"></i><h2>Admin Dashboard</h2><button onclick="closeAdmin()" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:.78rem;padding:6px;margin-left:auto"><i class="fas fa-times"></i></button></div>
-  <div class="adm-tab-bar">
-    <button class="adm-tab on" onclick="admTab('overview')">Overview</button>
-    <button class="adm-tab" onclick="admTab('notifications')">Notifications</button>
-    <button class="adm-tab" onclick="admTab('logs')">Logs</button>
-    <button class="adm-tab" onclick="admTab('products')">Products</button>
-    <button class="adm-tab" onclick="admTab('inventory')">Inventory</button>
-    <button class="adm-tab" onclick="admTab('orders')">Orders</button>
-    <button class="adm-tab" onclick="admTab('users')">Users</button>
-    <button class="adm-tab" onclick="admTab('badges')">Badges</button>
-    <button class="adm-tab" onclick="admTab('agents')">Agents</button>
-    <button class="adm-tab" onclick="admTab('gallery')">Gallery</button>
-    <button class="adm-tab" onclick="admTab('adverts')">Adverts</button>
-    <button class="adm-tab" onclick="admTab('messages')">Messages</button>
-    <button class="adm-tab" onclick="admTab('broadcast')">Broadcast</button>
-    <button class="adm-tab" onclick="admTab('settings')">Settings</button>
+  <!-- Header -->
+  <div class="adm-hdr">
+    <div style="width:32px;height:32px;border-radius:10px;background:var(--gold-a8);border:1.5px solid var(--gold-a45);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <i class="fas fa-shield-alt" style="color:var(--gold);font-size:.8rem"></i>
+    </div>
+    <div>
+      <h2 style="margin:0;line-height:1">Admin</h2>
+      <div class="adm-hdr-meta" id="adm-current-tab-name">Overview</div>
+    </div>
+    <button onclick="closeAdmin()" style="margin-left:auto;width:32px;height:32px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);color:var(--t3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.78rem;transition:all .2s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--bd)';this.style.color='var(--t3)'">
+      <i class="fas fa-times"></i>
+    </button>
   </div>
-  <div class="adm-content" id="adm-content"></div>
+
+  <!-- Body: sidebar + content -->
+  <div class="adm-shell">
+
+    <!-- Sidebar Navigation -->
+    <div class="adm-sidebar" id="adm-sidebar">
+
+      <!-- Toggle collapse/expand -->
+      <div class="adm-sidebar-toggle" onclick="toggleAdmSidebar()" title="Toggle menu">
+        <i class="fas fa-bars" id="adm-sidebar-icon"></i>
+      </div>
+
+      <!-- GROUP: Overview -->
+      <div class="adm-nav-group">
+        <div class="adm-nav-label">Main</div>
+        <button class="adm-tab on" onclick="admTab('overview')" data-tab="overview" title="Overview">
+          <i class="fas fa-th-large adm-tab-icon"></i>
+          <span class="adm-tab-label">Overview</span>
+        </button>
+        <button class="adm-tab" onclick="admTab('analytics')" data-tab="analytics" title="Analytics">
+          <i class="fas fa-chart-line adm-tab-icon"></i>
+          <span class="adm-tab-label">Analytics</span>
+        </button>
+        <button class="adm-tab" onclick="admTab('notifications')" data-tab="notifications" title="Notifications">
+          <i class="fas fa-bell adm-tab-icon"></i>
+          <span class="adm-tab-label">Notifications</span>
+          <span class="adm-tab-badge" id="adm-notif-badge" style="display:none">0</span>
+        </button>
+        <button class="adm-tab" onclick="admTab('logs')" data-tab="logs" title="Logs">
+          <i class="fas fa-history adm-tab-icon"></i>
+          <span class="adm-tab-label">Logs</span>
+        </button>
+      </div>
+
+      <div class="adm-nav-divider"></div>
+
+      <!-- GROUP: Store -->
+      <div class="adm-nav-group">
+        <div class="adm-nav-label">Store</div>
+        <button class="adm-tab" onclick="admTab('products')" data-tab="products" title="Products">
+          <i class="fas fa-box adm-tab-icon"></i>
+          <span class="adm-tab-label">Products</span>
+        </button>
+        <button class="adm-tab" onclick="admTab('inventory')" data-tab="inventory" title="Inventory">
+          <i class="fas fa-cubes adm-tab-icon"></i>
+          <span class="adm-tab-label">Inventory</span>
+        </button>
+        <button class="adm-tab" onclick="admTab('orders')" data-tab="orders" title="Orders">
+          <i class="fas fa-receipt adm-tab-icon"></i>
+          <span class="adm-tab-label">Orders</span>
+        </button>
+        <button class="adm-tab" onclick="admTab('adverts')" data-tab="adverts" title="Adverts">
+          <i class="fas fa-bullhorn adm-tab-icon"></i>
+          <span class="adm-tab-label">Adverts</span>
+        </button>
+        <button class="adm-tab" onclick="admTab('gallery')" data-tab="gallery" title="Gallery">
+          <i class="fas fa-images adm-tab-icon"></i>
+          <span class="adm-tab-label">Gallery</span>
+        </button>
+      </div>
+
+      <div class="adm-nav-divider"></div>
+
+      <!-- GROUP: People -->
+      <div class="adm-nav-group">
+        <div class="adm-nav-label">People</div>
+        <button class="adm-tab" onclick="admTab('users')" data-tab="users" title="Users">
+          <i class="fas fa-users adm-tab-icon"></i>
+          <span class="adm-tab-label">Users</span>
+        </button>
+        <button class="adm-tab" onclick="admTab('agents')" data-tab="agents" title="Agents">
+          <i class="fas fa-handshake adm-tab-icon"></i>
+          <span class="adm-tab-label">Agents</span>
+        </button>
+        <button class="adm-tab" onclick="admTab('badges')" data-tab="badges" title="Badges">
+          <i class="fas fa-award adm-tab-icon"></i>
+          <span class="adm-tab-label">Badges</span>
+        </button>
+        <button class="adm-tab" onclick="admTab('messages')" data-tab="messages" title="Messages">
+          <i class="fas fa-envelope adm-tab-icon"></i>
+          <span class="adm-tab-label">Messages</span>
+        </button>
+        <button class="adm-tab" onclick="admTab('broadcast')" data-tab="broadcast" title="Broadcast">
+          <i class="fas fa-satellite-dish adm-tab-icon"></i>
+          <span class="adm-tab-label">Broadcast</span>
+        </button>
+      </div>
+
+      <div class="adm-nav-divider"></div>
+
+      <!-- GROUP: Config -->
+      <div class="adm-nav-group">
+        <div class="adm-nav-label">Config</div>
+        <button class="adm-tab" onclick="admTab('settings')" data-tab="settings" title="Settings">
+          <i class="fas fa-cog adm-tab-icon"></i>
+          <span class="adm-tab-label">Settings</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Main content -->
+    <div class="adm-content" id="adm-content"></div>
+  </div>
 </div>
 
 <div id="edit-prod-modal" class="modal"><div class="sheet-pull"></div><div class="sheet-hdr"><span class="sheet-title">Edit Product</span><button class="sheet-cls" onclick="closeEditProd()"><i class="fas fa-times"></i></button></div><div class="modal-body" id="edit-prod-body"></div></div>
@@ -2297,6 +2420,7 @@ async function init() {
   // PWA — register service worker + show install popup every visit
   initPWA();
   initSmartRefresh();
+  trackSiteVisit();
   document.querySelectorAll('.gi').forEach(gi => {
     gi.addEventListener('click', () => openLB(parseInt(gi.dataset.gal)));
     gi.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLB(parseInt(gi.dataset.gal)); } });
@@ -2449,6 +2573,484 @@ function showUpdateBanner(){
       <i class="fas fa-times"></i>
     </button>`;
   document.body.appendChild(b);
+}
+
+/* ════════ SITE VISIT ANALYTICS ════════ */
+function getBrowserName(){
+  const ua=navigator.userAgent;
+  if(/Edg\//.test(ua)) return 'Edge';
+  if(/OPR\/|Opera/.test(ua)) return 'Opera';
+  if(/Chrome\//.test(ua)&&!/Chromium/.test(ua)) return 'Chrome';
+  if(/Firefox\//.test(ua)) return 'Firefox';
+  if(/Safari\//.test(ua)&&!/Chrome/.test(ua)) return 'Safari';
+  if(/MSIE|Trident/.test(ua)) return 'IE';
+  if(/SamsungBrowser/.test(ua)) return 'Samsung';
+  return 'Other';
+}
+function getDeviceType(){
+  const ua=navigator.userAgent;
+  if(/Tablet|iPad/.test(ua)) return 'Tablet';
+  if(/Mobi|Android|iPhone/.test(ua)) return 'Mobile';
+  return 'Desktop';
+}
+// ── Capture visit data IMMEDIATELY (before Supabase is ready) ──
+// This runs at script parse time so even 2-second visits are counted
+window._visitPayload = (()=>{
+  // Deduplicate: one record per 10-minute window per browser session
+  const dedupKey = 'tt_v_' + Math.floor(Date.now() / (10 * 60 * 1000));
+  if (sessionStorage.getItem(dedupKey)) return null;
+  sessionStorage.setItem(dedupKey, '1');
+  const ua = navigator.userAgent;
+  const browser = /Edg\//.test(ua)?'Edge':/OPR\/|Opera/.test(ua)?'Opera':/Chrome\//.test(ua)&&!/Chromium/.test(ua)?'Chrome':/Firefox\//.test(ua)?'Firefox':/Safari\//.test(ua)&&!/Chrome/.test(ua)?'Safari':/SamsungBrowser/.test(ua)?'Samsung':'Other';
+  const device  = /Tablet|iPad/.test(ua)?'Tablet':/Mobi|Android|iPhone/.test(ua)?'Mobile':'Desktop';
+  const referrer= document.referrer ? (()=>{try{return new URL(document.referrer).hostname;}catch(_){return 'direct';}})() : 'direct';
+  const language= navigator.language||'en';
+  const screen_w= window.screen?.width||0;
+  const screen_h= window.screen?.height||0;
+  return {
+    browser, device, referrer, language,
+    screen_res: screen_w+'x'+screen_h,
+    path: window.location.pathname||'/',
+    visited_at: new Date().toISOString(),
+    user_id: null  // filled in later if signed in
+  };
+})();
+
+async function trackSiteVisit(){
+  const payload = window._visitPayload;
+  if(!payload) return; // already recorded this window OR deduped
+
+  // Flush immediately when sb is ready, retry up to 5x with backoff
+  async function flush(attempt=0){
+    if(!sb){ if(attempt<5) setTimeout(()=>flush(attempt+1),(attempt+1)*1500); return; }
+    try{
+      const{data:row,error}=await sb.from('site_visits').insert([payload]).select('id').single();
+      if(!error && row?.id){
+        window._visitRowId=row.id; // store so we can link to user later
+      }
+    }catch(_){}
+  }
+  flush();
+
+  // Track time on page — update record when user leaves
+  let _startTime=Date.now();
+  function saveTimeOnPage(){
+    const secs=Math.round((Date.now()-_startTime)/1000);
+    if(sb && window._visitRowId && secs>0){
+      // Use sendBeacon so it works even as tab closes
+      const url=`${SB_URL}/rest/v1/site_visits?id=eq.${window._visitRowId}`;
+      const body=JSON.stringify({time_on_page:secs,is_bounce:secs<15});
+      try{
+        navigator.sendBeacon(url,new Blob([body],{type:'application/json'}));
+      }catch(_){
+        // Fallback: sync fetch (may fail on unload but worth trying)
+        if(sb) sb.from('site_visits').update({time_on_page:secs,is_bounce:secs<15}).eq('id',window._visitRowId).catch(()=>{});
+      }
+    }
+  }
+  window.addEventListener('beforeunload', saveTimeOnPage, {once:true});
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveTimeOnPage(); });
+
+  // When user signs in, link their id to this visit row
+  if(sb){
+    const unsub=sb.auth.onAuthStateChange(async(_evt,sess)=>{
+      if(sess?.user?.id && window._visitRowId){
+        try{ await sb.from('site_visits').update({user_id:sess.user.id}).eq('id',window._visitRowId); }catch(_){}
+        unsub?.data?.subscription?.unsubscribe?.();
+      }
+    });
+  }
+}
+
+// ── Track which tab/sub the user visits ──
+// Batches locally and flushes to tab_visits table every 60s or on unload
+window._tabVisitQueue=[];
+window._tabFlushTimer=null;
+function trackTabVisit(tabName){
+  if(!tabName) return;
+  window._tabVisitQueue.push({
+    tab_name:tabName,
+    user_id:user?.id||null,
+    visited_at:new Date().toISOString()
+  });
+  clearTimeout(window._tabFlushTimer);
+  window._tabFlushTimer=setTimeout(flushTabVisits,60000);
+}
+async function flushTabVisits(){
+  if(!sb||!window._tabVisitQueue.length) return;
+  const rows=[...window._tabVisitQueue];
+  window._tabVisitQueue=[];
+  try{ await sb.from('tab_visits').insert(rows); }catch(_){ window._tabVisitQueue.push(...rows); }
+}
+window.addEventListener('beforeunload',()=>{ flushTabVisits(); });
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushTabVisits(); });
+
+async function renderAdmAnalytics(){
+  const el=document.getElementById('adm-content');
+  if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
+  el.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+
+  // Date windows
+  const now=new Date();
+  const todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()).toISOString();
+  const weekStart=new Date(now-7*24*60*60*1000).toISOString();
+  const monthStart=new Date(now-30*24*60*60*1000).toISOString();
+
+  try{
+    const[{data:visits},{data:todayRows},{data:weekRows},{data:profileStats},{data:tabRows}]=await Promise.all([
+      sb.from('site_visits').select('browser,device,visited_at,user_id,referrer,time_on_page,is_bounce,language,screen_res').gte('visited_at',monthStart).order('visited_at',{ascending:false}).limit(3000),
+      sb.from('site_visits').select('id,user_id,is_bounce,time_on_page').gte('visited_at',todayStart),
+      sb.from('site_visits').select('id,user_id').gte('visited_at',weekStart),
+      sb.from('profiles').select('id,role,created_at').gte('created_at',monthStart),
+      sb.from('tab_visits').select('tab_name,user_id,visited_at').gte('visited_at',monthStart).limit(5000)
+    ]);
+
+    const all=visits||[];
+    const today=todayRows||[];
+    const week=weekRows||[];
+
+    // ── Totals ──
+    const totalMonth=all.length;
+    const totalToday=today.length;
+    const totalWeek=week.length;
+    const uniqueToday=new Set(today.filter(r=>r.user_id).map(r=>r.user_id)).size;
+    const anonToday=today.filter(r=>!r.user_id).length;
+
+    // ── Hourly (today) ──
+    const byHour=Array(24).fill(0);
+    all.filter(r=>r.visited_at>=todayStart).forEach(r=>{
+      const h=new Date(r.visited_at).getHours();
+      byHour[h]++;
+    });
+    const peakHour=byHour.indexOf(Math.max(...byHour));
+    const maxHourVal=Math.max(...byHour,1);
+
+    // ── Daily (last 14 days) ──
+    const day14Start=new Date(now-14*24*60*60*1000).toISOString();
+    const byDay={};
+    all.filter(r=>r.visited_at>=day14Start).forEach(r=>{
+      const d=r.visited_at.slice(0,10);
+      byDay[d]=(byDay[d]||0)+1;
+    });
+    const dayKeys=[];
+    for(let i=13;i>=0;i--){
+      const d=new Date(now-i*24*60*60*1000);
+      dayKeys.push(d.toISOString().slice(0,10));
+    }
+    const maxDayVal=Math.max(...dayKeys.map(d=>byDay[d]||0),1);
+
+    // ── Browser breakdown ──
+    const byCat={};
+    all.forEach(r=>{ byCat[r.browser||'Other']=(byCat[r.browser||'Other']||0)+1; });
+    const browsers=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+    const browserColors={'Chrome':'#4285F4','Firefox':'#FF7139','Safari':'#006CFF','Edge':'#0078D4','Samsung':'#1428A0','Opera':'#FF1B2D','IE':'#0076D6','Other':'var(--t3)'};
+
+    // ── Device breakdown ──
+    const byDev={};
+    all.forEach(r=>{ byDev[r.device||'Desktop']=(byDev[r.device||'Desktop']||0)+1; });
+
+    // ── Referrers ──
+    const byRef={};
+    all.forEach(r=>{ const ref=r.referrer||'direct'; byRef[ref]=(byRef[ref]||0)+1; });
+    const refs=Object.entries(byRef).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+    // ── Weekly comparison (this week vs last week) ──
+    const lastWeekStart=new Date(now-14*24*60*60*1000).toISOString();
+    const lastWeekCount=all.filter(r=>r.visited_at>=lastWeekStart&&r.visited_at<weekStart).length;
+    const weekChange=lastWeekCount?Math.round((totalWeek-lastWeekCount)/lastWeekCount*100):100;
+
+    // ── Account stats ──
+    const allVisits=visits||[];
+    const totalRegistered=(profileStats||[]).length;
+    const memberVisitsMonth=new Set(allVisits.filter(r=>r.user_id).map(r=>r.user_id)).size;
+    const anonVisitsMonth=allVisits.filter(r=>!r.user_id).length;
+    const memberVisitsPct=totalMonth?Math.round(memberVisitsMonth/totalMonth*100):0;
+    const anonVisitsPct=totalMonth?Math.round(anonVisitsMonth/totalMonth*100):0;
+
+    // ── Total ever registered users (all time) ──
+    let totalUsersEver=0;
+    try{
+      const{count}=await sb.from('profiles').select('id',{count:'exact',head:true});
+      totalUsersEver=count||0;
+    }catch(_){}
+
+    // ── Tab analytics ──
+    const tabs=tabRows||[];
+    const byTab={};
+    const bySub={};
+    tabs.forEach(r=>{
+      const n=r.tab_name||'';
+      if(n.startsWith('tab:')){
+        const k=n.slice(4); byTab[k]=(byTab[k]||0)+1;
+      } else if(n.startsWith('sub:')){
+        const k=n.slice(4); bySub[k]=(bySub[k]||0)+1;
+      }
+    });
+    const topTabs=Object.entries(byTab).sort((a,b)=>b[1]-a[1]);
+    const topSubs=Object.entries(bySub).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const totalTabViews=tabs.length||1;
+
+    // ── Bounce rate + avg time on page ──
+    const withTime=all.filter(r=>r.time_on_page>0);
+    const bounceCount=all.filter(r=>r.is_bounce).length;
+    const bounceRate=totalMonth?Math.round(bounceCount/totalMonth*100):0;
+    const avgTime=withTime.length?Math.round(withTime.reduce((s,r)=>s+(r.time_on_page||0),0)/withTime.length):0;
+    const avgTimeStr=avgTime<60?avgTime+'s':Math.floor(avgTime/60)+'m '+(avgTime%60)+'s';
+
+    // ── Language breakdown (top 5) ──
+    const byLang={};
+    all.forEach(r=>{ const l=(r.language||'en').split('-')[0].toUpperCase(); byLang[l]=(byLang[l]||0)+1; });
+    const langs=Object.entries(byLang).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+    const fmtDay=iso=>new Date(iso).toLocaleDateString('en-KE',{day:'2-digit',month:'short'});
+
+    el.innerHTML=`
+    <!-- KPI CARDS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 12px 0">
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:14px;position:relative;overflow:hidden">
+        <div style="font-size:.54rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Today</div>
+        <div style="font-family:var(--fd);font-size:1.8rem;color:var(--gold);line-height:1">${totalToday}</div>
+        <div style="font-size:.6rem;color:var(--t3);margin-top:4px">${uniqueToday} members · ${anonToday} guests</div>
+        <i class="fas fa-calendar-day" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:1.8rem;color:rgba(201,168,76,.08)"></i>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:14px;position:relative;overflow:hidden">
+        <div style="font-size:.54rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">This Week</div>
+        <div style="font-family:var(--fd);font-size:1.8rem;color:var(--gold);line-height:1">${totalWeek}</div>
+        <div style="font-size:.6rem;color:${weekChange>=0?'#32C864':'var(--red)'};margin-top:4px">${weekChange>=0?'+':''}${weekChange}% vs last week</div>
+        <i class="fas fa-calendar-week" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:1.8rem;color:rgba(201,168,76,.08)"></i>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:14px;position:relative;overflow:hidden">
+        <div style="font-size:.54rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">This Month</div>
+        <div style="font-family:var(--fd);font-size:1.8rem;color:var(--gold);line-height:1">${totalMonth}</div>
+        <div style="font-size:.6rem;color:var(--t3);margin-top:4px">last 30 days</div>
+        <i class="fas fa-chart-line" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:1.8rem;color:rgba(201,168,76,.08)"></i>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:14px;position:relative;overflow:hidden">
+        <div style="font-size:.54rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Peak Hour Today</div>
+        <div style="font-family:var(--fd);font-size:1.8rem;color:var(--gold);line-height:1">${peakHour}:00</div>
+        <div style="font-size:.6rem;color:var(--t3);margin-top:4px">${byHour[peakHour]} visits at this hour</div>
+        <i class="fas fa-clock" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:1.8rem;color:rgba(201,168,76,.08)"></i>
+      </div>
+    </div>
+
+    <!-- BOUNCE + AVG TIME CARDS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 0">
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:14px;position:relative;overflow:hidden">
+        <div style="font-size:.54rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Bounce Rate</div>
+        <div style="font-family:var(--fd);font-size:1.8rem;color:${bounceRate>70?'var(--red)':bounceRate>40?'#FFA032':'#32C864'};line-height:1">${bounceRate}%</div>
+        <div style="font-size:.6rem;color:var(--t3);margin-top:4px">left in under 15s</div>
+        <i class="fas fa-door-open" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:1.8rem;color:rgba(201,168,76,.07)"></i>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:14px;position:relative;overflow:hidden">
+        <div style="font-size:.54rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Avg Time on Page</div>
+        <div style="font-family:var(--fd);font-size:1.8rem;color:var(--gold);line-height:1">${avgTimeStr}</div>
+        <div style="font-size:.6rem;color:var(--t3);margin-top:4px">based on ${withTime.length} tracked</div>
+        <i class="fas fa-stopwatch" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:1.8rem;color:rgba(201,168,76,.07)"></i>
+      </div>
+    </div>
+
+    <!-- DAILY CHART (14 days) -->
+    <div class="adm-section" style="margin-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h3 style="margin:0">Daily Visits (14 days)</h3>
+        <button class="btn btn-ghost btn-xs" onclick="renderAdmAnalytics()"><i class="fas fa-sync"></i></button>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:120px;padding-bottom:24px;position:relative">
+        ${dayKeys.map(d=>{
+          const val=byDay[d]||0;
+          const h=Math.max(4,Math.round(val/maxDayVal*100));
+          const isToday=d===now.toISOString().slice(0,10);
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative">
+            <div style="font-size:.5rem;color:var(--t3);position:absolute;top:-16px;white-space:nowrap">${val||''}</div>
+            <div style="width:100%;background:${isToday?'var(--gold)':'rgba(201,168,76,.35)'};border-radius:3px 3px 0 0;height:${h}%;transition:height .3s;cursor:default" title="${d}: ${val} visits"></div>
+            <div style="font-size:.46rem;color:${isToday?'var(--gold)':'var(--t4)'};position:absolute;bottom:-20px;white-space:nowrap;font-weight:${isToday?'700':'400'}">${new Date(d+'T12:00:00').toLocaleDateString('en-KE',{day:'2-digit',month:'short'})}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- HOURLY CHART (today) -->
+    <div class="adm-section">
+      <h3 style="margin-bottom:12px">Visits by Hour Today</h3>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:80px;padding-bottom:20px">
+        ${byHour.map((v,h)=>{
+          const ht=Math.max(2,Math.round(v/maxHourVal*100));
+          const isNow=h===now.getHours();
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;position:relative">
+            <div style="width:100%;background:${isNow?'var(--gold)':'rgba(201,168,76,.3)'};border-radius:2px 2px 0 0;height:${ht}%;min-height:2px" title="${h}:00 — ${v} visits"></div>
+            ${h%3===0?`<div style="font-size:.44rem;color:var(--t4);position:absolute;bottom:-18px">${h}h</div>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- BROWSERS + DEVICES -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 12px">
+      <!-- Browsers -->
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:14px">
+        <div style="font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Browsers</div>
+        ${browsers.slice(0,6).map(([br,cnt])=>{
+          const pct=Math.round(cnt/totalMonth*100)||1;
+          const col=browserColors[br]||'var(--t3)';
+          return `<div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:.68rem;color:var(--t1);font-weight:500">${br}</span>
+              <span style="font-size:.64rem;color:${col};font-weight:600">${pct}%</span>
+            </div>
+            <div style="height:5px;background:var(--bg2);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${col};border-radius:3px;transition:width .4s"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <!-- Devices -->
+      <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:14px">
+        <div style="font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Devices</div>
+        ${Object.entries(byDev).sort((a,b)=>b[1]-a[1]).map(([dev,cnt])=>{
+          const pct=Math.round(cnt/totalMonth*100)||1;
+          const icons={'Mobile':'fa-mobile-alt','Tablet':'fa-tablet-alt','Desktop':'fa-desktop'};
+          const cols={'Mobile':'var(--gold)','Tablet':'#9B8AF0','Desktop':'#32C864'};
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)">
+            <div style="width:32px;height:32px;border-radius:8px;background:rgba(201,168,76,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <i class="fas ${icons[dev]||'fa-globe'}" style="font-size:.8rem;color:${cols[dev]||'var(--t3)'}"></i>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.74rem;color:var(--t1);font-weight:500;margin-bottom:2px">${dev}</div>
+              <div style="height:4px;background:var(--bg2);border-radius:2px"><div style="height:100%;width:${pct}%;background:${cols[dev]||'var(--t3)'};border-radius:2px"></div></div>
+            </div>
+            <span style="font-size:.7rem;color:var(--t3);font-weight:600;flex-shrink:0">${cnt}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- REFERRERS -->
+    <div class="adm-section">
+      <h3 style="margin-bottom:10px">Traffic Sources (30 days)</h3>
+      ${refs.map(([ref,cnt])=>{
+        const pct=Math.round(cnt/totalMonth*100)||1;
+        const isWA=ref.includes('whatsapp')||ref.includes('wa.me');
+        const isIG=ref.includes('instagram');
+        const isFB=ref.includes('facebook');
+        const color=isWA?'#25D366':isIG?'#E1306C':isFB?'#1877F2':ref==='direct'?'var(--gold)':'#9B8AF0';
+        const icon=isWA?'fa-whatsapp fab':isIG?'fa-instagram fab':isFB?'fa-facebook fab':ref==='direct'?'fa-link fas':'fa-globe fas';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)">
+          <div style="width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="${icon}" style="font-size:.72rem;color:${color}"></i>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:.72rem;color:var(--t1);font-weight:500">${ref==='direct'?'Direct / Unknown':ref}</span>
+              <span style="font-size:.66rem;color:${color};font-weight:600">${cnt}</span>
+            </div>
+            <div style="height:4px;background:var(--bg2);border-radius:2px"><div style="height:100%;width:${pct}%;background:${color};border-radius:2px"></div></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <!-- VISITOR TYPE BREAKDOWN -->
+    <div class="adm-section">
+      <h3 style="margin-bottom:12px">Visitor Breakdown (30 days)</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="background:var(--bg3);border:1px solid var(--gold-a25);border-radius:var(--rl);padding:12px;text-align:center">
+          <div style="font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Registered</div>
+          <div style="font-family:var(--fd);font-size:1.5rem;color:var(--gold)">${totalUsersEver}</div>
+          <div style="font-size:.58rem;color:var(--t3);margin-top:2px">total accounts</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid rgba(50,200,100,.25);border-radius:var(--rl);padding:12px;text-align:center">
+          <div style="font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Members Visited</div>
+          <div style="font-family:var(--fd);font-size:1.5rem;color:#32C864">${memberVisitsMonth}</div>
+          <div style="font-size:.58rem;color:var(--t3);margin-top:2px">${memberVisitsPct}% of traffic</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid rgba(155,138,240,.25);border-radius:var(--rl);padding:12px;text-align:center">
+          <div style="font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Anonymous</div>
+          <div style="font-family:var(--fd);font-size:1.5rem;color:#9B8AF0">${anonVisitsMonth}</div>
+          <div style="font-size:.58rem;color:var(--t3);margin-top:2px">${anonVisitsPct}% of traffic</div>
+        </div>
+      </div>
+      <!-- Visual bar -->
+      <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;gap:2px">
+        <div style="width:${memberVisitsPct}%;background:linear-gradient(90deg,#32C864,#1ea852);border-radius:5px 0 0 5px;transition:width .4s" title="Members: ${memberVisitsPct}%"></div>
+        <div style="width:${anonVisitsPct}%;background:linear-gradient(90deg,#9B8AF0,#7B6AD0);border-radius:0 5px 5px 0;transition:width .4s" title="Anonymous: ${anonVisitsPct}%"></div>
+      </div>
+      <div style="display:flex;gap:14px;margin-top:6px">
+        <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:10px;border-radius:50%;background:#32C864"></div><span style="font-size:.6rem;color:var(--t3)">Members</span></div>
+        <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:10px;border-radius:50%;background:#9B8AF0"></div><span style="font-size:.6rem;color:var(--t3)">Anonymous</span></div>
+      </div>
+    </div>
+
+    <!-- TOP TABS -->
+    ${topTabs.length?`
+    <div class="adm-section">
+      <h3 style="margin-bottom:12px">Most Visited Tabs (30 days)</h3>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${topTabs.map(([tab,cnt],i)=>{
+          const pct=Math.round(cnt/totalTabViews*100)||1;
+          const tabIcons={home:'fa-home',shop:'fa-store',gallery:'fa-images',acc:'fa-user',more:'fa-ellipsis-h'};
+          const tabColors={home:'var(--gold)',shop:'#32C864',gallery:'#9B8AF0',acc:'#4DBBFF',more:'var(--t3)'};
+          const col=tabColors[tab]||'var(--gold)';
+          const icon=tabIcons[tab]||'fa-circle';
+          const medals=['🥇','🥈','🥉'];
+          return '<div style="display:flex;align-items:center;gap:10px">'
+            +'<span style="font-size:.7rem;width:18px;text-align:center">'+(medals[i]||'·')+'</span>'
+            +'<div style="width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+            +'<i class="fas '+icon+'" style="font-size:.7rem;color:'+col+'"></i></div>'
+            +'<div style="flex:1;min-width:0">'
+            +'<div style="display:flex;justify-content:space-between;margin-bottom:3px">'
+            +'<span style="font-size:.74rem;color:var(--t1);font-weight:600;text-transform:capitalize">'+tab+'</span>'
+            +'<span style="font-size:.66rem;color:'+col+';font-weight:700">'+cnt+' <span style="font-weight:400;color:var(--t3)">·</span> '+pct+'%</span>'
+            +'</div>'
+            +'<div style="height:5px;background:var(--bg2);border-radius:3px;overflow:hidden">'
+            +'<div style="height:100%;width:'+pct+'%;background:'+col+';border-radius:3px;transition:width .4s"></div>'
+            +'</div></div></div>';
+        }).join('')}
+      </div>
+    </div>`:''}
+
+    <!-- TOP SUB-SCREENS -->
+    ${topSubs.length?`
+    <div class="adm-section">
+      <h3 style="margin-bottom:12px">Most Opened Sub-Screens (30 days)</h3>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${topSubs.map(([sub,cnt],i)=>{
+          const pct=Math.round(cnt/totalTabViews*100)||1;
+          const subLabels={about:'About Us',contact:'Contact',agent:'Become an Agent',share:'Share',terms:'Terms & Conditions',privacy:'Privacy Policy',orders:'My Orders',notifs:'Notifications',editprofile:'Edit Profile',developer:'Developer',wishlist:'Wishlist'};
+          const label=subLabels[sub]||sub.charAt(0).toUpperCase()+sub.slice(1);
+          return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--bd)">'
+            +'<span style="font-size:.62rem;color:var(--t3);width:16px;text-align:center">'+(i+1)+'.</span>'
+            +'<div style="flex:1"><div style="display:flex;justify-content:space-between;margin-bottom:2px">'
+            +'<span style="font-size:.72rem;color:var(--t1)">'+label+'</span>'
+            +'<span style="font-size:.64rem;color:var(--gold);font-weight:600">'+cnt+'</span>'
+            +'</div>'
+            +'<div style="height:4px;background:var(--bg2);border-radius:2px">'
+            +'<div style="height:100%;width:'+pct+'%;background:var(--gold-a45);border-radius:2px"></div>'
+            +'</div></div></div>';
+        }).join('')}
+      </div>
+    </div>`:''}
+
+    <!-- LANGUAGES -->
+    ${langs.length?`
+    <div class="adm-section">
+      <h3 style="margin-bottom:10px">Languages (30 days)</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${langs.map(([lang,cnt])=>{
+          const pct=Math.round(cnt/totalMonth*100)||1;
+          return '<div style="flex:1;min-width:80px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:10px;text-align:center">'
+            +'<div style="font-family:var(--fd);font-size:1.1rem;color:var(--gold);margin-bottom:2px">'+lang+'</div>'
+            +'<div style="font-size:.6rem;color:var(--t3)">'+pct+'% · '+cnt+'</div>'
+            +'</div>';
+        }).join('')}
+      </div>
+    </div>`:''}
+    `;
+  }catch(err){
+    el.innerHTML=`<div class="adm-section"><div style="text-align:center;padding:32px">
+      <i class="fas fa-chart-bar" style="font-size:2rem;color:var(--bd2);margin-bottom:12px;display:block"></i>
+      <p style="font-size:.82rem;color:var(--t3);margin-bottom:16px">${esc(err?.message||'Could not load analytics')}</p>
+      <button class="btn btn-gold btn-sm" onclick="renderAdmAnalytics()"><i class="fas fa-redo"></i>Retry</button>
+    </div></div>`;
+  }
 }
 
 /* ════════ SMART AUTO-REFRESH SYSTEM ════════ */
@@ -3214,6 +3816,7 @@ function showTab(tab) {
   if (tab === 'acc') renderAcc();
   if (tab === 'home') { animateHeroStats(); initReveal(); }
   window.scrollTo(0, 0);
+  trackTabVisit('tab:'+tab);
 }
 function goShop(filter) {
   showTab('shop');
@@ -4192,6 +4795,7 @@ function openSub(name){
   _navPush('sub:'+name);
   if(name==='about')setTimeout(runAboutCounters,300);
   if(name==='agent')setTimeout(checkAgentStatus,300);
+  trackTabVisit('sub:'+name);
 }
 function closeSub(name){
   document.getElementById('sub-'+name)?.classList.remove('on');
@@ -5112,7 +5716,26 @@ function closeAdmin(){
     history.go(-1);
   }
 }
-function admTab(name){document.querySelectorAll('.adm-tab').forEach(t=>t.classList.remove('on'));document.querySelector(`.adm-tab[onclick="admTab('${name}')"]`)?.classList.add('on');const content=document.getElementById('adm-content');const sections={overview:renderAdmOverview,notifications:renderAdmNotifications,logs:renderAdmLogs,products:renderAdmProducts,inventory:renderAdmInventory,orders:renderAdmOrders,users:renderAdmUsers,badges:renderAdmBadges,agents:renderAdmAgents,gallery:renderAdmGallery,adverts:renderAdmAdverts,messages:renderAdmMessages,broadcast:renderAdmBroadcast,settings:renderAdmSettings};content.innerHTML='<div class="load-center"><div class="spin"></div></div>';(sections[name]||(() => {}))();}
+function admTab(name){
+  document.querySelectorAll('.adm-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll(`.adm-tab[data-tab="${name}"]`).forEach(t=>t.classList.add('on'));
+  // Update header subtitle
+  const tabNames={overview:'Overview',notifications:'Notifications',logs:'Activity Logs',products:'Products',inventory:'Inventory',orders:'Orders',users:'Users & Contacts',badges:'Customer Badges',agents:'Agents',gallery:'Gallery',adverts:'Adverts',messages:'Messages',broadcast:'Broadcast',analytics:'Analytics',settings:'Settings'};
+  const nameEl=document.getElementById('adm-current-tab-name');
+  if(nameEl) nameEl.textContent=tabNames[name]||name;
+  const content=document.getElementById('adm-content');
+  const sections={overview:renderAdmOverview,notifications:renderAdmNotifications,logs:renderAdmLogs,products:renderAdmProducts,inventory:renderAdmInventory,orders:renderAdmOrders,users:renderAdmUsers,badges:renderAdmBadges,agents:renderAdmAgents,gallery:renderAdmGallery,adverts:renderAdmAdverts,messages:renderAdmMessages,broadcast:renderAdmBroadcast,analytics:renderAdmAnalytics,settings:renderAdmSettings};
+  content.innerHTML='<div class="load-center"><div class="spin"></div></div>';
+  (sections[name]||(() => {}))();
+}
+function toggleAdmSidebar(){
+  const sb=document.getElementById('adm-sidebar');
+  const icon=document.getElementById('adm-sidebar-icon');
+  if(sb){
+    const expanded=sb.classList.toggle('expanded');
+    if(icon) icon.className=expanded?'fas fa-times':'fas fa-bars';
+  }
+}
 async function renderAdmOverview(){
   const el=document.getElementById('adm-content');
   if(!sb){el.innerHTML='<div class="load-center">Supabase not configured</div>';return;}
